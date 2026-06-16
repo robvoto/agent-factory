@@ -1,0 +1,15 @@
+{
+  "id": "example-agent-id",
+  "name": "Example Agent Name",
+  "aliases": ["example"],
+  "tools": [],
+  "permissions": {
+    "network": false,
+    "filesystem": "none",
+    "requires_approval": true
+  },
+  "memory": {
+    "scope": "none",
+    "retention": "none"
+  }
+}

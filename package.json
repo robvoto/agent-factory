@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "bpmn-js": "^18.18.0",
+    "puppeteer": "^25.1.0"
+  }
+}

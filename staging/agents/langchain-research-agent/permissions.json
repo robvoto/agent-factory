@@ -1,0 +1,6 @@
+{
+  "network": false,
+  "filesystem": "none",
+  "shell": false,
+  "requires_approval": true
+}

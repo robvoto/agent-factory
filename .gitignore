@@ -1,0 +1,16 @@
+.env
+.venv/
+.agents/
+.claude/
+.codex/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+node_modules/
+data/*.sqlite3
+data/factory_checkpoints.sqlite3
+data/*.json

@@ -1,0 +1,17 @@
+{
+  "default_model": "mini",
+  "default_coding_model": "codex",
+  "models": {
+    "codex": "openai:o4-mini",
+    "claude": "anthropic:claude-sonnet-4-6",
+    "mini": "openai:gpt-4.1-mini",
+    "opus": "anthropic:claude-opus-4-8"
+  },
+  "telegram_bots": [
+    {
+      "name": "factory",
+      "token_env": "TELEGRAM_FACTORY_TOKEN",
+      "allowed_chat_ids_env": "TELEGRAM_FACTORY_CHAT_IDS"
+    }
+  ]
+}

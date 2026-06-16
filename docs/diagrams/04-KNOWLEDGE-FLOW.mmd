@@ -1,0 +1,45 @@
+flowchart TD
+    subgraph Sources["Knowledge Sources"]
+        LocalDocs["Local docs/\narchitecture, contracts,\nworkflows, ADRs"]
+        TrustedURLs["Trusted online sources\nLangChain, LangGraph,\nAnthropix, OpenAI docs"]
+        AgentOutcomes["Agent outcomes\nwhat worked, what failed,\npatterns discovered"]
+        UserPrefs["User preferences\ndecisions made,\nstyle choices"]
+    end
+
+    subgraph Store["Shared Knowledge Store\nknowledge_store.sqlite3"]
+        SharedDocs["(shared, docs)\narchitecture + standards"]
+        SharedTrusted["(shared, trusted)\nonline reference docs"]
+        AgentLearnings["(agent, id, learnings)\nper-agent experience"]
+        UserMemory["(user, id, preferences)\nper-user preferences"]
+    end
+
+    subgraph Agents["All Agents — Read + Write"]
+        FactoryBrain["Factory Brain\nreads architecture\nwrites decisions"]
+        ArmyOrch["Army Orchestrator\nreads routing patterns\nwrites routing outcomes"]
+        ATL["AI Tech Lead\nreads coding patterns\nwrites task outcomes"]
+        FutureAgents["Future agents\nadd as they join the army"]
+        Keeper["Knowledge Keeper\nindexes + compacts\nruns on schedule"]
+    end
+
+    LocalDocs -->|ingested on change| SharedDocs
+    TrustedURLs -->|crawled on schedule| SharedTrusted
+    AgentOutcomes -->|written after each task| AgentLearnings
+    UserPrefs -->|written during conversation| UserMemory
+
+    SharedDocs <-->|search + write| FactoryBrain
+    SharedTrusted <-->|search| FactoryBrain
+    AgentLearnings <-->|search + write| FactoryBrain
+
+    SharedDocs <-->|search| ArmyOrch
+    AgentLearnings <-->|search + write| ArmyOrch
+
+    SharedDocs <-->|search| ATL
+    SharedTrusted <-->|search| ATL
+    AgentLearnings <-->|write| ATL
+
+    AgentLearnings <-->|write| FutureAgents
+
+    Keeper -->|re-index, deduplicate, compact| Store
+
+    style Store fill:#e8f4e8,stroke:#5a9e5a
+    style Keeper fill:#fff3e0,stroke:#e6a817

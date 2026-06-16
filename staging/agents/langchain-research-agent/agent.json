@@ -1,0 +1,25 @@
+{
+  "id": "langchain-research-agent",
+  "name": "LangChain Research Agent",
+  "aliases": [
+    "research",
+    "lc-docs"
+  ],
+  "tools": [
+    "read_project_doc"
+  ],
+  "permissions": {
+    "network": false,
+    "filesystem": "none",
+    "shell": false,
+    "requires_approval": true
+  },
+  "memory": {
+    "scope": "none",
+    "retention": "none"
+  },
+  "runtime": {
+    "mode": "manual",
+    "entrypoint": null
+  }
+}

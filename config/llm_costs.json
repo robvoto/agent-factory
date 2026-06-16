@@ -1,0 +1,35 @@
+{
+  "updated_at": "2026-06-15T00:00:00+10:00",
+  "source": {
+    "name": "OpenAI API Pricing",
+    "url": "https://openai.com/api/pricing/",
+    "verified_at": "2026-06-15",
+    "notes": "Seeded from the official pricing page. Models without a verified rate stay marked unknown so the logger fails closed."
+  },
+  "models": {
+    "gpt-5.5": {
+      "input_per_1m": 5.0,
+      "cached_input_per_1m": 0.5,
+      "output_per_1m": 30.0
+    },
+    "gpt-5.4": {
+      "input_per_1m": 2.5,
+      "cached_input_per_1m": 0.25,
+      "output_per_1m": 15.0
+    },
+    "gpt-5.4-mini": {
+      "input_per_1m": 0.75,
+      "cached_input_per_1m": 0.075,
+      "output_per_1m": 4.5
+    },
+    "gpt-5.4-nano": {
+      "input_per_1m": 0.2,
+      "cached_input_per_1m": 0.02,
+      "output_per_1m": 1.25
+    },
+    "gpt-4.1-mini": {
+      "status": "unknown",
+      "notes": "No verified base pricing in the current official pricing snapshot. Logs will record token counts but leave cost unknown until this entry is updated."
+    }
+  }
+}

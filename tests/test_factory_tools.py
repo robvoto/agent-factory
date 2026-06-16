@@ -1,0 +1,196 @@
+"""Tests for factory_tools — bounded tools exposed to the Factory Brain."""
+
+import json
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from agent_factory.agent_spec import AgentPackageSpec
+
+
+def _spec_json(**overrides) -> str:
+    base = {
+        "id": "test-agent",
+        "name": "Test Agent",
+        "purpose": "A safe test agent",
+        "aliases": ["test"],
+    }
+    base.update(overrides)
+    return json.dumps(base)
+
+
+# ---------------------------------------------------------------------------
+# list_staged_agents
+# ---------------------------------------------------------------------------
+
+def test_list_staged_agents_empty(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging" / "agents")
+    result = factory_tools.list_staged_agents.invoke({})
+    assert "No staged" in result
+
+
+def test_list_staged_agents_with_entries(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    (staging / "alpha-agent").mkdir(parents=True)
+    (staging / "beta-agent").mkdir(parents=True)
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+
+    result = factory_tools.list_staged_agents.invoke({})
+    assert "alpha-agent" in result
+    assert "beta-agent" in result
+
+
+# ---------------------------------------------------------------------------
+# list_known_agents
+# ---------------------------------------------------------------------------
+
+def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    enabled = tmp_path / "config" / "agents"
+    staging.mkdir(parents=True)
+    enabled.mkdir(parents=True)
+
+    manifest = {
+        "id": "alpha-agent",
+        "name": "Alpha Agent",
+        "aliases": ["alpha"],
+        "tools": [],
+        "permissions": {
+            "network": False,
+            "filesystem": "none",
+            "shell": False,
+            "requires_approval": True,
+        },
+        "memory": {
+            "scope": "none",
+            "retention": "none",
+        },
+    }
+    (staging / "agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging" / "agents")
+
+    result = factory_tools.list_known_agents.invoke({})
+
+    assert "alpha-agent" in result
+    assert "staged" in result
+    assert "enabled" in result
+    assert "staging/agents/alpha-agent" in result
+    assert "config/agents/alpha-agent.json" in result
+
+
+# ---------------------------------------------------------------------------
+# create_staged_agent_package (end-to-end)
+# ---------------------------------------------------------------------------
+
+def test_create_staged_agent_package_success(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {"spec_json": _spec_json()}
+    )
+
+    assert "test-agent" in result
+    assert "Files created" in result
+
+    pkg = staging / "test-agent"
+    assert (pkg / "agent.json").exists()
+    assert (pkg / "SYSTEM.md").exists()
+    assert (pkg / "REVIEW.md").exists()
+    assert (pkg / "tools.json").exists()
+    assert (pkg / "permissions.json").exists()
+    assert (pkg / "memory.json").exists()
+    assert (pkg / "README.md").exists()
+    assert (pkg / "tests" / ".gitkeep").exists()
+
+    from agent_factory.storage import get_staged_agent_record
+    row = get_staged_agent_record("test-agent", db_path=db)
+    assert row is not None
+    assert row["status"] == "staged"
+
+
+def test_create_staged_agent_package_invalid_json(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging")
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {"spec_json": "not json at all"}
+    )
+    assert "Invalid JSON" in result
+
+
+def test_create_staged_agent_package_invalid_spec(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging")
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {"spec_json": json.dumps({"id": "BAD-ID", "name": "x", "purpose": "x", "aliases": ["x"]})}
+    )
+    assert "Invalid agent spec" in result
+
+
+def test_create_staged_agent_package_risky_permissions_flagged(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    spec = _spec_json(
+        id="risky-agent",
+        aliases=["risky"],
+        permissions={"network": True, "filesystem": "none", "shell": False, "requires_approval": True},
+    )
+    result = factory_tools.create_staged_agent_package.invoke({"spec_json": spec})
+
+    assert "network" in result
+    review = (staging / "risky-agent" / "REVIEW.md").read_text()
+    assert "network" in review
+
+
+def test_create_staged_agent_package_duplicate_fails(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    first = factory_tools.create_staged_agent_package.invoke({"spec_json": _spec_json()})
+    result = factory_tools.create_staged_agent_package.invoke({"spec_json": _spec_json()})
+
+    assert "test-agent" in first
+    assert "already exists" in result
+    assert "No duplicate package was created" in result
