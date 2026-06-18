@@ -1,5 +1,6 @@
-# Army Routing — How a Request Gets to the Right Agent
+# Army Routing — Interaction Diagram
 
+This is the interaction diagram for how a request reaches the right agent.
 The orchestrator receives every request and decides which agent handles it.
 You never route manually unless you want to.
 

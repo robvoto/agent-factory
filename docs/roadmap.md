@@ -1,6 +1,7 @@
 # Roadmap
 
-This is the live execution doc.
+This is the live execution summary.
+Open work is managed in `../backlog/INDEX.md` and `../backlog/agent-factory-backlog.md`.
 For product direction, read `platform-architecture.md`.
 For technical shape, read `architecture.md`.
 For lifecycle and creation, read `agent-lifecycle.md` and `agent-creator-workflow.md`.
@@ -34,6 +35,7 @@ For factory runtime and memory, read `factory-brain-flow.md` and `diagrams/04-KN
 - explicit agent versioning and promotion diffs
 - shared knowledge base to replace the current memory stopgaps
 - tighter deployment and reload behavior once the core flow stays stable
+- Implement stable browser-based diagram rendering in WSL using one supported Chromium path.
 
 ## Why these are next
 

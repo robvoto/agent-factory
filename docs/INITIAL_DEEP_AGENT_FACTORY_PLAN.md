@@ -1,9 +1,11 @@
 # Initial Deep Agent Factory Implementation Plan
 
-Status: archived source plan.
+Status: closed and archived source plan.
 
 This file keeps the original plan for background only.
+Do not add new work here.
 The live execution summary is `roadmap.md`.
+The live backlog is `../backlog/INDEX.md`.
 
 ## Goal
 
@@ -45,6 +47,7 @@ Build a Telegram-first Agent Factory that can:
 - shared RAG knowledge base for all agents
 - full MCP server declaration and runtime wiring in agent specs
 - agent versioning and promotion diffs
+- queued message delivery for async handoff
 - zero-downtime deployment
 - hot reload beyond the current local development flow
 - broader observability and cost dashboards

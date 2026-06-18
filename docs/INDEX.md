@@ -4,7 +4,9 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- `roadmap.md` - live execution path and open work
+- `roadmap.md` - live execution path and summary
+- `../backlog/INDEX.md` - live backlog entry point
+- `../backlog/agent-factory-backlog.md` - active backlog items
 
 Historical source plan:
 
@@ -17,7 +19,7 @@ Diagrams:
 - `diagrams/02-AGENT-LIFECYCLE.md` - agent lifecycle Mermaid flowchart
 - `diagrams/03-TELEGRAM-FLOWS.md` - Telegram interaction Mermaid flowchart
 - `diagrams/04-KNOWLEDGE-FLOW.md` - knowledge and memory Mermaid flowchart
-- `diagrams/05-ARMY-ROUTING.md` - routing Mermaid flowchart
+- `diagrams/05-ARMY-ROUTING.md` - army routing interaction diagram
 - `diagrams/06-CODING-TASK-END-TO-END.md` - coding task end-to-end Mermaid flowchart
 - `diagrams/07-AGENT-FACTORY-BPMN.md` - BPMN 2.0 process diagram for the controlled Agent Factory workflow
 

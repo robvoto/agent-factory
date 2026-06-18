@@ -1,49 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Agent Factory BPMN 2.0 collaboration
-  Source of truth: .bpmn
-  Rendered SVG is derived from this model.
--->
-<bpmn:definitions
-  xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-  id="Definitions_AgentFactoryBPMN"
-  targetNamespace="http://agent-factory.ai/bpmn"
-  exporter="agent-factory"
-  exporterVersion="1.0">
-
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_AgentFactoryBPMN" targetNamespace="http://agent-factory.ai/bpmn" exporter="agent-factory" exporterVersion="1.0">
   <bpmn:collaboration id="Collab_AgentFactory">
     <bpmn:participant id="Part_Human" name="Human / Operator" processRef="Proc_Human"/>
-    <bpmn:participant id="Part_Telegram" name="Telegram Interface" processRef="Proc_Telegram"/>
-    <bpmn:participant id="Part_Orch" name="Agent Factory Orchestrator" processRef="Proc_Orch"/>
-    <bpmn:participant id="Part_Agent" name="Specialist Agent" processRef="Proc_Agent"/>
+    <bpmn:participant id="Part_AgentFactory" name="Agent Factory" processRef="Proc_AgentFactory"/>
     <bpmn:participant id="Part_Backend" name="Coding Backend" processRef="Proc_Backend"/>
-    <bpmn:participant id="Part_State" name="Persistent State / Logs" processRef="Proc_State"/>
-    <bpmn:messageFlow id="MF_01" name="Request" sourceRef="SE_Human" targetRef="SE_Telegram"/>
-    <bpmn:messageFlow id="MF_02" name="Request" sourceRef="T_ForwardRequest" targetRef="SE_Orch"/>
-    <bpmn:messageFlow id="MF_03" name="Task package" sourceRef="O_Dispatch" targetRef="SE_Agent"/>
-    <bpmn:messageFlow id="MF_04" name="Clarification request" sourceRef="A_ClarifyDraft" targetRef="T_RelayClarify"/>
-    <bpmn:messageFlow id="MF_05" name="Clarification prompt" sourceRef="T_RelayClarify" targetRef="H_ClarifyCatch"/>
-    <bpmn:messageFlow id="MF_06" name="Clarification answer" sourceRef="H_SendClarify" targetRef="T_ForwardClarify"/>
-    <bpmn:messageFlow id="MF_07" name="Clarification answer" sourceRef="T_ForwardClarify" targetRef="A_ClarifyReply"/>
-    <bpmn:messageFlow id="MF_08" name="Approval request" sourceRef="A_RequestApproval" targetRef="T_RelayApproval"/>
-    <bpmn:messageFlow id="MF_09" name="Approval prompt" sourceRef="T_RelayApproval" targetRef="H_ApprovalCatch"/>
-    <bpmn:messageFlow id="MF_10" name="Approval or rejection" sourceRef="H_SendDecision" targetRef="T_ForwardDecision"/>
-    <bpmn:messageFlow id="MF_11" name="Approval or rejection" sourceRef="T_ForwardDecision" targetRef="A_ApprovalReply"/>
-    <bpmn:messageFlow id="MF_12" name="Execute instruction" sourceRef="A_Execute" targetRef="SE_Backend"/>
-    <bpmn:messageFlow id="MF_13" name="Result" sourceRef="B_ReturnResult" targetRef="A_BackendReply"/>
-    <bpmn:messageFlow id="MF_14" name="Outcome" sourceRef="A_PackageSuccess" targetRef="O_Collect"/>
-    <bpmn:messageFlow id="MF_15" name="Outcome" sourceRef="A_PackageFailure" targetRef="O_Collect"/>
-    <bpmn:messageFlow id="MF_16" name="Outcome" sourceRef="A_PackageRejected" targetRef="O_Collect"/>
-    <bpmn:messageFlow id="MF_17" name="Request state" sourceRef="O_LogRequest" targetRef="S_StoreRequest"/>
-    <bpmn:messageFlow id="MF_18" name="Decision state" sourceRef="A_RequestApproval" targetRef="S_StoreDecision"/>
-    <bpmn:messageFlow id="MF_19" name="Execution log" sourceRef="B_RunChecks" targetRef="S_StoreExecLog"/>
-    <bpmn:messageFlow id="MF_20" name="Outcome state" sourceRef="O_LogOutcome" targetRef="S_StoreOutcome"/>
-    <bpmn:messageFlow id="MF_21" name="Summary" sourceRef="O_ReturnSummary" targetRef="T_RelaySummary"/>
-    <bpmn:messageFlow id="MF_22" name="Summary" sourceRef="T_RelaySummary" targetRef="H_SummaryCatch"/>
+    <bpmn:messageFlow id="MF_01" name="Request" sourceRef="SE_Human" targetRef="SE_Request"/>
+    <bpmn:messageFlow id="MF_02" name="Clarification request" sourceRef="T_RelayClarify" targetRef="H_ClarifyCatch"/>
+    <bpmn:messageFlow id="MF_03" name="Clarification answer" sourceRef="H_SendClarify" targetRef="T_ForwardClarify"/>
+    <bpmn:messageFlow id="MF_04" name="Approval request" sourceRef="T_RelayApproval" targetRef="H_ApprovalCatch"/>
+    <bpmn:messageFlow id="MF_05" name="Approval or rejection" sourceRef="H_SendDecision" targetRef="T_ForwardDecision"/>
+    <bpmn:messageFlow id="MF_06" name="Summary" sourceRef="T_RelaySummary" targetRef="H_SummaryCatch"/>
+    <bpmn:messageFlow id="MF_07" name="Instruction" sourceRef="A_Execute" targetRef="SE_Backend"/>
+    <bpmn:messageFlow id="MF_08" name="Result" sourceRef="B_ReturnResult" targetRef="A_BackendReply"/>
   </bpmn:collaboration>
+
+  <bpmn:dataStore id="DataStore_Persistent" name="Persistent State / Logs"/>
+  <bpmn:dataStoreReference id="DS_Persistent" name="Persistent State / Logs" dataStoreRef="DataStore_Persistent"/>
 
   <bpmn:process id="Proc_Human" isExecutable="false">
     <bpmn:startEvent id="SE_Human" name="Send request">
@@ -69,98 +41,135 @@
     <bpmn:sequenceFlow id="SF_H6" sourceRef="H_SummaryCatch" targetRef="EE_Human"/>
   </bpmn:process>
 
-  <bpmn:process id="Proc_Telegram" isExecutable="false">
-    <bpmn:startEvent id="SE_Telegram" name="Request received">
-      <bpmn:messageEventDefinition id="MED_SE_Telegram"/>
+  <bpmn:process id="Proc_AgentFactory" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_AgentFactory">
+      <bpmn:lane id="Lane_Telegram" name="Telegram Interface">
+        <bpmn:flowNodeRef>SE_Request</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ForwardRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RelayClarify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ForwardClarify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RelayApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ForwardDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RelaySummary</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_AgentFactory</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Orchestrator" name="Orchestrator">
+        <bpmn:flowNodeRef>O_Classify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_Select</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_Bundle</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_PersistRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_PersistDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_PersistOutcome</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>O_ReturnSummary</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Specialist" name="Specialist Agent">
+        <bpmn:flowNodeRef>A_Inspect</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Missing</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_ClarifyDraft</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_ClarifyReply</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_AssessRisk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Risk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_RequestApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_ApprovalReply</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_Approved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Execute</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_BackendReply</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_ExecSuccess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_PackageSuccess</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_PackageFailure</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_PackageRejected</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="SE_Request" name="Request received">
+      <bpmn:messageEventDefinition id="MED_SE_Request"/>
     </bpmn:startEvent>
     <bpmn:serviceTask id="T_ForwardRequest" name="Forward request to orchestrator"/>
-    <bpmn:serviceTask id="T_RelayClarify" name="Relay clarification request"/>
-    <bpmn:serviceTask id="T_ForwardClarify" name="Forward clarification to agent"/>
-    <bpmn:serviceTask id="T_RelayApproval" name="Relay approval request"/>
-    <bpmn:serviceTask id="T_ForwardDecision" name="Forward approval decision"/>
-    <bpmn:serviceTask id="T_RelaySummary" name="Relay final summary"/>
-    <bpmn:endEvent id="EE_Telegram" name="Delivered"/>
-    <bpmn:sequenceFlow id="SF_T1" sourceRef="SE_Telegram" targetRef="T_ForwardRequest"/>
-    <bpmn:sequenceFlow id="SF_T2" sourceRef="T_ForwardRequest" targetRef="T_RelayClarify"/>
-    <bpmn:sequenceFlow id="SF_T3" sourceRef="T_RelayClarify" targetRef="T_ForwardClarify"/>
-    <bpmn:sequenceFlow id="SF_T4" sourceRef="T_ForwardClarify" targetRef="T_RelayApproval"/>
-    <bpmn:sequenceFlow id="SF_T5" sourceRef="T_RelayApproval" targetRef="T_ForwardDecision"/>
-    <bpmn:sequenceFlow id="SF_T6" sourceRef="T_ForwardDecision" targetRef="T_RelaySummary"/>
-    <bpmn:sequenceFlow id="SF_T7" sourceRef="T_RelaySummary" targetRef="EE_Telegram"/>
-  </bpmn:process>
-
-  <bpmn:process id="Proc_Orch" isExecutable="false">
-    <bpmn:startEvent id="SE_Orch" name="Request received">
-      <bpmn:messageEventDefinition id="MED_SE_Orch"/>
-    </bpmn:startEvent>
     <bpmn:serviceTask id="O_Classify" name="Classify intent"/>
     <bpmn:serviceTask id="O_Select" name="Select agent"/>
     <bpmn:serviceTask id="O_Bundle" name="Prepare bounded task"/>
-    <bpmn:serviceTask id="O_LogRequest" name="Persist request state"/>
-    <bpmn:serviceTask id="O_Dispatch" name="Dispatch to specialist agent"/>
-    <bpmn:serviceTask id="O_Collect" name="Collect result"/>
-    <bpmn:serviceTask id="O_LogOutcome" name="Validate and log outcome"/>
-    <bpmn:serviceTask id="O_ReturnSummary" name="Return summary"/>
-    <bpmn:endEvent id="EE_Orch" name="Summary sent"/>
-    <bpmn:sequenceFlow id="SF_O1" sourceRef="SE_Orch" targetRef="O_Classify"/>
-    <bpmn:sequenceFlow id="SF_O2" sourceRef="O_Classify" targetRef="O_Select"/>
-    <bpmn:sequenceFlow id="SF_O3" sourceRef="O_Select" targetRef="O_Bundle"/>
-    <bpmn:sequenceFlow id="SF_O4" sourceRef="O_Bundle" targetRef="O_LogRequest"/>
-    <bpmn:sequenceFlow id="SF_O5" sourceRef="O_LogRequest" targetRef="O_Dispatch"/>
-    <bpmn:sequenceFlow id="SF_O6" sourceRef="O_Dispatch" targetRef="O_Collect"/>
-    <bpmn:sequenceFlow id="SF_O7" sourceRef="O_Collect" targetRef="O_LogOutcome"/>
-    <bpmn:sequenceFlow id="SF_O8" sourceRef="O_LogOutcome" targetRef="O_ReturnSummary"/>
-    <bpmn:sequenceFlow id="SF_O9" sourceRef="O_ReturnSummary" targetRef="EE_Orch"/>
-  </bpmn:process>
-
-  <bpmn:process id="Proc_Agent" isExecutable="false">
-    <bpmn:startEvent id="SE_Agent" name="Bounded task received">
-      <bpmn:messageEventDefinition id="MED_SE_Agent"/>
-    </bpmn:startEvent>
+    <bpmn:serviceTask id="O_PersistRequest" name="Persist request state">
+      <bpmn:ioSpecification>
+        <bpmn:dataOutput id="DO_RequestState" name="request_state"/>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="DOA_RequestState">
+        <bpmn:sourceRef>DO_RequestState</bpmn:sourceRef>
+        <bpmn:targetRef>DS_Persistent</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
     <bpmn:serviceTask id="A_Inspect" name="Inspect task"/>
     <bpmn:exclusiveGateway id="GW_Missing" name="Missing information?"/>
     <bpmn:serviceTask id="A_ClarifyDraft" name="Draft clarification question"/>
-    <bpmn:intermediateCatchEvent id="A_ClarifyReply" name="Clarification answer received">
-      <bpmn:messageEventDefinition id="MED_A_ClarifyReply"/>
-    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="T_RelayClarify" name="Relay clarification request"/>
+    <bpmn:serviceTask id="T_ForwardClarify" name="Forward clarification to specialist"/>
+    <bpmn:serviceTask id="A_ClarifyReply" name="Receive clarification answer"/>
     <bpmn:serviceTask id="A_AssessRisk" name="Assess risk"/>
     <bpmn:exclusiveGateway id="GW_Risk" name="Risk / destructive action?"/>
     <bpmn:serviceTask id="A_RequestApproval" name="Request approval"/>
-    <bpmn:intermediateCatchEvent id="A_ApprovalReply" name="Approval response received">
-      <bpmn:messageEventDefinition id="MED_A_ApprovalReply"/>
-    </bpmn:intermediateCatchEvent>
+    <bpmn:serviceTask id="T_RelayApproval" name="Relay approval request"/>
+    <bpmn:serviceTask id="T_ForwardDecision" name="Forward approval decision"/>
+    <bpmn:serviceTask id="A_ApprovalReply" name="Receive approval decision"/>
+    <bpmn:serviceTask id="O_PersistDecision" name="Persist decision">
+      <bpmn:ioSpecification>
+        <bpmn:dataOutput id="DO_DecisionState" name="decision_state"/>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="DOA_DecisionState">
+        <bpmn:sourceRef>DO_DecisionState</bpmn:sourceRef>
+        <bpmn:targetRef>DS_Persistent</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
     <bpmn:exclusiveGateway id="GW_Approved" name="Approved?"/>
-    <bpmn:serviceTask id="A_Execute" name="Execute via coding backend"/>
-    <bpmn:intermediateCatchEvent id="A_BackendReply" name="Backend result received">
-      <bpmn:messageEventDefinition id="MED_A_BackendReply"/>
-    </bpmn:intermediateCatchEvent>
+    <bpmn:sendTask id="A_Execute" name="Execute via coding backend"/>
+    <bpmn:serviceTask id="A_BackendReply" name="Receive backend result"/>
     <bpmn:exclusiveGateway id="GW_ExecSuccess" name="Execution successful?"/>
     <bpmn:serviceTask id="A_PackageSuccess" name="Package success"/>
     <bpmn:serviceTask id="A_PackageFailure" name="Package failure"/>
     <bpmn:serviceTask id="A_PackageRejected" name="Package rejection"/>
-    <bpmn:endEvent id="EE_Success" name="Completed"/>
-    <bpmn:endEvent id="EE_Failure" name="Failed"/>
-    <bpmn:endEvent id="EE_Rejected" name="Rejected"/>
-    <bpmn:sequenceFlow id="SF_A1" sourceRef="SE_Agent" targetRef="A_Inspect"/>
-    <bpmn:sequenceFlow id="SF_A2" sourceRef="A_Inspect" targetRef="GW_Missing"/>
-    <bpmn:sequenceFlow id="SF_A3" sourceRef="GW_Missing" targetRef="A_ClarifyDraft" name="Yes"/>
-    <bpmn:sequenceFlow id="SF_A4" sourceRef="A_ClarifyDraft" targetRef="A_ClarifyReply"/>
-    <bpmn:sequenceFlow id="SF_A5" sourceRef="A_ClarifyReply" targetRef="A_AssessRisk"/>
-    <bpmn:sequenceFlow id="SF_A6" sourceRef="GW_Missing" targetRef="A_AssessRisk" name="No"/>
-    <bpmn:sequenceFlow id="SF_A7" sourceRef="A_AssessRisk" targetRef="GW_Risk"/>
-    <bpmn:sequenceFlow id="SF_A8" sourceRef="GW_Risk" targetRef="A_RequestApproval" name="Yes"/>
-    <bpmn:sequenceFlow id="SF_A9" sourceRef="A_RequestApproval" targetRef="A_ApprovalReply"/>
-    <bpmn:sequenceFlow id="SF_A10" sourceRef="A_ApprovalReply" targetRef="GW_Approved"/>
-    <bpmn:sequenceFlow id="SF_A11" sourceRef="GW_Risk" targetRef="A_Execute" name="No"/>
-    <bpmn:sequenceFlow id="SF_A12" sourceRef="GW_Approved" targetRef="A_Execute" name="Yes"/>
-    <bpmn:sequenceFlow id="SF_A13" sourceRef="GW_Approved" targetRef="A_PackageRejected" name="No"/>
-    <bpmn:sequenceFlow id="SF_A14" sourceRef="A_Execute" targetRef="A_BackendReply"/>
-    <bpmn:sequenceFlow id="SF_A15" sourceRef="A_BackendReply" targetRef="GW_ExecSuccess"/>
-    <bpmn:sequenceFlow id="SF_A16" sourceRef="GW_ExecSuccess" targetRef="A_PackageSuccess" name="Yes"/>
-    <bpmn:sequenceFlow id="SF_A17" sourceRef="GW_ExecSuccess" targetRef="A_PackageFailure" name="No"/>
-    <bpmn:sequenceFlow id="SF_A18" sourceRef="A_PackageSuccess" targetRef="EE_Success"/>
-    <bpmn:sequenceFlow id="SF_A19" sourceRef="A_PackageFailure" targetRef="EE_Failure"/>
-    <bpmn:sequenceFlow id="SF_A20" sourceRef="A_PackageRejected" targetRef="EE_Rejected"/>
+    <bpmn:serviceTask id="O_PersistOutcome" name="Persist outcome">
+      <bpmn:ioSpecification>
+        <bpmn:dataOutput id="DO_OutcomeState" name="outcome_state"/>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="DOA_OutcomeState">
+        <bpmn:sourceRef>DO_OutcomeState</bpmn:sourceRef>
+        <bpmn:targetRef>DS_Persistent</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="O_ReturnSummary" name="Return summary"/>
+    <bpmn:endEvent id="EE_AgentFactory" name="Delivered"/>
+
+    <bpmn:sequenceFlow id="SF_AF1" sourceRef="SE_Request" targetRef="T_ForwardRequest"/>
+    <bpmn:sequenceFlow id="SF_AF2" sourceRef="T_ForwardRequest" targetRef="O_Classify"/>
+    <bpmn:sequenceFlow id="SF_AF3" sourceRef="O_Classify" targetRef="O_Select"/>
+    <bpmn:sequenceFlow id="SF_AF4" sourceRef="O_Select" targetRef="O_Bundle"/>
+    <bpmn:sequenceFlow id="SF_AF5" sourceRef="O_Bundle" targetRef="O_PersistRequest"/>
+    <bpmn:sequenceFlow id="SF_AF6" sourceRef="O_PersistRequest" targetRef="A_Inspect"/>
+    <bpmn:sequenceFlow id="SF_AF7" sourceRef="A_Inspect" targetRef="GW_Missing"/>
+    <bpmn:sequenceFlow id="SF_AF8" sourceRef="GW_Missing" targetRef="A_ClarifyDraft" name="Yes"/>
+    <bpmn:sequenceFlow id="SF_AF9" sourceRef="A_ClarifyDraft" targetRef="T_RelayClarify"/>
+    <bpmn:sequenceFlow id="SF_AF10" sourceRef="T_RelayClarify" targetRef="T_ForwardClarify"/>
+    <bpmn:sequenceFlow id="SF_AF11" sourceRef="T_ForwardClarify" targetRef="A_ClarifyReply"/>
+    <bpmn:sequenceFlow id="SF_AF12" sourceRef="A_ClarifyReply" targetRef="A_AssessRisk"/>
+    <bpmn:sequenceFlow id="SF_AF13" sourceRef="GW_Missing" targetRef="A_AssessRisk" name="No"/>
+    <bpmn:sequenceFlow id="SF_AF14" sourceRef="A_AssessRisk" targetRef="GW_Risk"/>
+    <bpmn:sequenceFlow id="SF_AF15" sourceRef="GW_Risk" targetRef="A_RequestApproval" name="Yes"/>
+    <bpmn:sequenceFlow id="SF_AF16" sourceRef="A_RequestApproval" targetRef="T_RelayApproval"/>
+    <bpmn:sequenceFlow id="SF_AF17" sourceRef="T_RelayApproval" targetRef="T_ForwardDecision"/>
+    <bpmn:sequenceFlow id="SF_AF18" sourceRef="T_ForwardDecision" targetRef="A_ApprovalReply"/>
+    <bpmn:sequenceFlow id="SF_AF19" sourceRef="A_ApprovalReply" targetRef="O_PersistDecision"/>
+    <bpmn:sequenceFlow id="SF_AF20" sourceRef="O_PersistDecision" targetRef="GW_Approved"/>
+    <bpmn:sequenceFlow id="SF_AF21" sourceRef="GW_Risk" targetRef="A_Execute" name="No"/>
+    <bpmn:sequenceFlow id="SF_AF22" sourceRef="GW_Approved" targetRef="A_Execute" name="Yes"/>
+    <bpmn:sequenceFlow id="SF_AF23" sourceRef="GW_Approved" targetRef="A_PackageRejected" name="No"/>
+    <bpmn:sequenceFlow id="SF_AF24" sourceRef="A_Execute" targetRef="A_BackendReply"/>
+    <bpmn:sequenceFlow id="SF_AF25" sourceRef="A_BackendReply" targetRef="GW_ExecSuccess"/>
+    <bpmn:sequenceFlow id="SF_AF26" sourceRef="GW_ExecSuccess" targetRef="A_PackageSuccess" name="Yes"/>
+    <bpmn:sequenceFlow id="SF_AF27" sourceRef="GW_ExecSuccess" targetRef="A_PackageFailure" name="No"/>
+    <bpmn:sequenceFlow id="SF_AF28" sourceRef="A_PackageRejected" targetRef="O_PersistOutcome"/>
+    <bpmn:sequenceFlow id="SF_AF29" sourceRef="A_PackageSuccess" targetRef="O_PersistOutcome"/>
+    <bpmn:sequenceFlow id="SF_AF30" sourceRef="A_PackageFailure" targetRef="O_PersistOutcome"/>
+    <bpmn:sequenceFlow id="SF_AF31" sourceRef="O_PersistOutcome" targetRef="O_ReturnSummary"/>
+    <bpmn:sequenceFlow id="SF_AF32" sourceRef="O_ReturnSummary" targetRef="T_RelaySummary"/>
+    <bpmn:sequenceFlow id="SF_AF33" sourceRef="T_RelaySummary" targetRef="EE_AgentFactory"/>
   </bpmn:process>
 
   <bpmn:process id="Proc_Backend" isExecutable="false">
@@ -177,546 +186,381 @@
     <bpmn:sequenceFlow id="SF_B4" sourceRef="B_ReturnResult" targetRef="EE_Backend"/>
   </bpmn:process>
 
-  <bpmn:process id="Proc_State" isExecutable="false">
-    <bpmn:startEvent id="SE_State" name="Record event">
-      <bpmn:messageEventDefinition id="MED_SE_State"/>
-    </bpmn:startEvent>
-    <bpmn:serviceTask id="S_StoreRequest" name="Store request"/>
-    <bpmn:serviceTask id="S_StoreDecision" name="Store decision"/>
-    <bpmn:serviceTask id="S_StoreExecLog" name="Store execution log"/>
-    <bpmn:serviceTask id="S_StoreOutcome" name="Store outcome"/>
-    <bpmn:endEvent id="EE_State" name="Persisted"/>
-    <bpmn:sequenceFlow id="SF_S1" sourceRef="SE_State" targetRef="S_StoreRequest"/>
-    <bpmn:sequenceFlow id="SF_S2" sourceRef="S_StoreRequest" targetRef="S_StoreDecision"/>
-    <bpmn:sequenceFlow id="SF_S3" sourceRef="S_StoreDecision" targetRef="S_StoreExecLog"/>
-    <bpmn:sequenceFlow id="SF_S4" sourceRef="S_StoreExecLog" targetRef="S_StoreOutcome"/>
-    <bpmn:sequenceFlow id="SF_S5" sourceRef="S_StoreOutcome" targetRef="EE_State"/>
-  </bpmn:process>
-
   <bpmndi:BPMNDiagram id="Diagram_AgentFactory">
     <bpmndi:BPMNPlane id="Plane_AgentFactory" bpmnElement="Collab_AgentFactory">
       <bpmndi:BPMNShape id="Shape_Part_Human" bpmnElement="Part_Human" isHorizontal="true">
         <dc:Bounds x="0" y="20" width="2600" height="170"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Part_Telegram" bpmnElement="Part_Telegram" isHorizontal="true">
-        <dc:Bounds x="0" y="210" width="2600" height="200"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Part_Orch" bpmnElement="Part_Orch" isHorizontal="true">
-        <dc:Bounds x="0" y="430" width="2600" height="170"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Part_Agent" bpmnElement="Part_Agent" isHorizontal="true">
-        <dc:Bounds x="0" y="620" width="2600" height="340"/>
+      <bpmndi:BPMNShape id="Shape_Part_AgentFactory" bpmnElement="Part_AgentFactory" isHorizontal="true">
+        <dc:Bounds x="0" y="210" width="2600" height="1000"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_Part_Backend" bpmnElement="Part_Backend" isHorizontal="true">
-        <dc:Bounds x="0" y="980" width="2600" height="170"/>
+        <dc:Bounds x="0" y="1240" width="2600" height="170"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_Part_State" bpmnElement="Part_State" isHorizontal="true">
-        <dc:Bounds x="0" y="1170" width="2600" height="190"/>
+      <bpmndi:BPMNShape id="Shape_Lane_Telegram" bpmnElement="Lane_Telegram" isHorizontal="true">
+        <dc:Bounds x="0" y="210" width="2600" height="200"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Orchestrator" bpmnElement="Lane_Orchestrator" isHorizontal="true">
+        <dc:Bounds x="0" y="410" width="2600" height="250"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Specialist" bpmnElement="Lane_Specialist" isHorizontal="true">
+        <dc:Bounds x="0" y="660" width="2600" height="550"/>
+      </bpmndi:BPMNShape>
+
       <bpmndi:BPMNShape id="Shape_SE_Human" bpmnElement="SE_Human">
         <dc:Bounds x="120" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_H_ClarifyCatch" bpmnElement="H_ClarifyCatch">
-        <dc:Bounds x="460" y="82" width="36" height="36"/>
+        <dc:Bounds x="400" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_H_SendClarify" bpmnElement="H_SendClarify">
-        <dc:Bounds x="560" y="60" width="150" height="80"/>
+        <dc:Bounds x="500" y="60" width="160" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_H_ApprovalCatch" bpmnElement="H_ApprovalCatch">
-        <dc:Bounds x="820" y="82" width="36" height="36"/>
+        <dc:Bounds x="760" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_H_SendDecision" bpmnElement="H_SendDecision">
-        <dc:Bounds x="920" y="60" width="190" height="80"/>
+        <dc:Bounds x="860" y="60" width="190" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_H_SummaryCatch" bpmnElement="H_SummaryCatch">
-        <dc:Bounds x="1250" y="82" width="36" height="36"/>
+        <dc:Bounds x="1160" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_EE_Human" bpmnElement="EE_Human">
-        <dc:Bounds x="1350" y="82" width="36" height="36"/>
+        <dc:Bounds x="1280" y="82" width="36" height="36"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_SE_Telegram" bpmnElement="SE_Telegram">
-        <dc:Bounds x="120" y="272" width="36" height="36"/>
+
+      <bpmndi:BPMNShape id="Shape_SE_Request" bpmnElement="SE_Request">
+        <dc:Bounds x="120" y="262" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_T_ForwardRequest" bpmnElement="T_ForwardRequest">
-        <dc:Bounds x="220" y="250" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_T_RelayClarify" bpmnElement="T_RelayClarify">
-        <dc:Bounds x="460" y="250" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_T_ForwardClarify" bpmnElement="T_ForwardClarify">
-        <dc:Bounds x="710" y="250" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_T_RelayApproval" bpmnElement="T_RelayApproval">
-        <dc:Bounds x="960" y="250" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_T_ForwardDecision" bpmnElement="T_ForwardDecision">
-        <dc:Bounds x="1210" y="250" width="190" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_T_RelaySummary" bpmnElement="T_RelaySummary">
-        <dc:Bounds x="1510" y="250" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_Telegram" bpmnElement="EE_Telegram">
-        <dc:Bounds x="1750" y="272" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_SE_Orch" bpmnElement="SE_Orch">
-        <dc:Bounds x="120" y="492" width="36" height="36"/>
+        <dc:Bounds x="220" y="240" width="170" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_O_Classify" bpmnElement="O_Classify">
-        <dc:Bounds x="220" y="470" width="140" height="80"/>
+        <dc:Bounds x="220" y="460" width="140" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_O_Select" bpmnElement="O_Select">
-        <dc:Bounds x="410" y="470" width="140" height="80"/>
+        <dc:Bounds x="400" y="460" width="140" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_O_Bundle" bpmnElement="O_Bundle">
-        <dc:Bounds x="600" y="470" width="180" height="80"/>
+        <dc:Bounds x="580" y="460" width="180" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_O_LogRequest" bpmnElement="O_LogRequest">
-        <dc:Bounds x="840" y="470" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_O_Dispatch" bpmnElement="O_Dispatch">
-        <dc:Bounds x="1040" y="470" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_O_Collect" bpmnElement="O_Collect">
-        <dc:Bounds x="1260" y="470" width="150" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_O_LogOutcome" bpmnElement="O_LogOutcome">
-        <dc:Bounds x="1460" y="470" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_O_ReturnSummary" bpmnElement="O_ReturnSummary">
-        <dc:Bounds x="1680" y="470" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_Orch" bpmnElement="EE_Orch">
-        <dc:Bounds x="1940" y="492" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_SE_Agent" bpmnElement="SE_Agent">
-        <dc:Bounds x="120" y="752" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Shape_O_PersistRequest" bpmnElement="O_PersistRequest">
+        <dc:Bounds x="820" y="460" width="170" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_Inspect" bpmnElement="A_Inspect">
-        <dc:Bounds x="240" y="730" width="150" height="80"/>
+        <dc:Bounds x="220" y="740" width="150" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_GW_Missing" bpmnElement="GW_Missing">
-        <dc:Bounds x="450" y="745" width="50" height="50"/>
+        <dc:Bounds x="420" y="755" width="50" height="50"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_ClarifyDraft" bpmnElement="A_ClarifyDraft">
-        <dc:Bounds x="560" y="800" width="160" height="80"/>
+        <dc:Bounds x="540" y="720" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_T_RelayClarify" bpmnElement="T_RelayClarify">
+        <dc:Bounds x="760" y="240" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_T_ForwardClarify" bpmnElement="T_ForwardClarify">
+        <dc:Bounds x="980" y="240" width="190" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_ClarifyReply" bpmnElement="A_ClarifyReply">
-        <dc:Bounds x="780" y="822" width="36" height="36"/>
+        <dc:Bounds x="1210" y="720" width="160" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_AssessRisk" bpmnElement="A_AssessRisk">
-        <dc:Bounds x="940" y="730" width="150" height="80"/>
+        <dc:Bounds x="1400" y="740" width="150" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_GW_Risk" bpmnElement="GW_Risk">
-        <dc:Bounds x="1140" y="745" width="50" height="50"/>
+        <dc:Bounds x="1580" y="755" width="50" height="50"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_RequestApproval" bpmnElement="A_RequestApproval">
-        <dc:Bounds x="1260" y="860" width="170" height="80"/>
+        <dc:Bounds x="1700" y="720" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_T_RelayApproval" bpmnElement="T_RelayApproval">
+        <dc:Bounds x="1020" y="240" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_T_ForwardDecision" bpmnElement="T_ForwardDecision">
+        <dc:Bounds x="1240" y="240" width="190" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_ApprovalReply" bpmnElement="A_ApprovalReply">
-        <dc:Bounds x="1480" y="882" width="36" height="36"/>
+        <dc:Bounds x="1460" y="720" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_O_PersistDecision" bpmnElement="O_PersistDecision">
+        <dc:Bounds x="1660" y="460" width="170" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_GW_Approved" bpmnElement="GW_Approved">
-        <dc:Bounds x="1600" y="875" width="50" height="50"/>
+        <dc:Bounds x="1860" y="755" width="50" height="50"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_Execute" bpmnElement="A_Execute">
-        <dc:Bounds x="1740" y="730" width="160" height="80"/>
+        <dc:Bounds x="2000" y="700" width="170" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_BackendReply" bpmnElement="A_BackendReply">
-        <dc:Bounds x="1960" y="752" width="36" height="36"/>
+        <dc:Bounds x="2200" y="720" width="170" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_GW_ExecSuccess" bpmnElement="GW_ExecSuccess">
-        <dc:Bounds x="2060" y="745" width="50" height="50"/>
+        <dc:Bounds x="2410" y="755" width="50" height="50"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_PackageSuccess" bpmnElement="A_PackageSuccess">
-        <dc:Bounds x="2200" y="700" width="140" height="80"/>
+        <dc:Bounds x="2320" y="700" width="150" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_PackageFailure" bpmnElement="A_PackageFailure">
-        <dc:Bounds x="2200" y="780" width="140" height="80"/>
+        <dc:Bounds x="2320" y="780" width="150" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_A_PackageRejected" bpmnElement="A_PackageRejected">
-        <dc:Bounds x="1760" y="860" width="150" height="80"/>
+        <dc:Bounds x="1920" y="860" width="150" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_Success" bpmnElement="EE_Success">
-        <dc:Bounds x="2400" y="722" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Shape_O_PersistOutcome" bpmnElement="O_PersistOutcome">
+        <dc:Bounds x="2100" y="460" width="170" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_Failure" bpmnElement="EE_Failure">
-        <dc:Bounds x="2400" y="802" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Shape_O_ReturnSummary" bpmnElement="O_ReturnSummary">
+        <dc:Bounds x="2320" y="460" width="180" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_Rejected" bpmnElement="EE_Rejected">
-        <dc:Bounds x="1960" y="882" width="36" height="36"/>
+      <bpmndi:BPMNShape id="Shape_T_RelaySummary" bpmnElement="T_RelaySummary">
+        <dc:Bounds x="2320" y="240" width="170" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EE_AgentFactory" bpmnElement="EE_AgentFactory">
+        <dc:Bounds x="2530" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DS_Persistent" bpmnElement="DS_Persistent">
+        <dc:Bounds x="1120" y="1080" width="220" height="80"/>
+      </bpmndi:BPMNShape>
+
       <bpmndi:BPMNShape id="Shape_SE_Backend" bpmnElement="SE_Backend">
-        <dc:Bounds x="120" y="1042" width="36" height="36"/>
+        <dc:Bounds x="120" y="1302" width="36" height="36"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_B_Apply" bpmnElement="B_Apply">
-        <dc:Bounds x="260" y="1020" width="160" height="80"/>
+        <dc:Bounds x="260" y="1280" width="160" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_B_RunChecks" bpmnElement="B_RunChecks">
-        <dc:Bounds x="520" y="1020" width="140" height="80"/>
+        <dc:Bounds x="520" y="1280" width="140" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_B_ReturnResult" bpmnElement="B_ReturnResult">
-        <dc:Bounds x="760" y="1020" width="140" height="80"/>
+        <dc:Bounds x="760" y="1280" width="140" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_EE_Backend" bpmnElement="EE_Backend">
-        <dc:Bounds x="980" y="1042" width="36" height="36"/>
+        <dc:Bounds x="980" y="1302" width="36" height="36"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_SE_State" bpmnElement="SE_State">
-        <dc:Bounds x="120" y="1232" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_S_StoreRequest" bpmnElement="S_StoreRequest">
-        <dc:Bounds x="260" y="1210" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_S_StoreDecision" bpmnElement="S_StoreDecision">
-        <dc:Bounds x="520" y="1210" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_S_StoreExecLog" bpmnElement="S_StoreExecLog">
-        <dc:Bounds x="780" y="1210" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_S_StoreOutcome" bpmnElement="S_StoreOutcome">
-        <dc:Bounds x="1040" y="1210" width="170" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_EE_State" bpmnElement="EE_State">
-        <dc:Bounds x="1280" y="1232" width="36" height="36"/>
-      </bpmndi:BPMNShape>
+
       <bpmndi:BPMNEdge id="Edge_SF_H1" bpmnElement="SF_H1">
-        <di:waypoint x="156.0" y="100.0"/>
-        <di:waypoint x="460.0" y="100.0"/>
+        <di:waypoint x="156" y="100"/>
+        <di:waypoint x="400" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_H2" bpmnElement="SF_H2">
-        <di:waypoint x="496.0" y="100.0"/>
-        <di:waypoint x="560.0" y="100.0"/>
+        <di:waypoint x="436" y="100"/>
+        <di:waypoint x="500" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_H3" bpmnElement="SF_H3">
-        <di:waypoint x="710.0" y="100.0"/>
-        <di:waypoint x="820.0" y="100.0"/>
+        <di:waypoint x="660" y="100"/>
+        <di:waypoint x="760" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_H4" bpmnElement="SF_H4">
-        <di:waypoint x="856.0" y="100.0"/>
-        <di:waypoint x="920.0" y="100.0"/>
+        <di:waypoint x="796" y="100"/>
+        <di:waypoint x="860" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_H5" bpmnElement="SF_H5">
-        <di:waypoint x="1110.0" y="100.0"/>
-        <di:waypoint x="1250.0" y="100.0"/>
+        <di:waypoint x="1050" y="100"/>
+        <di:waypoint x="1160" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_H6" bpmnElement="SF_H6">
-        <di:waypoint x="1286.0" y="100.0"/>
-        <di:waypoint x="1350.0" y="100.0"/>
+        <di:waypoint x="1196" y="100"/>
+        <di:waypoint x="1280" y="100"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T1" bpmnElement="SF_T1">
-        <di:waypoint x="156.0" y="290.0"/>
-        <di:waypoint x="220.0" y="290.0"/>
+
+      <bpmndi:BPMNEdge id="Edge_SF_AF1" bpmnElement="SF_AF1">
+        <di:waypoint x="156" y="280"/>
+        <di:waypoint x="220" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T2" bpmnElement="SF_T2">
-        <di:waypoint x="390.0" y="290.0"/>
-        <di:waypoint x="460.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF2" bpmnElement="SF_AF2">
+        <di:waypoint x="390" y="280"/>
+        <di:waypoint x="220" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T3" bpmnElement="SF_T3">
-        <di:waypoint x="640.0" y="290.0"/>
-        <di:waypoint x="710.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF3" bpmnElement="SF_AF3">
+        <di:waypoint x="360" y="500"/>
+        <di:waypoint x="400" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T4" bpmnElement="SF_T4">
-        <di:waypoint x="880.0" y="290.0"/>
-        <di:waypoint x="960.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF4" bpmnElement="SF_AF4">
+        <di:waypoint x="540" y="500"/>
+        <di:waypoint x="580" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T5" bpmnElement="SF_T5">
-        <di:waypoint x="1140.0" y="290.0"/>
-        <di:waypoint x="1210.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF5" bpmnElement="SF_AF5">
+        <di:waypoint x="760" y="500"/>
+        <di:waypoint x="820" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T6" bpmnElement="SF_T6">
-        <di:waypoint x="1400.0" y="290.0"/>
-        <di:waypoint x="1510.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF6" bpmnElement="SF_AF6">
+        <di:waypoint x="990" y="500"/>
+        <di:waypoint x="220" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_T7" bpmnElement="SF_T7">
-        <di:waypoint x="1680.0" y="290.0"/>
-        <di:waypoint x="1750.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF7" bpmnElement="SF_AF7">
+        <di:waypoint x="370" y="780"/>
+        <di:waypoint x="420" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O1" bpmnElement="SF_O1">
-        <di:waypoint x="156.0" y="510.0"/>
-        <di:waypoint x="220.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF8" bpmnElement="SF_AF8">
+        <di:waypoint x="470" y="780"/>
+        <di:waypoint x="540" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O2" bpmnElement="SF_O2">
-        <di:waypoint x="360.0" y="510.0"/>
-        <di:waypoint x="410.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF9" bpmnElement="SF_AF9">
+        <di:waypoint x="700" y="760"/>
+        <di:waypoint x="760" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O3" bpmnElement="SF_O3">
-        <di:waypoint x="550.0" y="510.0"/>
-        <di:waypoint x="600.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF10" bpmnElement="SF_AF10">
+        <di:waypoint x="940" y="280"/>
+        <di:waypoint x="980" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O4" bpmnElement="SF_O4">
-        <di:waypoint x="780.0" y="510.0"/>
-        <di:waypoint x="840.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF11" bpmnElement="SF_AF11">
+        <di:waypoint x="1170" y="280"/>
+        <di:waypoint x="1210" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O5" bpmnElement="SF_O5">
-        <di:waypoint x="1010.0" y="510.0"/>
-        <di:waypoint x="1040.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF12" bpmnElement="SF_AF12">
+        <di:waypoint x="1370" y="760"/>
+        <di:waypoint x="1400" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O6" bpmnElement="SF_O6">
-        <di:waypoint x="1210.0" y="510.0"/>
-        <di:waypoint x="1260.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF13" bpmnElement="SF_AF13">
+        <di:waypoint x="445" y="805"/>
+        <di:waypoint x="1400" y="805"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O7" bpmnElement="SF_O7">
-        <di:waypoint x="1410.0" y="510.0"/>
-        <di:waypoint x="1460.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF14" bpmnElement="SF_AF14">
+        <di:waypoint x="1550" y="780"/>
+        <di:waypoint x="1580" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O8" bpmnElement="SF_O8">
-        <di:waypoint x="1630.0" y="510.0"/>
-        <di:waypoint x="1680.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF15" bpmnElement="SF_AF15">
+        <di:waypoint x="1630" y="780"/>
+        <di:waypoint x="1700" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_O9" bpmnElement="SF_O9">
-        <di:waypoint x="1860.0" y="510.0"/>
-        <di:waypoint x="1940.0" y="510.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF16" bpmnElement="SF_AF16">
+        <di:waypoint x="1870" y="760"/>
+        <di:waypoint x="1020" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A1" bpmnElement="SF_A1">
-        <di:waypoint x="156.0" y="770.0"/>
-        <di:waypoint x="240.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF17" bpmnElement="SF_AF17">
+        <di:waypoint x="1200" y="280"/>
+        <di:waypoint x="1240" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A2" bpmnElement="SF_A2">
-        <di:waypoint x="390.0" y="770.0"/>
-        <di:waypoint x="450.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF18" bpmnElement="SF_AF18">
+        <di:waypoint x="1430" y="280"/>
+        <di:waypoint x="1460" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A3" bpmnElement="SF_A3">
-        <di:waypoint x="500.0" y="770.0"/>
-        <di:waypoint x="510.0" y="770.0"/>
-        <di:waypoint x="510.0" y="840.0"/>
-        <di:waypoint x="560.0" y="840.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF19" bpmnElement="SF_AF19">
+        <di:waypoint x="1630" y="760"/>
+        <di:waypoint x="1660" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A4" bpmnElement="SF_A4">
-        <di:waypoint x="720.0" y="840.0"/>
-        <di:waypoint x="780.0" y="840.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF20" bpmnElement="SF_AF20">
+        <di:waypoint x="1830" y="500"/>
+        <di:waypoint x="1860" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A5" bpmnElement="SF_A5">
-        <di:waypoint x="816.0" y="840.0"/>
-        <di:waypoint x="840.0" y="840.0"/>
-        <di:waypoint x="840.0" y="770.0"/>
-        <di:waypoint x="940.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF21" bpmnElement="SF_AF21">
+        <di:waypoint x="1605" y="780"/>
+        <di:waypoint x="2000" y="740"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A6" bpmnElement="SF_A6">
-        <di:waypoint x="475.0" y="795.0"/>
-        <di:waypoint x="475.0" y="770.0"/>
-        <di:waypoint x="940.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF22" bpmnElement="SF_AF22">
+        <di:waypoint x="1910" y="780"/>
+        <di:waypoint x="2000" y="740"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A7" bpmnElement="SF_A7">
-        <di:waypoint x="1090.0" y="770.0"/>
-        <di:waypoint x="1140.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF23" bpmnElement="SF_AF23">
+        <di:waypoint x="1910" y="780"/>
+        <di:waypoint x="1920" y="900"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A8" bpmnElement="SF_A8">
-        <di:waypoint x="1165.0" y="795.0"/>
-        <di:waypoint x="1165.0" y="900.0"/>
-        <di:waypoint x="1260.0" y="900.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF24" bpmnElement="SF_AF24">
+        <di:waypoint x="2170" y="740"/>
+        <di:waypoint x="2200" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A9" bpmnElement="SF_A9">
-        <di:waypoint x="1430.0" y="900.0"/>
-        <di:waypoint x="1480.0" y="900.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF25" bpmnElement="SF_AF25">
+        <di:waypoint x="2370" y="760"/>
+        <di:waypoint x="2410" y="780"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A10" bpmnElement="SF_A10">
-        <di:waypoint x="1516.0" y="900.0"/>
-        <di:waypoint x="1600.0" y="900.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF26" bpmnElement="SF_AF26">
+        <di:waypoint x="2460" y="780"/>
+        <di:waypoint x="2320" y="740"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A11" bpmnElement="SF_A11">
-        <di:waypoint x="1190.0" y="770.0"/>
-        <di:waypoint x="1200.0" y="770.0"/>
-        <di:waypoint x="1200.0" y="770.0"/>
-        <di:waypoint x="1740.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF27" bpmnElement="SF_AF27">
+        <di:waypoint x="2460" y="780"/>
+        <di:waypoint x="2320" y="820"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A12" bpmnElement="SF_A12">
-        <di:waypoint x="1625.0" y="925.0"/>
-        <di:waypoint x="1625.0" y="770.0"/>
-        <di:waypoint x="1740.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF28" bpmnElement="SF_AF28">
+        <di:waypoint x="1920" y="900"/>
+        <di:waypoint x="2100" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A13" bpmnElement="SF_A13">
-        <di:waypoint x="1625.0" y="925.0"/>
-        <di:waypoint x="1625.0" y="900.0"/>
-        <di:waypoint x="1760.0" y="900.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF29" bpmnElement="SF_AF29">
+        <di:waypoint x="2320" y="740"/>
+        <di:waypoint x="2100" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A14" bpmnElement="SF_A14">
-        <di:waypoint x="1900.0" y="770.0"/>
-        <di:waypoint x="1960.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF30" bpmnElement="SF_AF30">
+        <di:waypoint x="2320" y="820"/>
+        <di:waypoint x="2100" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A15" bpmnElement="SF_A15">
-        <di:waypoint x="1996.0" y="770.0"/>
-        <di:waypoint x="2060.0" y="770.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF31" bpmnElement="SF_AF31">
+        <di:waypoint x="2270" y="500"/>
+        <di:waypoint x="2320" y="500"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A16" bpmnElement="SF_A16">
-        <di:waypoint x="2085.0" y="745.0"/>
-        <di:waypoint x="2085.0" y="740.0"/>
-        <di:waypoint x="2200.0" y="740.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF32" bpmnElement="SF_AF32">
+        <di:waypoint x="2500" y="500"/>
+        <di:waypoint x="2320" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A17" bpmnElement="SF_A17">
-        <di:waypoint x="2085.0" y="795.0"/>
-        <di:waypoint x="2085.0" y="820.0"/>
-        <di:waypoint x="2200.0" y="820.0"/>
+      <bpmndi:BPMNEdge id="Edge_SF_AF33" bpmnElement="SF_AF33">
+        <di:waypoint x="2490" y="280"/>
+        <di:waypoint x="2530" y="280"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A18" bpmnElement="SF_A18">
-        <di:waypoint x="2340.0" y="740.0"/>
-        <di:waypoint x="2260.0" y="740.0"/>
-        <di:waypoint x="2260.0" y="740.0"/>
-        <di:waypoint x="2400.0" y="740.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A19" bpmnElement="SF_A19">
-        <di:waypoint x="2340.0" y="820.0"/>
-        <di:waypoint x="2260.0" y="820.0"/>
-        <di:waypoint x="2260.0" y="820.0"/>
-        <di:waypoint x="2400.0" y="820.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_A20" bpmnElement="SF_A20">
-        <di:waypoint x="1910.0" y="900.0"/>
-        <di:waypoint x="1820.0" y="900.0"/>
-        <di:waypoint x="1820.0" y="900.0"/>
-        <di:waypoint x="1960.0" y="900.0"/>
-      </bpmndi:BPMNEdge>
+
       <bpmndi:BPMNEdge id="Edge_SF_B1" bpmnElement="SF_B1">
-        <di:waypoint x="156.0" y="1060.0"/>
-        <di:waypoint x="260.0" y="1060.0"/>
+        <di:waypoint x="156" y="1320"/>
+        <di:waypoint x="260" y="1320"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_B2" bpmnElement="SF_B2">
-        <di:waypoint x="420.0" y="1060.0"/>
-        <di:waypoint x="520.0" y="1060.0"/>
+        <di:waypoint x="420" y="1320"/>
+        <di:waypoint x="520" y="1320"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_B3" bpmnElement="SF_B3">
-        <di:waypoint x="660.0" y="1060.0"/>
-        <di:waypoint x="760.0" y="1060.0"/>
+        <di:waypoint x="660" y="1320"/>
+        <di:waypoint x="760" y="1320"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_SF_B4" bpmnElement="SF_B4">
-        <di:waypoint x="900.0" y="1060.0"/>
-        <di:waypoint x="980.0" y="1060.0"/>
+        <di:waypoint x="900" y="1320"/>
+        <di:waypoint x="980" y="1320"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_S1" bpmnElement="SF_S1">
-        <di:waypoint x="156.0" y="1250.0"/>
-        <di:waypoint x="260.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_S2" bpmnElement="SF_S2">
-        <di:waypoint x="430.0" y="1250.0"/>
-        <di:waypoint x="520.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_S3" bpmnElement="SF_S3">
-        <di:waypoint x="690.0" y="1250.0"/>
-        <di:waypoint x="780.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_S4" bpmnElement="SF_S4">
-        <di:waypoint x="950.0" y="1250.0"/>
-        <di:waypoint x="1040.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_SF_S5" bpmnElement="SF_S5">
-        <di:waypoint x="1210.0" y="1250.0"/>
-        <di:waypoint x="1280.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
+
       <bpmndi:BPMNEdge id="Edge_MF_01" bpmnElement="MF_01">
-        <di:waypoint x="156.0" y="100.0"/>
-        <di:waypoint x="120.0" y="290.0"/>
+        <di:waypoint x="156" y="100"/>
+        <di:waypoint x="120" y="280"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_02" bpmnElement="MF_02">
-        <di:waypoint x="390.0" y="290.0"/>
-        <di:waypoint x="120.0" y="510.0"/>
+        <di:waypoint x="760" y="280"/>
+        <di:waypoint x="400" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_03" bpmnElement="MF_03">
-        <di:waypoint x="1210.0" y="510.0"/>
-        <di:waypoint x="120.0" y="770.0"/>
+        <di:waypoint x="660" y="100"/>
+        <di:waypoint x="980" y="280"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_04" bpmnElement="MF_04">
-        <di:waypoint x="720.0" y="840.0"/>
-        <di:waypoint x="640.0" y="840.0"/>
-        <di:waypoint x="640.0" y="290.0"/>
-        <di:waypoint x="460.0" y="290.0"/>
+        <di:waypoint x="1020" y="280"/>
+        <di:waypoint x="760" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_05" bpmnElement="MF_05">
-        <di:waypoint x="640.0" y="290.0"/>
-        <di:waypoint x="540.0" y="290.0"/>
-        <di:waypoint x="540.0" y="100.0"/>
-        <di:waypoint x="460.0" y="100.0"/>
+        <di:waypoint x="960" y="100"/>
+        <di:waypoint x="1240" y="280"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_06" bpmnElement="MF_06">
-        <di:waypoint x="710.0" y="100.0"/>
-        <di:waypoint x="630.0" y="100.0"/>
-        <di:waypoint x="630.0" y="290.0"/>
-        <di:waypoint x="710.0" y="290.0"/>
+        <di:waypoint x="2320" y="280"/>
+        <di:waypoint x="1160" y="100"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_07" bpmnElement="MF_07">
-        <di:waypoint x="880.0" y="290.0"/>
-        <di:waypoint x="780.0" y="290.0"/>
-        <di:waypoint x="780.0" y="840.0"/>
-        <di:waypoint x="780.0" y="840.0"/>
+        <di:waypoint x="2170" y="740"/>
+        <di:waypoint x="120" y="1320"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_MF_08" bpmnElement="MF_08">
-        <di:waypoint x="1430.0" y="900.0"/>
-        <di:waypoint x="1340.0" y="900.0"/>
-        <di:waypoint x="1340.0" y="290.0"/>
-        <di:waypoint x="960.0" y="290.0"/>
+        <di:waypoint x="760" y="1320"/>
+        <di:waypoint x="2200" y="760"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_09" bpmnElement="MF_09">
-        <di:waypoint x="1140.0" y="290.0"/>
-        <di:waypoint x="1040.0" y="290.0"/>
-        <di:waypoint x="1040.0" y="100.0"/>
-        <di:waypoint x="820.0" y="100.0"/>
+
+      <bpmndi:BPMNEdge id="Edge_DOA_RequestState" bpmnElement="DOA_RequestState">
+        <di:waypoint x="905" y="540"/>
+        <di:waypoint x="905" y="1080"/>
+        <di:waypoint x="1120" y="1080"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_10" bpmnElement="MF_10">
-        <di:waypoint x="1110.0" y="100.0"/>
-        <di:waypoint x="990.0" y="100.0"/>
-        <di:waypoint x="990.0" y="290.0"/>
-        <di:waypoint x="1210.0" y="290.0"/>
+      <bpmndi:BPMNEdge id="Edge_DOA_DecisionState" bpmnElement="DOA_DecisionState">
+        <di:waypoint x="1745" y="540"/>
+        <di:waypoint x="1745" y="1080"/>
+        <di:waypoint x="1120" y="1080"/>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_11" bpmnElement="MF_11">
-        <di:waypoint x="1400.0" y="290.0"/>
-        <di:waypoint x="1280.0" y="290.0"/>
-        <di:waypoint x="1280.0" y="900.0"/>
-        <di:waypoint x="1480.0" y="900.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_12" bpmnElement="MF_12">
-        <di:waypoint x="1900.0" y="770.0"/>
-        <di:waypoint x="1800.0" y="770.0"/>
-        <di:waypoint x="1800.0" y="1060.0"/>
-        <di:waypoint x="120.0" y="1060.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_13" bpmnElement="MF_13">
-        <di:waypoint x="900.0" y="1060.0"/>
-        <di:waypoint x="820.0" y="1060.0"/>
-        <di:waypoint x="820.0" y="770.0"/>
-        <di:waypoint x="1960.0" y="770.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_14" bpmnElement="MF_14">
-        <di:waypoint x="2340.0" y="740.0"/>
-        <di:waypoint x="2250.0" y="740.0"/>
-        <di:waypoint x="2250.0" y="510.0"/>
-        <di:waypoint x="1260.0" y="510.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_15" bpmnElement="MF_15">
-        <di:waypoint x="2340.0" y="820.0"/>
-        <di:waypoint x="2250.0" y="820.0"/>
-        <di:waypoint x="2250.0" y="510.0"/>
-        <di:waypoint x="1260.0" y="510.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_16" bpmnElement="MF_16">
-        <di:waypoint x="1910.0" y="900.0"/>
-        <di:waypoint x="1810.0" y="900.0"/>
-        <di:waypoint x="1810.0" y="510.0"/>
-        <di:waypoint x="1260.0" y="510.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_17" bpmnElement="MF_17">
-        <di:waypoint x="1010.0" y="510.0"/>
-        <di:waypoint x="260.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_18" bpmnElement="MF_18">
-        <di:waypoint x="1430.0" y="900.0"/>
-        <di:waypoint x="520.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_19" bpmnElement="MF_19">
-        <di:waypoint x="660.0" y="1060.0"/>
-        <di:waypoint x="780.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_20" bpmnElement="MF_20">
-        <di:waypoint x="1630.0" y="510.0"/>
-        <di:waypoint x="1040.0" y="1250.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_21" bpmnElement="MF_21">
-        <di:waypoint x="1860.0" y="510.0"/>
-        <di:waypoint x="1750.0" y="510.0"/>
-        <di:waypoint x="1750.0" y="290.0"/>
-        <di:waypoint x="1510.0" y="290.0"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_MF_22" bpmnElement="MF_22">
-        <di:waypoint x="1680.0" y="290.0"/>
-        <di:waypoint x="1590.0" y="290.0"/>
-        <di:waypoint x="1590.0" y="100.0"/>
-        <di:waypoint x="1250.0" y="100.0"/>
+      <bpmndi:BPMNEdge id="Edge_DOA_OutcomeState" bpmnElement="DOA_OutcomeState">
+        <di:waypoint x="2185" y="540"/>
+        <di:waypoint x="2185" y="1080"/>
+        <di:waypoint x="1120" y="1080"/>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

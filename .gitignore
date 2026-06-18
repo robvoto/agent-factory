@@ -42,3 +42,4 @@ dmypy.json
 data/*.sqlite3
 data/factory_checkpoints.sqlite3
 data/*.json
+data/backlog/agent_factory_backlog.xlsx

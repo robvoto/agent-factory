@@ -3,8 +3,9 @@
 All agents read from and write to one shared knowledge store. Knowledge compounds over time.
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph Sources["Knowledge Sources"]
+        direction TB
         LocalDocs["Local docs/\narchitecture, contracts,\nworkflows, ADRs"]
         TrustedURLs["Trusted online sources\nLangChain, LangGraph,\nAnthropix, OpenAI docs"]
         AgentOutcomes["Agent outcomes\nwhat worked, what failed,\npatterns discovered"]
@@ -12,6 +13,7 @@ flowchart TD
     end
 
     subgraph Store["Shared Knowledge Store\nknowledge_store.sqlite3"]
+        direction TB
         SharedDocs["(shared, docs)\narchitecture + standards"]
         SharedTrusted["(shared, trusted)\nonline reference docs"]
         AgentLearnings["(agent, id, learnings)\nper-agent experience"]
@@ -19,10 +21,11 @@ flowchart TD
     end
 
     subgraph Agents["All Agents — Read + Write"]
+        direction TB
         FactoryBrain["Factory Brain\nreads architecture\nwrites decisions"]
         ArmyOrch["Army Orchestrator\nreads routing patterns\nwrites routing outcomes"]
         ATL["AI Tech Lead\nreads coding patterns\nwrites task outcomes"]
-        JobHunter["Job Hunter\nreads job patterns\nwrites search outcomes"]
+        FutureAgents["Future agents\nadd as they join the army"]
         Keeper["Knowledge Keeper\nindexes + compacts\nruns on schedule"]
     end
 
@@ -42,8 +45,7 @@ flowchart TD
     SharedTrusted <-->|search| ATL
     AgentLearnings <-->|write| ATL
 
-    SharedDocs <-->|search| JobHunter
-    AgentLearnings <-->|write| JobHunter
+    AgentLearnings <-->|write| FutureAgents
 
     Keeper -->|re-index, deduplicate, compact| Store
 
