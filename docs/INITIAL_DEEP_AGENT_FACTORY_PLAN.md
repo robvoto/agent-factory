@@ -4,7 +4,7 @@ Status: closed and archived source plan.
 
 This file keeps the original plan for background only.
 Do not add new work here.
-The live execution summary is `roadmap.md`.
+The live backlog is `../data/backlog/agent_factory_backlog.xlsx`.
 The live backlog is `../backlog/INDEX.md`.
 
 ## Goal
