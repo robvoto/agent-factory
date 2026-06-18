@@ -5,8 +5,8 @@ Read only the smallest authoritative document needed.
 Working execution:
 
 - `roadmap.md` - live execution path and summary
-- `../backlog/INDEX.md` - live backlog entry point
-- `../backlog/agent-factory-backlog.md` - active backlog items
+- `../backlog/INDEX.md` - backlog entry point
+- `../data/backlog/agent_factory_backlog.xlsx` - active backlog source of truth
 
 Historical source plan:
 

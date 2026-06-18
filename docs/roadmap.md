@@ -1,7 +1,8 @@
 # Roadmap
 
 This is the live execution summary.
-Open work is managed in `../backlog/INDEX.md` and `../backlog/agent-factory-backlog.md`.
+Open work is managed in `../data/backlog/agent_factory_backlog.xlsx`.
+See `../backlog/INDEX.md` for the backlog landing page.
 For product direction, read `platform-architecture.md`.
 For technical shape, read `architecture.md`.
 For lifecycle and creation, read `agent-lifecycle.md` and `agent-creator-workflow.md`.
