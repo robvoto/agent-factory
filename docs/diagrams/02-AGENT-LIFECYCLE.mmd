@@ -2,25 +2,25 @@ stateDiagram-v2
     [*] --> Idea : You describe a need
 
     Idea --> Designing : Factory Brain starts designing
-    Designing --> Staged : Factory Brain produces\nagent package\n(agent.json, SYSTEM.md,\npermissions.json, tools.json)
+    Designing --> Staged : Factory Brain produces<br/>agent package<br/>(agent.json, SYSTEM.md,<br/>permissions.json, tools.json)
 
-    Staged --> UnderReview : You review the draft\nvia Telegram or Admin UI
-    UnderReview --> Rejected : /reject — back to designing
+    Staged --> UnderReview : You review the draft<br/>via Telegram or Admin UI
+    UnderReview --> Rejected : /reject - back to designing
     UnderReview --> Approved : /approve
 
     Rejected --> Designing : Factory Brain refines
 
-    Approved --> Enabled : Promoted to config/agents/\nArmy registry picks it up
+    Approved --> Enabled : Promoted to config/agents/<br/>Army registry picks it up
 
-    Enabled --> Running : Army Orchestrator\nroutes tasks to it
+    Enabled --> Running : Army Orchestrator<br/>routes tasks to it
 
-    Running --> Learning : Agent writes outcomes\nto shared knowledge store
+    Running --> Learning : Agent writes outcomes<br/>to shared knowledge store
 
-    Learning --> Running : Next task benefits\nfrom past learning
+    Learning --> Running : Next task benefits<br/>from past learning
 
-    Running --> Improving : Factory Brain reads\nagent outcomes,\npropose v2 spec
+    Running --> Improving : Factory Brain reads<br/>agent outcomes,<br/>proposes v2 spec
 
-    Improving --> Staged : New version staged\nOld version archived on approval
+    Improving --> Staged : New version staged<br/>old version archived on approval
 
     Running --> Retired : /delete or superseded by v2
 

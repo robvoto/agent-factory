@@ -1,24 +1,28 @@
-flowchart TD
+%%{init: {'themeVariables': {'lineColor': '#111111'}}}%%
+flowchart LR
     subgraph Sources["Knowledge Sources"]
-        LocalDocs["Local docs/\narchitecture, contracts,\nworkflows, ADRs"]
-        TrustedURLs["Trusted online sources\nLangChain, LangGraph,\nAnthropix, OpenAI docs"]
-        AgentOutcomes["Agent outcomes\nwhat worked, what failed,\npatterns discovered"]
-        UserPrefs["User preferences\ndecisions made,\nstyle choices"]
+        direction TB
+        LocalDocs["Local docs<br/>architecture, contracts,<br/>workflows, ADRs"]
+        TrustedURLs["Trusted online sources<br/>LangChain, LangGraph,<br/>Anthropic, OpenAI docs"]
+        AgentOutcomes["Agent outcomes<br/>what worked, what failed,<br/>patterns discovered"]
+        UserPrefs["User preferences<br/>decisions made,<br/>style choices"]
     end
 
-    subgraph Store["Shared Knowledge Store\nknowledge_store.sqlite3"]
-        SharedDocs["(shared, docs)\narchitecture + standards"]
-        SharedTrusted["(shared, trusted)\nonline reference docs"]
-        AgentLearnings["(agent, id, learnings)\nper-agent experience"]
-        UserMemory["(user, id, preferences)\nper-user preferences"]
+    subgraph Store["Shared Knowledge Store<br/>knowledge_store.sqlite3"]
+        direction TB
+        SharedDocs["(shared, docs)<br/>architecture + standards"]
+        SharedTrusted["(shared, trusted)<br/>online reference docs"]
+        AgentLearnings["(agent, id, learnings)<br/>per-agent experience"]
+        UserMemory["(user, id, preferences)<br/>per-user preferences"]
     end
 
-    subgraph Agents["All Agents — Read + Write"]
-        FactoryBrain["Factory Brain\nreads architecture\nwrites decisions"]
-        ArmyOrch["Army Orchestrator\nreads routing patterns\nwrites routing outcomes"]
-        ATL["AI Tech Lead\nreads coding patterns\nwrites task outcomes"]
-        FutureAgents["Future agents\nadd as they join the army"]
-        Keeper["Knowledge Keeper\nindexes + compacts\nruns on schedule"]
+    subgraph Agents["All Agents - Read + Write"]
+        direction TB
+        FactoryBrain["Factory Brain<br/>reads architecture<br/>writes decisions"]
+        ArmyOrch["Army Orchestrator<br/>reads routing patterns<br/>writes routing outcomes"]
+        ATL["AI Tech Lead<br/>reads coding patterns<br/>writes task outcomes"]
+        FutureAgents["Future agents<br/>add as they join the army"]
+        Keeper["Knowledge Keeper<br/>indexes + compacts<br/>runs on schedule"]
     end
 
     LocalDocs -->|ingested on change| SharedDocs

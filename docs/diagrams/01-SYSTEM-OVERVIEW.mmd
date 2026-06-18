@@ -1,39 +1,39 @@
 flowchart TD
-    subgraph You["👤 You"]
+    subgraph You["You"]
         direction LR
         Phone[Telegram app]
         Browser[Browser / VS Code]
     end
 
-    subgraph Army["agent-army — Orchestrator"]
+    subgraph Army["agent-army - Orchestrator"]
         ArmyBot[Army Telegram Bot]
-        ArmyOrch[Orchestrator\ncreate_react_agent]
-        ArmyReg[Agent Registry\nreads config/agents/]
+        ArmyOrch[Orchestrator<br/>create_react_agent]
+        ArmyReg[Agent Registry<br/>reads config/agents/]
     end
 
-    subgraph Factory["agent-factory — Control Plane"]
-        FactoryBot[Factory Brain Bot\nTelegram]
-        FactoryBrain[Factory Brain\ndeep agent]
-        AdminUI[Admin UI\nFastAPI]
+    subgraph Factory["agent-factory - Control Plane"]
+        FactoryBot[Factory Brain Bot<br/>Telegram]
+        FactoryBrain[Factory Brain<br/>deep agent]
+        AdminUI[Admin UI<br/>FastAPI]
         Staging[staging/agents/]
-        Registry[config/agents/\nenabled registry]
-        Approval[(Approvals\nSQLite)]
+        Registry[config/agents/<br/>enabled registry]
+        Approval[(Approvals<br/>SQLite)]
     end
 
-    subgraph ATL["ai-tech-lead — Coding Specialist"]
-        ATLBot[AI Tech Lead Bot\nTelegram]
-        ATLGraph[Coding Workflow\nLangGraph]
-        ATLBacklog[(Backlog\nSQLite)]
+    subgraph ATL["ai-tech-lead - Coding Specialist"]
+        ATLBot[AI Tech Lead Bot<br/>Telegram]
+        ATLGraph[Coding Workflow<br/>LangGraph]
+        ATLBacklog[(Backlog<br/>SQLite)]
     end
 
-    subgraph Future["Future Agents — not yet built"]
-        FutureAgent[Next specialist agent\ndesigned by Factory Brain]
+    subgraph Future["Future Agents - not yet built"]
+        FutureAgent[Next specialist agent<br/>designed by Factory Brain]
     end
 
     subgraph Shared["Shared Infrastructure"]
-        KnowledgeDB[(Knowledge Store\nSQLite — shared)]
-        CheckpointDB[(Checkpoints\nper-project SQLite)]
-        CodingBackend[Coding Backend\nCodex / Claude Code]
+        KnowledgeDB[(Knowledge Store<br/>SQLite - shared)]
+        CheckpointDB[(Checkpoints<br/>per-project SQLite)]
+        CodingBackend[Coding Backend<br/>Codex / Claude Code]
     end
 
     Phone -->|any task| ArmyBot
@@ -45,8 +45,8 @@ flowchart TD
     ArmyOrch --> ArmyReg
     ArmyReg --> Registry
 
-    ArmyOrch -->|coding task\nJSON subprocess| ATLGraph
-    ArmyOrch -->|design agent\nJSON subprocess| FactoryBrain
+    ArmyOrch -->|coding task<br/>JSON subprocess| ATLGraph
+    ArmyOrch -->|design agent<br/>JSON subprocess| FactoryBrain
 
     FactoryBot --> FactoryBrain
     FactoryBrain --> Staging

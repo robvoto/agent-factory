@@ -16,7 +16,7 @@ sequenceDiagram
     Orch->>Reg: list available agents
     Reg-->>Orch: [ai-tech-lead, ...]
 
-    Orch->>Orch: LLM decides: coding task → ai-tech-lead
+    Orch->>Orch: LLM decides: coding task -> ai-tech-lead
 
     Orch->>ATL: run-agent-task input.json
 
@@ -33,11 +33,11 @@ sequenceDiagram
     Orch-->>Bot: formatted response
     Bot-->>You: summary + instruction
 
-    Note over You, KB: --- Design request ---
+    Note over You, KB: Design request
 
     You->>Bot: "Design me an agent for X"
     Bot->>Orch: forward message
-    Orch->>Orch: LLM decides: factory/design → factory brain
+    Orch->>Orch: LLM decides: factory/design -> factory brain
     Orch->>FB: run-agent-task input.json
     FB-->>Orch: draft agent spec
     Orch-->>Bot: "Factory Brain has drafted a spec. /approve to stage it."

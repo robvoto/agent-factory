@@ -1,38 +1,38 @@
 flowchart TD
-    You([👤 You])
+    You([You])
 
-    subgraph Entry["Entry Points — pick one"]
-        ArmyTG["Army Bot\n'fix the login bug'"]
-        ATLTGDirect["AI Tech Lead Bot\n'/run JH-042'"]
+    subgraph Entry["Entry Points - pick one"]
+        ArmyTG["Army Bot<br/>fix the login bug"]
+        ATLTGDirect["AI Tech Lead Bot<br/>/run JH-042"]
     end
 
     subgraph ArmyLayer["Army Layer"]
-        ArmyOrch["Orchestrator LLM\ndetects coding intent"]
-        SubProc["Subprocess call\nrun-agent-task input.json"]
+        ArmyOrch["Orchestrator LLM<br/>detects coding intent"]
+        SubProc["Subprocess call<br/>run-agent-task input.json"]
     end
 
     subgraph ATLWorkflow["AI Tech Lead Workflow (LangGraph)"]
-        ReadReq["1. Read request\nvalidate + normalise"]
-        Research["2. Check research\nneed local docs?"]
-        Risk["3. Review risk\nscope, permissions, danger"]
-        Clarify["4. Check clarification\nis task unambiguous?"]
-        Analyse["5. Tech lead analysis\nformulate bounded task\nbuild brief"]
-        Approval["6. Approval gate\nneeds_approval check"]
-        Instruction["7. Build instruction\nbounded, safe prompt\nfor coding backend"]
-        RunAgent["8. Run coding agent\nCodex / Claude Code\n(if execution approved)"]
-        End["9. Return result\nchanged files, evidence, logs"]
+        ReadReq["1. Read request<br/>validate + normalise"]
+        Research["2. Check research<br/>need local docs?"]
+        Risk["3. Review risk<br/>scope, permissions, danger"]
+        Clarify["4. Check clarification<br/>is task unambiguous?"]
+        Analyse["5. Tech lead analysis<br/>formulate bounded task<br/>build brief"]
+        Approval["6. Approval gate<br/>needs_approval check"]
+        Instruction["7. Build instruction<br/>bounded, safe prompt<br/>for coding backend"]
+        RunAgent["8. Run coding agent<br/>Codex / Claude Code<br/>(if execution approved)"]
+        End["9. Return result<br/>changed files, evidence, logs"]
     end
 
     subgraph HumanGates["Human-in-the-Loop Gates"]
-        ClarifyQ["❓ Ask clarification\nvia Telegram"]
-        ApproveQ["⚠️ Request approval\nvia Telegram"]
-        FailQ["🚨 Failure interrupt\ntoo risky to retry"]
+        ClarifyQ["Ask clarification<br/>via Telegram"]
+        ApproveQ["Request approval<br/>via Telegram"]
+        FailQ["Failure interrupt<br/>too risky to retry"]
     end
 
     subgraph Output["Output"]
-        JSONOut["output.json\nstatus, instruction,\nresult, evidence"]
-        TGResponse["Telegram response\nsummary to you"]
-        ChangedFiles["Changed files\nin target project"]
+        JSONOut["output.json<br/>status, instruction,<br/>result, evidence"]
+        TGResponse["Telegram response<br/>summary to you"]
+        ChangedFiles["Changed files<br/>in target project"]
     end
 
     You --> ArmyTG
