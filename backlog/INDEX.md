@@ -5,7 +5,7 @@ This directory points to the live Agent Factory Excel backlog.
 ## Backlog files
 
 - `../data/backlog/agent_factory_backlog.xlsx` - active backlog source of truth.
-- The workbook combines the current roadmap gaps and latest diagram/workflow issues.
+- The workbook combines the current open gaps and latest diagram/workflow issues.
 
 ## Rules for future agents
 
