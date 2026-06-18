@@ -7,10 +7,6 @@ Working execution:
 - `../backlog/INDEX.md` - backlog entry point
 - `../data/backlog/agent_factory_backlog.xlsx` - active backlog source of truth
 
-Historical source plan:
-
-- `INITIAL_DEEP_AGENT_FACTORY_PLAN.md` - original staged plan, kept for background
-
 Diagrams:
 
 - `diagrams/INDEX.md` - canonical diagram index
