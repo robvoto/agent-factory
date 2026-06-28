@@ -258,4 +258,17 @@
   <text x="1125.0" y="1250.0" text-anchor="middle" class="node-label">Store outcome</text>
   <circle cx="1298.0" cy="1250.0" r="18.0" class="event-end"/>
   <text x="1298.0" y="1284.0" text-anchor="middle" class="node-label">Persisted</text>
+  <g id="message-flow-legend">
+    <rect x="60" y="1320" width="2480" height="140" rx="16" ry="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text x="90" y="1348" class="pool-label">Message Flow Legend</text>
+    <text x="90" y="1370" class="small-label">Dotted lines are message flows between pools. Solid lines are sequence flows within a pool.</text>
+    <text x="90" y="1394" class="small-label">MF_01 User request: Human / Operator -&gt; Agent Factory</text>
+    <text x="90" y="1412" class="small-label">MF_02 Clarification question: Agent Factory -&gt; Human / Operator</text>
+    <text x="90" y="1430" class="small-label">MF_03 Clarification reply: Human / Operator -&gt; Agent Factory</text>
+    <text x="90" y="1448" class="small-label">MF_04 Approval request: Agent Factory -&gt; Human / Operator</text>
+    <text x="1380" y="1394" class="small-label">MF_05 Approval decision: Human / Operator -&gt; Agent Factory</text>
+    <text x="1380" y="1412" class="small-label">MF_06 Final summary: Agent Factory -&gt; Human / Operator</text>
+    <text x="1380" y="1430" class="small-label">MF_07 Backend instruction: Agent Factory -&gt; Coding Backend</text>
+    <text x="1380" y="1448" class="small-label">MF_08 Backend result: Coding Backend -&gt; Agent Factory</text>
+  </g>
 </svg>

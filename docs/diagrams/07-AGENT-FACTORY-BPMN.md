@@ -1,7 +1,7 @@
 # Agent Factory BPMN
 
 Source of truth: `07-AGENT-FACTORY-BPMN.bpmn`.
-Rendered view: `07-AGENT-FACTORY-BPMN.svg` is exported manually for review when needed.
+Rendered view: `07-AGENT-FACTORY-BPMN.svg` is exported manually for review when needed and now includes a message-flow legend.
 
 This model is intended to be opened directly in a BPMN viewer for now:
 
@@ -23,5 +23,18 @@ Flow rules:
 - Use message flows only between Human / Operator, Agent Factory, and Coding Backend.
 - Use solid sequence flows inside the Agent Factory pool.
 - Use data associations for request state, decision state, and outcome persistence.
+
+Message flow meanings:
+
+| ID | Meaning | Direction |
+|---|---|---|
+| MF_01 | User request | Human -> Agent Factory |
+| MF_02 | Clarification question | Agent Factory -> Human |
+| MF_03 | Clarification reply | Human -> Agent Factory |
+| MF_04 | Approval request | Agent Factory -> Human |
+| MF_05 | Approval decision | Human -> Agent Factory |
+| MF_06 | Final summary | Agent Factory -> Human |
+| MF_07 | Backend instruction | Agent Factory -> Coding Backend |
+| MF_08 | Backend result | Coding Backend -> Agent Factory |
 
 The model covers request intake, intent classification, agent selection, clarification, approval, execution, logging, and safe stop paths.

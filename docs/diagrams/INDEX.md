@@ -1,8 +1,8 @@
 # Diagrams Index
 
-All Agent Factory diagrams live here. The `.mmd` file is always the source of truth for Mermaid diagrams. SVG files are generated — do not edit them by hand.
+All Agent Factory diagrams live here. The `.mmd` file is always the source of truth for Mermaid diagrams. SVG files are generated locally from those sources — do not edit them by hand.
 
-To regenerate: `bash render.sh` (uses the mermaid.ink API, no local dependencies).
+To regenerate: `bash render.sh` (uses local `jsdom` + Mermaid, no external renderer).
 
 ---
 
@@ -27,7 +27,7 @@ Diagram 07 shows the controlled Agent Factory workflow.
 The `.bpmn` file is the source of truth. The `.svg` preview is exported manually for review when needed.
 
 For now, open the `.bpmn` in Camunda Modeler, bpmn.io, or the VS Code BPMN viewer.
-Automated `.bpmn -> .svg` rendering is deferred until we choose one stable renderer path.
+The preview `.svg` is maintained alongside the source model.
 
 - `07-AGENT-FACTORY-BPMN.bpmn` - source model
 - `07-AGENT-FACTORY-BPMN.svg` - manual preview export
@@ -40,4 +40,4 @@ Automated `.bpmn -> .svg` rendering is deferred until we choose one stable rende
 | Document | What it shows |
 |---|---|
 | [Factory Brain Flow](../factory-brain-flow.md) | Inside the Factory Brain: tools, memory, approvals. |
-| [AI Tech Lead: Army Integration](../../ai-tech-lead/docs/ARMY_INTEGRATION.md) | How the army calls AI Tech Lead via JSON subprocess contract. |
+| [AI Tech Lead: Army Integration](../../staging/agents/ai-tech-lead/SYSTEM.md) | How the army calls AI Tech Lead via JSON subprocess contract. |

@@ -4,14 +4,14 @@
     <bpmn:participant id="Part_Human" name="Human / Operator" processRef="Proc_Human"/>
     <bpmn:participant id="Part_AgentFactory" name="Agent Factory" processRef="Proc_AgentFactory"/>
     <bpmn:participant id="Part_Backend" name="Coding Backend" processRef="Proc_Backend"/>
-    <bpmn:messageFlow id="MF_01" name="Request" sourceRef="SE_Human" targetRef="SE_Request"/>
-    <bpmn:messageFlow id="MF_02" name="Clarification request" sourceRef="T_RelayClarify" targetRef="H_ClarifyCatch"/>
-    <bpmn:messageFlow id="MF_03" name="Clarification answer" sourceRef="H_SendClarify" targetRef="T_ForwardClarify"/>
+    <bpmn:messageFlow id="MF_01" name="User request" sourceRef="SE_Human" targetRef="SE_Request"/>
+    <bpmn:messageFlow id="MF_02" name="Clarification question" sourceRef="T_RelayClarify" targetRef="H_ClarifyCatch"/>
+    <bpmn:messageFlow id="MF_03" name="Clarification reply" sourceRef="H_SendClarify" targetRef="T_ForwardClarify"/>
     <bpmn:messageFlow id="MF_04" name="Approval request" sourceRef="T_RelayApproval" targetRef="H_ApprovalCatch"/>
-    <bpmn:messageFlow id="MF_05" name="Approval or rejection" sourceRef="H_SendDecision" targetRef="T_ForwardDecision"/>
-    <bpmn:messageFlow id="MF_06" name="Summary" sourceRef="T_RelaySummary" targetRef="H_SummaryCatch"/>
-    <bpmn:messageFlow id="MF_07" name="Instruction" sourceRef="A_Execute" targetRef="SE_Backend"/>
-    <bpmn:messageFlow id="MF_08" name="Result" sourceRef="B_ReturnResult" targetRef="A_BackendReply"/>
+    <bpmn:messageFlow id="MF_05" name="Approval decision" sourceRef="H_SendDecision" targetRef="T_ForwardDecision"/>
+    <bpmn:messageFlow id="MF_06" name="Final summary" sourceRef="T_RelaySummary" targetRef="H_SummaryCatch"/>
+    <bpmn:messageFlow id="MF_07" name="Backend instruction" sourceRef="A_Execute" targetRef="SE_Backend"/>
+    <bpmn:messageFlow id="MF_08" name="Backend result" sourceRef="B_ReturnResult" targetRef="A_BackendReply"/>
   </bpmn:collaboration>
 
   <bpmn:dataStore id="DataStore_Persistent" name="Persistent State / Logs"/>

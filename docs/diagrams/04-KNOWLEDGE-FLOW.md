@@ -3,7 +3,7 @@
 All agents read from and write to one shared knowledge store. Knowledge compounds over time.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Sources["Knowledge Sources"]
         direction TB
         LocalDocs["Local docs/\narchitecture, contracts,\nworkflows, ADRs"]
@@ -26,7 +26,11 @@ flowchart LR
         ArmyOrch["Army Orchestrator\nreads routing patterns\nwrites routing outcomes"]
         ATL["AI Tech Lead\nreads coding patterns\nwrites task outcomes"]
         FutureAgents["Future agents\nadd as they join the army"]
-        Keeper["Knowledge Keeper\nindexes + compacts\nruns on schedule"]
+    end
+
+    subgraph KeeperSection["Knowledge Keeper"]
+        direction TB
+        Keeper["Indexes, deduplicates,\nand compacts on schedule"]
     end
 
     LocalDocs -->|ingested on change| SharedDocs

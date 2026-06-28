@@ -1,5 +1,5 @@
 %%{init: {'themeVariables': {'lineColor': '#111111'}}}%%
-flowchart LR
+flowchart TB
     subgraph Sources["Knowledge Sources"]
         direction TB
         LocalDocs["Local docs<br/>architecture, contracts,<br/>workflows, ADRs"]
@@ -22,7 +22,11 @@ flowchart LR
         ArmyOrch["Army Orchestrator<br/>reads routing patterns<br/>writes routing outcomes"]
         ATL["AI Tech Lead<br/>reads coding patterns<br/>writes task outcomes"]
         FutureAgents["Future agents<br/>add as they join the army"]
-        Keeper["Knowledge Keeper<br/>indexes + compacts<br/>runs on schedule"]
+    end
+
+    subgraph KeeperSection["Knowledge Keeper"]
+        direction TB
+        Keeper["Indexes, deduplicates,<br/>and compacts on schedule"]
     end
 
     LocalDocs -->|ingested on change| SharedDocs

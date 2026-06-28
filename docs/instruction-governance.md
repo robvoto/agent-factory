@@ -1,0 +1,42 @@
+# Instruction and Skill Governance
+
+This document defines how `AGENTS.md` files and reusable skills are scoped in Agent Factory.
+
+## Scope Model
+
+| Surface | Scope | Rule |
+|---|---|---|
+| Repo root [`AGENTS.md`](../AGENTS.md) | Shared baseline for every turn | Keep it minimal, always loaded, and fail closed. |
+| Nested `AGENTS.md` files | Area-specific overlay | Add local rules only; do not replace root policy. |
+| [`memory/factory/AGENTS.md`](../memory/factory/AGENTS.md) | Factory Brain instructions | Covers staging, approvals, and other Factory Brain behavior. |
+| [`templates/agent-package/AGENTS.md`](../templates/agent-package/AGENTS.md) | Staged agent scaffold | Seeds new agent packages before approval; it is not live runtime policy. |
+| Agent-specific `AGENTS.md` files in enabled packages | Live agent instructions | Apply only after approval and stay narrow. |
+
+## Skills
+
+Skills hold repeatable procedures and checklists.
+
+- Put reusable procedures in [`.skills/INDEX.md`](../.skills/INDEX.md).
+- Use skills for bounded workflows, not for shared policy that belongs in `AGENTS.md` or docs.
+- Keep skills short enough that a future agent can find the right one quickly.
+
+## Maintenance Ownership
+
+| Surface | Who may create or maintain | Notes |
+|---|---|---|
+| Repo root `AGENTS.md` | Human, with approval-gated help from an orchestrator or coding agent | Shared baseline; update sparingly. |
+| Nested `AGENTS.md` files | Human or approval-gated coding agent in the touched area | Must remain additive. |
+| `memory/factory/AGENTS.md` | Human, or an orchestrator/coding agent under approval | Factory-specific only. |
+| Template package `AGENTS.md` and scaffold files | Orchestrator or coding agent during staged package creation | Never enable from inside the staged package. |
+| Shared skills and skill indexes | Human-maintained; orchestrator or coding agent may propose updates under approval | Keep them reusable and task-shaped. |
+
+## Precedence
+
+1. Repo root `AGENTS.md` sets the shared baseline.
+2. The nearest nested `AGENTS.md` adds area-specific rules.
+3. Template and agent-specific `AGENTS.md` files apply only to that package.
+4. Skills explain how to perform a bounded procedure; they do not override fail-closed policy.
+
+## Practical Rule
+
+When a task touches `AGENTS.md` or skills, the finish report must say which files were used and which files were changed.

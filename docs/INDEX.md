@@ -4,8 +4,7 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- `../backlog/INDEX.md` - backlog entry point
-- `../data/backlog/agent_factory_backlog.xlsx` - active backlog source of truth
+- Backlog files are local working data and are intentionally ignored by Git.
 
 Diagrams:
 
@@ -22,6 +21,10 @@ Reusable project standards:
 
 - `STANDARDS_INDEX.md` - canonical routing hub for shared standards
 - `STANDARDS_PENDING_GDOC_UPDATES.md` - pending standards additions to merge into Google Docs
+
+Instruction governance:
+
+- `instruction-governance.md` - scoped model for root, nested, template, and agent-specific `AGENTS.md` files plus reusable skills.
 
 Core direction:
 

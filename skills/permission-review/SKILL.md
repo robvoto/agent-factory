@@ -37,6 +37,11 @@ How to review risk before enabling an agent.
 - Access to credentials, tokens, or secrets
 - Logging or transmitting user messages externally
 
+### Fallback and compatibility risk
+- Fallback code, compatibility shims, silent defaults, degraded behaviour, workarounds, and hardcoded replacements
+- Upstream dependency changes that would silently change product semantics
+- Any proposed change that says "safe default", "best effort", or equivalent
+
 ## Reviewing a staged agent
 
 Check these fields in `agent.json`:
@@ -54,3 +59,11 @@ Any staged agent with a non-default permission must include in REVIEW.md:
 - Why it is required
 - What the risk is
 - Who approved it (after the fact)
+
+## Fallback and shim review
+
+If a proposed change is described as fallback, temporary, compatibility shim, workaround, safe default, best effort, or degraded behaviour:
+
+1. Stop and ask for approval before implementing it.
+2. Report the product impact instead of silently replacing semantics.
+3. List the fallback, shim, or workaround in REVIEW.md, or state explicitly that none were introduced.
