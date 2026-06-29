@@ -2,7 +2,7 @@
 
 All Agent Factory diagrams live here. The `.mmd` file is always the source of truth for Mermaid diagrams. SVG files are generated locally from those sources — do not edit them by hand.
 
-To regenerate: `bash render.sh` (uses local `jsdom` + Mermaid, no external renderer).
+To regenerate: `bash render.sh` (uses local `jsdom` + Mermaid on Node.js 20.19+, no external renderer).
 
 ---
 
