@@ -1,6 +1,7 @@
 {
   "id": "ai-tech-lead",
   "name": "AI Tech Lead",
+  "purpose": "Specialist coding agent for software engineering tasks: code review, implementation, debugging, and architecture guidance.",
   "aliases": ["techlead", "atl", "code", "coding-specialist"],
   "tools": ["run_agent_task"],
   "permissions": {

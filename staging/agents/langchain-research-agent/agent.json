@@ -1,6 +1,7 @@
 {
   "id": "langchain-research-agent",
   "name": "LangChain Research Agent",
+  "purpose": "Researches and summarises LangChain documentation and patterns.",
   "aliases": [
     "research",
     "lc-docs"

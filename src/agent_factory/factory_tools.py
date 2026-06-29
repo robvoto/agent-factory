@@ -148,6 +148,7 @@ def create_staged_agent_package(spec_json: str) -> str:
             {
                 "id": spec.id,
                 "name": spec.name,
+                "purpose": spec.purpose,
                 "aliases": spec.aliases,
                 "tools": spec.tools,
                 "permissions": spec.permissions.model_dump(),

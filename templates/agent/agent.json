@@ -1,6 +1,7 @@
 {
   "id": "example-agent-id",
   "name": "Example Agent Name",
+  "purpose": "Describe what this agent does.",
   "aliases": ["example"],
   "tools": [],
   "permissions": {
