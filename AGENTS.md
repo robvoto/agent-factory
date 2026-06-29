@@ -3,6 +3,11 @@
 Minimal always-loaded instructions. Not the project manual, architecture guide, or command reference.
 This file is the shared base; nested `AGENTS.md` files may add narrower rules for specific areas.
 
+## Backlog
+
+The live backlog is a Google Sheet — use it to find, add, or update work items:
+https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit
+
 ## Default workflow
 
 1. Use `docs/INDEX.md` to find the smallest relevant project document.
