@@ -1,157 +1,91 @@
-# Agent Factory Platform
+# Agent Factory
 
-A WSL-first platform for creating, running, monitoring, and improving AI agent packages in a controlled way.
+Creates, configures, and stages AI agent packages. Does **not** orchestrate or dispatch tasks.
 
-The project direction is deliberately bounded:
+## Role
 
-- create staged agent packages
-- validate manifests, tools, permissions, and memory policy
-- enable agents only after approval
-- run approved agents safely
-- turn failures and feedback into reviewed improvement proposals
+Agent Factory is a **specialist agent** in the platform. Its job is:
 
-This is not OpenClaw, not AI Tech Lead, and not Job Hunter.
+- Design and stage agent packages on request
+- Validate manifests, tools, permissions, and memory policy
+- Enable agents only after human approval
+- Track the agent lifecycle (staged → approved → enabled)
 
-## Runtime rule
+**Agent Army (`agent-army`) is the orchestrator and entry point for users.**
+Factory is called by army when an agent-creation task is requested.
 
-Run this project from WSL.
+## Related repos
 
-Use this path in WSL:
+| Repo | Role |
+|------|------|
+| `agent-army` | Orchestrator / runtime / control plane — **main entry point** |
+| `agent-factory` (this repo) | Creates, configures, and stages agents only |
+| `ai-tech-lead` | Specialist coding agent |
 
-```bash
-/mnt/e/programming/agent-factory
-```
+## Agent registry
 
-The Windows path exists only for MCP/tool access:
+Enabled agents live in `config/agents/<id>/agent.json`. Army reads from here.
 
-```text
-E:\Programming\agent-factory
-```
+Staged (unapproved) drafts live in `staging/agents/`.
 
-Do not use Windows PowerShell or Windows Python for normal development commands.
-
-## Platform modes
-
-One control surface should eventually support:
-
-```text
-Agents   - run, stop, inspect, view logs and costs
-Factory  - create staged agent packages
-Improve  - review failures and approve proposed fixes
-```
-
-Web UI is best for review and editing. Telegram is best for quick control.
-
-## Current implemented scope
-
-- Load manifests from `config/agents`
-- Validate required fields
-- Reject duplicate aliases
-- Reject unknown tools
-- Create staged agent packages from bounded requests (deterministic, no LLM)
-- Invoke the Factory Brain to design and stage packages via LangGraph react agent
-- Route `/agent <alias> <message>`
-- List configured agents
-- Provide a minimal LangChain harness check for future agent work
-
-No real agents are configured yet. `config/agents` should contain only `.gitkeep`.
-
-## WSL quick setup
-
-This project is `uv`-first. Do not use manual `pip` / `source .venv/bin/activate` as the normal path.
-
-From WSL:
+## Quick start
 
 ```bash
-cd /mnt/e/programming/agent-factory
-bash run.sh setup
-```
-
-That runs:
-
-```bash
+cd ~/projects/agent-factory
 uv sync --all-extras
-uv run pytest -q
+uv run pytest
 uv run agent-factory list
-uv run agent-factory langchain-check
 ```
 
-## Daily WSL test command
+## Factory Brain
 
-After setup, use this from WSL:
+The Factory Brain is a LangGraph deep agent that designs and stages agent packages.
+Requires `OPENAI_API_KEY` in `.env`.
 
 ```bash
-cd /mnt/e/programming/agent-factory
-bash run.sh all
+uv run agent-factory factory "Create an agent that researches LangChain docs safely"
 ```
 
-It runs non-mutating checks only:
-
-```text
-uv run pytest -q
-uv run agent-factory list
-uv run agent-factory langchain-check
-```
-
-Expected while no agents exist:
-
-```text
-No agents configured.
-```
-
-## Factory Brain (Stage 2)
-
-The Factory Brain uses a LangGraph react agent to design and stage agent packages.
-It loads rules from `memory/factory/AGENTS.md` and skills from `skills/`.
-
-Requires `OPENAI_API_KEY` in the environment or a `.env` file at the project root.
+## Telegram (factory admin bot)
 
 ```bash
-cd /mnt/e/programming/agent-factory
-bash run.sh factory "Create an agent that researches LangChain docs safely"
+uv run agent-factory telegram
 ```
 
-The Factory Brain will:
+Factory's Telegram bot handles factory admin commands only:
+`/staged`, `/pending`, `/approve`, `/reject`, `/create`, `/promote`, `/delete`.
 
-1. Clarify the request if needed
-2. Produce a validated `AgentPackageSpec`
-3. Flag risky permissions
-4. Create a staged package under `staging/agents/`
-5. Present the result for human review
+This is **not** the main user bot — that is army's Telegram gateway.
 
-No agent is enabled. No risky tools are granted. Staging only.
-
-## Manual WSL commands
+## Key commands
 
 ```bash
-cd /mnt/e/programming/agent-factory
-uv run pytest -q
-uv run agent-factory factory "Create an agent that researches docs safely"
-uv run agent-factory create "Create an agent that researches docs safely"
-uv run agent-factory list
-uv run agent-factory langchain-check
+uv run agent-factory list          # list enabled agents
+uv run agent-factory staged        # list staged drafts
+uv run agent-factory pending       # list pending approvals
+uv run agent-factory create "..."  # create staged draft (deterministic, no LLM)
+uv run agent-factory factory "..." # invoke Factory Brain (LLM)
+uv run agent-factory approve <id>  # approve a pending action
+uv run agent-factory reject <id>   # reject a pending action
+uv run agent-factory promote <id>  # request promotion to config/agents
 ```
 
-Run the project:
+## Key files
 
-```bash
-cd /mnt/e/programming/agent-factory
-bash run.sh
-```
-
-`bash run.sh` starts the Telegram Agent Factory app. Use `bash run.sh web` only for the optional local web app.
-
-## Open in VS Code from WSL
-
-```bash
-cd /mnt/e/programming/agent-factory
-code .
-```
+- `src/agent_factory/factory_brain.py` — Factory Brain agent
+- `src/agent_factory/factory_tools.py` — bounded tools (create, promote, approve)
+- `src/agent_factory/agent_spec.py` — Pydantic spec validation
+- `src/agent_factory/agent_catalog.py` — staged + enabled inventory
+- `src/agent_factory/telegram_gateway.py` — factory admin Telegram bot
+- `src/agent_factory/storage.py` — SQLite persistence
+- `templates/agent-package/` — agent package template
+- `staging/agents/` — staged (unapproved) drafts
+- `config/agents/` — enabled agents (read by army)
 
 ## Key docs
 
-- `docs/platform-architecture.md`
 - `docs/agent-lifecycle.md`
 - `docs/agent-creator-workflow.md`
 - `docs/agent-contract.md`
 - `docs/permission-model.md`
+- `docs/platform-architecture.md`
