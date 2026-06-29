@@ -4,7 +4,7 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- Backlog files are local working data and are intentionally ignored by Git.
+- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1fr2K1pk67Njk4p3k5GRgzbTeSi_Yi7_xsmlGzgS08ns/edit) — live backlog (Google Sheet)
 
 Diagrams:
 
