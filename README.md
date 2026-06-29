@@ -82,6 +82,10 @@ uv run agent-factory promote <id>  # request promotion to config/agents
 - `staging/agents/` — staged (unapproved) drafts
 - `config/agents/` — enabled agents (read by army)
 
+## Backlog
+
+https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit
+
 ## Key docs
 
 - `docs/agent-lifecycle.md`

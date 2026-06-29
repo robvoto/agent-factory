@@ -1,74 +1,54 @@
 # Platform Architecture
 
-## Product direction
+## Role split (2026-06-29)
 
-This project is an Agent Factory Platform.
-It is a standalone project, separate from AI Tech Lead, OpenClaw, and Job Hunter.
+| Repo | Role |
+|------|------|
+| `agent-army` | Orchestrator / runtime / control plane — main entry point for users |
+| `agent-factory` (this repo) | Specialist agent — creates, configures, and stages agents only |
+| `ai-tech-lead` | Specialist coding agent |
 
-It should support three user-facing modes through one control surface:
+`agent-factory` is **not** the runtime or orchestrator. `agent-army` runs agents and routes tasks.
 
-1. Run agents.
-2. Create agents.
-3. Improve agents.
+## What agent-factory does
 
-The control surface can be web UI, Telegram, or both.
+- Designs and stages agent packages on request (via Factory Brain or CLI)
+- Validates manifests, tools, permissions, and memory policy
+- Enables agents only after human approval
+- Tracks agent lifecycle: staged → approved → enabled
+- Exposes enabled agents via `config/agents/` — army reads from there
 
-## Main parts
+## What agent-factory does NOT do
 
-```text
-Web UI / Telegram
-  ↓
-Agent Factory Platform
-  ├─ Factory
-  ├─ Runtime
-  ├─ Improver
-  └─ Governance
-```
+- Does not run or dispatch tasks to agents (army does this)
+- Does not own the user-facing Telegram gateway (army does this)
+- Does not route user requests (army does this)
 
-## Responsibilities
+## Responsibilities within factory
 
-Factory:
-
-- creates staged agent package drafts
-- validates manifests
-- scaffolds files from templates
-- does not enable live agents without approval
-
-Runtime:
-
-- runs approved agents
-- captures status, logs, costs, and outputs
-- stops agents when limits are reached
-- does not create or modify agents by itself
-
-Improver:
-
-- reviews logs, failures, feedback, and cost issues
-- proposes changes
-- does not apply risky changes without approval
+Factory Brain:
+- Designs staged agent package drafts
+- Validates manifests
+- Scaffolds files from templates
+- Does not enable live agents without approval
 
 Governance:
-
-- controls approvals
-- enforces permissions
-- records validation evidence
-- protects against uncontrolled autonomy
+- Controls approvals
+- Enforces permissions
+- Records validation evidence
+- Protects against uncontrolled autonomy
 
 ## Repository shape
 
-For now this can stay as one repo:
-
 ```text
 agent-factory/
-  src/agent_factory/          # platform logic
-  config/agents/              # enabled agent manifests
-  agents/                     # future generated/runnable agent packages
+  src/agent_factory/          # factory logic only
+  config/agents/              # enabled agent manifests (read by army)
+  staging/agents/             # staged (unapproved) drafts
   templates/agent-package/    # scaffold template
   docs/
   .skills/
 ```
-
-`agents/` is future runtime content. Do not add real agents there until approved.
 
 ## Key rule
 
