@@ -31,7 +31,7 @@ Usage:
   bash run.sh help                 Show this help
 
 Run the project:
-  cd /mnt/e/programming/agent-factory
+  cd ~/projects/agent-factory
   bash run.sh
 
 Expected MVP interaction:
@@ -47,7 +47,7 @@ require_wsl() {
     return 0
   fi
   echo "ERROR: run.sh is intended for WSL."
-  echo "Use: cd /mnt/e/programming/agent-factory && bash run.sh"
+  echo "Use: cd ~/projects/agent-factory && bash run.sh"
   exit 1
 }
 

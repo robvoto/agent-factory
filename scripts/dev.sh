@@ -12,7 +12,7 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   :
 else
   echo "ERROR: This script is intended to run from WSL."
-  echo "Use: cd /mnt/e/programming/agent-factory && bash scripts/dev.sh"
+  echo "Use: cd ~/projects/agent-factory && bash scripts/dev.sh"
   exit 1
 fi
 

@@ -9,7 +9,7 @@
     "shell": false,
     "requires_approval": true,
     "allowed_roots": [
-      "/mnt/e/programming/ai-tech-lead"
+      "/home/robvoto/projects/ai-tech-lead"
     ]
   },
   "memory": {
@@ -19,7 +19,7 @@
   "runtime": {
     "mode": "subprocess",
     "entrypoint": "uv run python -m ai_tech_lead run-agent-task",
-    "working_directory": "/mnt/e/programming/ai-tech-lead",
+    "working_directory": "/home/robvoto/projects/ai-tech-lead",
     "input_arg": "--input-json",
     "output_arg": "--output-json",
     "default_execution_mode": "execute",
