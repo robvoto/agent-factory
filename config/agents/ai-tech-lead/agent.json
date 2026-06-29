@@ -1,0 +1,30 @@
+{
+  "id": "ai-tech-lead",
+  "name": "AI Tech Lead",
+  "purpose": "Specialist coding agent for software engineering tasks: code review, implementation, debugging, and architecture guidance.",
+  "aliases": ["techlead", "atl", "code", "coding-specialist"],
+  "tools": ["run_agent_task"],
+  "permissions": {
+    "network": false,
+    "filesystem": "read",
+    "shell": false,
+    "requires_approval": true,
+    "allowed_roots": [
+      "/home/robvoto/projects/ai-tech-lead"
+    ]
+  },
+  "memory": {
+    "scope": "project",
+    "retention": "persistent"
+  },
+  "runtime": {
+    "mode": "subprocess",
+    "entrypoint": "uv run python -m ai_tech_lead run-agent-task",
+    "working_directory": "/home/robvoto/projects/ai-tech-lead",
+    "input_arg": "--input-json",
+    "output_arg": "--output-json",
+    "default_execution_mode": "execute",
+    "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Army passes human_approved=true only after the human explicitly says yes via Telegram."
+  },
+  "backlog_sheet_id": "1-e2lQ6vLUD8A5t3cuLhrjRvdTbs3hfs4ptdEE2yDaEc"
+}

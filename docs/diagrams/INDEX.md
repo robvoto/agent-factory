@@ -16,8 +16,8 @@ Each diagram has two files: `.mmd` (source) and `.svg` (scalable preview).
 | 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | How an agent goes from idea → factory → army → improvement. |
 | 03 | [Telegram Flows](03-TELEGRAM-FLOWS.md) | Which bot to use, what each handles, all commands. |
 | 04 | [Knowledge Flow](04-KNOWLEDGE-FLOW.md) | How agents share knowledge and learn from each other. |
-| 05 | [Army Routing Interaction](05-ARMY-ROUTING.md) | Interaction diagram showing how the orchestrator decides which agent handles a request. |
-| 06 | [Coding Task End to End](06-CODING-TASK-END-TO-END.md) | A coding task through every layer and gate. |
+| 05 | Army Routing Interaction | **Moved to `agent-army/docs/diagrams/`** — orchestration belongs in army |
+| 06 | Coding Task End to End | **Moved to `agent-army/docs/diagrams/`** — orchestration belongs in army |
 
 ---
 
