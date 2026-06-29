@@ -4,7 +4,7 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1fr2K1pk67Njk4p3k5GRgzbTeSi_Yi7_xsmlGzgS08ns/edit) — live backlog (Google Sheet)
+- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) — live backlog (Google Sheet, AF-002 through AF-024)
 
 Diagrams:
 
