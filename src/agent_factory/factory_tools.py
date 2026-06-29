@@ -154,6 +154,7 @@ def create_staged_agent_package(spec_json: str) -> str:
                 "permissions": spec.permissions.model_dump(),
                 "memory": spec.memory_policy.model_dump(),
                 "runtime": {"mode": "manual", "entrypoint": None},
+                "backlog_sheet_id": None,
             },
             indent=2,
         )

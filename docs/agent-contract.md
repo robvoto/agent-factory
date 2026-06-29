@@ -29,22 +29,27 @@ agents/<agent-id>/run.sh
 
 ## Manifest fields
 
-An agent manifest must be a JSON object with:
+An agent manifest (`agent.json`) must be a JSON object with:
 
-- `id`
-- `name`
-- `aliases`
-- `tools`
-- `permissions`
-- `memory`
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique agent identifier (kebab-case) |
+| `name` | Yes | Human-readable name |
+| `purpose` | Yes | One-line description — used by army for routing decisions |
+| `aliases` | Yes | Non-empty list of strings army uses to route tasks |
+| `tools` | Yes | List of tool IDs the agent exposes |
+| `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
+| `memory` | Yes | Object: `scope`, `retention` |
+| `runtime` | Yes | Object: `mode`, `entrypoint` — how army invokes the agent |
+| `backlog_sheet_id` | No | Google Sheets spreadsheet ID for this agent's backlog. Army uses this to add backlog items without hardcoding sheet locations. `null` if no sheet. |
 
-`id` and `name` are non-empty strings.
+### backlog_sheet_id
 
-`aliases` is a non-empty list of strings.
+Army reads `backlog_sheet_id` from each agent's registry entry to know where to route "add backlog item" requests. This lets army manage any agent's backlog without hardcoded URLs.
 
-`tools` is a list of tool ids.
+Example: `"backlog_sheet_id": "1-e2lQ6vLUD8A5t3cuLhrjRvdTbs3hfs4ptdEE2yDaEc"`
 
-`permissions` and `memory` are objects.
+Set to `null` if the agent has no backlog sheet.
 
 ## Enabled versus staged
 

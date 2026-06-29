@@ -25,5 +25,6 @@
     "output_arg": "--output-json",
     "default_execution_mode": "execute",
     "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Army passes human_approved=true only after the human explicitly says yes via Telegram."
-  }
+  },
+  "backlog_sheet_id": "1-e2lQ6vLUD8A5t3cuLhrjRvdTbs3hfs4ptdEE2yDaEc"
 }
