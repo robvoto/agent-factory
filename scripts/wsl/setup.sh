@@ -29,6 +29,10 @@ echo "Runtime: uv"
 #      git clone git@github.com:robvoto/ai-tech-lead-agent.git ~/projects/ai-tech-lead
 #      git clone git@github.com:robvoto/job-hunter-agent.git ~/projects/job-hunter-agent
 #      git clone git@github.com:robvoto/agent-army.git ~/projects/agent-army
+#
+# 4. Shared resources
+#      Agent Factory Backlog (Google Sheet):
+#      https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit
 # ---------------------------------------------------------------------------
 
 if ! command -v uv >/dev/null 2>&1; then
