@@ -1,0 +1,4 @@
+{
+  "telegram_allowed_chat_ids": ["YOUR_CHAT_ID"],
+  "_note": "Copy this file to settings.local.json and fill in real values. Never commit real values."
+}

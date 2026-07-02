@@ -4,7 +4,7 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) — live backlog (Google Sheet, AF-002 through AF-024)
+- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) â€” live backlog (Google Sheet, AF-002 through AF-024)
 
 Diagrams:
 
@@ -13,14 +13,11 @@ Diagrams:
 - `diagrams/02-AGENT-LIFECYCLE.md` - agent lifecycle Mermaid flowchart
 - `diagrams/03-TELEGRAM-FLOWS.md` - Telegram interaction Mermaid flowchart
 - `diagrams/04-KNOWLEDGE-FLOW.md` - knowledge and memory Mermaid flowchart
-- `diagrams/05-ARMY-ROUTING.md` - army routing interaction diagram
-- `diagrams/06-CODING-TASK-END-TO-END.md` - coding task end-to-end Mermaid flowchart
 - `diagrams/07-AGENT-FACTORY-BPMN.md` - BPMN 2.0 process diagram for the controlled Agent Factory workflow
 
 Reusable project standards:
 
-- `STANDARDS_INDEX.md` - canonical routing hub for shared standards
-- `STANDARDS_PENDING_GDOC_UPDATES.md` - pending standards additions to merge into Google Docs
+- `STANDARDS_INDEX.md` - pointer to Rob's Google Drive project standards source of truth
 
 Instruction governance:
 
@@ -39,3 +36,9 @@ Contracts and controls:
 - `agent-contract.md`
 - `permission-model.md`
 - `trusted-sources.md`
+- `agent-registry-contract.md` — how Army discovers agents; registry-driven protocol (AF-047)
+
+Data and operations:
+
+- `data-classification.md` — what belongs in Git vs runtime vs local-only (AF-025)
+- `settings-hygiene.md` — safe pattern for local settings and secrets (AF-031)

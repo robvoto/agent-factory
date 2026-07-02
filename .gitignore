@@ -41,7 +41,9 @@ dmypy.json
 .ipynb_checkpoints/
 data/*.sqlite3
 data/factory_checkpoints.sqlite3
-data/*.json
+data/llm_usage.json
+data/settings.local*.json
+!data/settings.local.example.json
 backlog/
 data/backlog/agent_factory_backlog.xlsx
 docs/diagrams/*-cli.png

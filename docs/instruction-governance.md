@@ -37,6 +37,15 @@ Skills hold repeatable procedures and checklists.
 3. Template and agent-specific `AGENTS.md` files apply only to that package.
 4. Skills explain how to perform a bounded procedure; they do not override fail-closed policy.
 
+
+## Documentation Entry Point Rule
+
+Every project must have one documentation entry point: `docs/INDEX.md`.
+
+- Root `README.md` stays short and only explains purpose, repo role, canonical path, and where to start.
+- Root `AGENTS.md` must point agents to `docs/INDEX.md`, not list multiple documentation files manually.
+- Detailed commands, architecture, diagrams, standards, and operational notes live in specific documents linked from `docs/INDEX.md`.
+- As documentation grows, update `docs/INDEX.md`; do not expand README or AGENTS navigation into another index.
 ## Practical Rule
 
 When a task touches `AGENTS.md` or skills, the finish report must say which files were used and which files were changed.

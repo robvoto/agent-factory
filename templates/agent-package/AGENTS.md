@@ -6,10 +6,11 @@ This package is a template for a new agent. It is not enabled until approved.
 
 ## Read first
 
-- `README.md`
-- `SYSTEM.md`
-- `agent.json`
-- `skills/INDEX.md` if it exists
+- `docs/INDEX.md` is the single documentation entry point when this agent becomes a project.
+- `agent.json` defines the staged agent contract.
+- `skills/INDEX.md` lists reusable skills if skills exist.
+
+Do not turn `README.md` or `AGENTS.md` into a documentation index.
 
 ## Working rules
 

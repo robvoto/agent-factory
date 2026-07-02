@@ -6,7 +6,7 @@ To regenerate: `bash render.sh` (uses local `jsdom` + Mermaid on Node.js 20.19+,
 
 ---
 
-## Mermaid flowcharts (01–06)
+## Mermaid flowcharts (01–04)
 
 Each diagram has two files: `.mmd` (source) and `.svg` (scalable preview).
 
@@ -16,9 +16,6 @@ Each diagram has two files: `.mmd` (source) and `.svg` (scalable preview).
 | 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | How an agent goes from idea → factory → army → improvement. |
 | 03 | [Telegram Flows](03-TELEGRAM-FLOWS.md) | Which bot to use, what each handles, all commands. |
 | 04 | [Knowledge Flow](04-KNOWLEDGE-FLOW.md) | How agents share knowledge and learn from each other. |
-| 05 | Army Routing Interaction | **Moved to `agent-army/docs/diagrams/`** — orchestration belongs in army |
-| 06 | Coding Task End to End | **Moved to `agent-army/docs/diagrams/`** — orchestration belongs in army |
-
 ---
 
 ## Process diagram 07 — BPMN source of truth

@@ -61,6 +61,7 @@ This is **not** the main user bot — that is army's Telegram gateway.
 
 ```bash
 uv run agent-factory list          # list enabled agents
+uv run agent-factory manifest      # print compact machine-readable factory handshake
 uv run agent-factory staged        # list staged drafts
 uv run agent-factory pending       # list pending approvals
 uv run agent-factory create "..."  # create staged draft (deterministic, no LLM)

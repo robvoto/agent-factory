@@ -17,10 +17,32 @@ Docs must reflect current behaviour, not aspirational or historical behaviour.
 - When a behaviour changes: update the doc that describes it
 - When a decision is made: record it in memory/factory/decisions.md
 - When a doc becomes stale: update or remove it — do not leave stale content
+- When a new doc is added: update `docs/INDEX.md`
+
+## Triggered updates (AF-049)
+
+These change types **require** checking and updating docs before closing the task:
+
+| Change type | Docs to check |
+|-------------|---------------|
+| Architecture or module layout | `docs/architecture.md`, `docs/platform-architecture.md` |
+| New CLI command | `README.md`, `docs/INDEX.md` |
+| Registry or lifecycle change | `docs/agent-registry-contract.md`, `docs/agent-lifecycle.md` |
+| Data or settings change | `docs/data-classification.md`, `docs/settings-hygiene.md` |
+| Army integration change | `docs/agent-registry-contract.md` |
+| New doc added | `docs/INDEX.md` |
 
 ## Docs index
 
 `docs/INDEX.md` is the entry point. Update it whenever a new doc is added or an existing doc is renamed.
+
+## Data and settings docs
+
+Two docs define where files live and how settings work:
+- `docs/data-classification.md` — Git vs runtime vs local-only file classes
+- `docs/settings-hygiene.md` — safe pattern for local settings and secrets
+
+Reference these before any change to `.gitignore`, `data/`, `config/`, or settings files.
 
 ## What counts as stale
 
@@ -28,6 +50,7 @@ Docs must reflect current behaviour, not aspirational or historical behaviour.
 - Commands that have been renamed or removed
 - Architecture diagrams that don't match the actual code
 - Decision history that contradicts the current implementation
+- Registry or lifecycle docs that don't match the current config/agents structure
 
 ## Source citations
 

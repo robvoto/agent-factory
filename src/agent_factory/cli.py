@@ -8,6 +8,7 @@ import json
 import sys
 from pathlib import Path
 
+from .agent_manifest import render_factory_manifest
 from .loader import load_registry
 from .router import AgentRouter
 from .factory_settings import get_model_defaults, list_model_aliases
@@ -33,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     subparsers.add_parser("list", help="List configured agents")
+    subparsers.add_parser("manifest", help="Print the machine-readable factory handshake")
+    subparsers.add_parser("setup", help="First-run setup: create dirs, copy example settings, init DB")
+    subparsers.add_parser("doctor", help="Health-check: report data, settings, SQLite, and git hygiene")
     subparsers.add_parser("langchain-check", help="Check LangChain agent harness availability")
     subparsers.add_parser("models", help="List available AI model aliases and defaults")
     telegram_parser = subparsers.add_parser("telegram", help="Start Telegram gateway")
@@ -67,6 +71,19 @@ def main(argv: list[str] | None = None) -> int:
     route_parser.add_argument("route_command", help="Command such as /agent alias message")
 
     args = parser.parse_args(raw_argv)
+
+    if args.subcommand == "manifest":
+        print(render_factory_manifest(compact=True))
+        return 0
+
+    if args.subcommand == "setup":
+        from .setup_doctor import run_setup
+        return run_setup()
+
+    if args.subcommand == "doctor":
+        from .setup_doctor import run_doctor
+        return run_doctor()
+
     configure_logging(log_level or args.log_level)
     logger.info("Starting agent-factory CLI command: %s", args.subcommand)
 

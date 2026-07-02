@@ -33,10 +33,24 @@ tests/.gitkeep
 
 Required fields: `id`, `name`, `aliases`, `tools`, `permissions`, `memory`, `runtime`
 
+Optional but expected fields:
+- `purpose`: one-sentence description used by Army for routing decisions — always include it
+- `backlog_sheet_id`: Google Sheet ID for the agent's own backlog (if it has one)
+
+Rules:
 - `tools`: list of approved tool IDs; may be empty
 - `permissions.requires_approval`: always `true` for new agents
 - `runtime.mode`: `"manual"` until explicitly promoted
 - `runtime.entrypoint`: `null` until a real implementation exists
+
+## Army discovery fields
+
+Army reads these fields from agent.json when deciding how to route:
+- `id`, `name`, `purpose`, `aliases` — routing identity
+- `runtime.entrypoint` — how Army invokes the agent
+- `permissions.requires_approval` — whether Army must ask before running
+
+Always set `purpose` to a clear one-sentence description of what the agent does and who should route to it.
 
 ## Prompt standards (SYSTEM.md)
 
@@ -55,7 +69,8 @@ The system prompt must:
 
 ## Approval rules
 
-- Staged packages are drafts only
+- Staged packages are drafts only — they live in `staging/agents/` and are committed for review
 - A human must review REVIEW.md before promotion
 - Never copy to `config/agents` without explicit approval
 - record_decision must log any durable decisions made during the creation process
+- Once promoted to `config/agents/`, Army can discover the agent via manifest or direct file read

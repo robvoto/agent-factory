@@ -10,8 +10,6 @@ def test_diagram_assets_have_expected_companions_and_index_links():
         "02-AGENT-LIFECYCLE",
         "03-TELEGRAM-FLOWS",
         "04-KNOWLEDGE-FLOW",
-        "05-ARMY-ROUTING",
-        "06-CODING-TASK-END-TO-END",
     ]
 
     for stem in numbered:
