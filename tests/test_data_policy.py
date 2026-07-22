@@ -155,3 +155,27 @@ def test_each_agent_spec_has_required_fields() -> None:
         if missing:
             problems.append(f"{spec_file.parent.name}: missing {missing}")
     assert not problems, f"Agent specs missing required fields:\n" + "\n".join(problems)
+
+
+def test_subprocess_agent_specs_declare_output_contract() -> None:
+    agents_dir = PROJECT_ROOT / "config" / "agents"
+    if not agents_dir.exists():
+        return
+    problems = []
+    for spec_file in agents_dir.glob("*/agent.json"):
+        spec = json.loads(spec_file.read_text(encoding="utf-8"))
+        runtime = spec.get("runtime", {})
+        if runtime.get("mode") != "subprocess":
+            continue
+        output_contract = spec.get("output_contract")
+        if not isinstance(output_contract, dict):
+            problems.append(f"{spec_file.parent.name}: missing output_contract")
+            continue
+        if output_contract.get("status_values") != [
+            "success",
+            "needs_clarification",
+            "approval_required",
+            "failed",
+        ]:
+            problems.append(f"{spec_file.parent.name}: invalid output_contract.status_values")
+    assert not problems, "Subprocess agent specs must declare the staged output contract:\n" + "\n".join(problems)

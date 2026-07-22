@@ -41,6 +41,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
 | `memory` | Yes | Object: `scope`, `retention` |
 | `runtime` | Yes | Object: `mode`, `entrypoint` — how army invokes the agent |
+| `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `backlog_sheet_id` | No | Google Sheets spreadsheet ID for this agent's backlog. Army uses this to add backlog items without hardcoding sheet locations. `null` if no sheet. |
 
 ### backlog_sheet_id
@@ -58,3 +59,16 @@ A staged agent package can exist without being enabled.
 An enabled agent is referenced by `config/agents` and can be routed to or run.
 
 Only approved agents should be enabled.
+
+## Subprocess output contract
+
+For `runtime.mode = "subprocess"`, Factory now validates the staged caller contract instead of leaving it to downstream runtime policy only.
+
+- `output_contract.status_values` must contain exactly `success`, `needs_clarification`, `approval_required`, and `failed`
+- `output_contract.status_contract.success.terminal` must be `true`
+- `output_contract.status_contract.needs_clarification.terminal` must be `false`
+- `output_contract.status_contract.approval_required.terminal` must be `false`
+- `output_contract.status_contract.failed.terminal` must be `true`
+- Every status entry must include a non-empty `caller_action`
+
+Factory does not currently standardize `result_kind` or `caller_action` names across all specialists. It only validates that subprocess agents declare the four status outcomes and their terminal/caller-facing meaning in the staged spec.

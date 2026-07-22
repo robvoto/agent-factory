@@ -2,7 +2,14 @@
 
 import json
 
-from agent_factory.agent_catalog import build_agent_catalog, plan_package_reuse, promote_agent
+import pytest
+
+from agent_factory.agent_catalog import (
+    AgentCatalogConflictError,
+    build_agent_catalog,
+    plan_package_reuse,
+    promote_agent,
+)
 from agent_factory.agent_spec import AgentPackageSpec
 
 
@@ -10,6 +17,7 @@ def _manifest() -> dict:
     return {
         "id": "alpha-agent",
         "name": "Alpha Agent",
+        "purpose": "Alpha does the alpha work.",
         "aliases": ["alpha"],
         "tools": [],
         "permissions": {
@@ -22,6 +30,10 @@ def _manifest() -> dict:
             "scope": "none",
             "retention": "none",
         },
+        "runtime": {
+            "mode": "manual",
+        },
+        "output_contract": None,
     }
 
 
@@ -81,3 +93,53 @@ def test_promote_agent_reuses_existing_enabled_agent(tmp_path):
 
     assert "already enabled" in result
     assert (enabled / "alpha-agent.json").read_text(encoding="utf-8") == payload
+
+
+def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):
+    enabled = tmp_path / "config" / "agents"
+    enabled.mkdir(parents=True)
+    manifest = _manifest()
+    manifest["runtime"] = {
+        "mode": "subprocess",
+        "entrypoint": "uv run alpha run-agent-task",
+        "working_directory": "/tmp/alpha",
+        "input_arg": "--input-json",
+        "output_arg": "--output-json",
+        "default_execution_mode": "execute",
+    }
+    manifest["output_contract"] = {
+        "status_values": [
+            "success",
+            "needs_clarification",
+            "approval_required",
+            "failed",
+        ],
+        "status_contract": {
+            "success": {"terminal": True, "caller_action": "consume_result"},
+            "needs_clarification": {"terminal": False, "caller_action": "provide_clarification"},
+            "approval_required": {"terminal": False, "caller_action": "provide_approval"},
+            "failed": {"terminal": True, "caller_action": "inspect_failure"},
+        },
+    }
+    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "alpha-agent",
+            "name": "Alpha Agent",
+            "purpose": "Alpha does the alpha work.",
+            "aliases": ["alpha"],
+            "runtime": {
+                "mode": "subprocess",
+                "entrypoint": "uv run alpha run-agent-task",
+                "working_directory": "/tmp/alpha",
+                "input_arg": "--input-json",
+                "output_arg": "--output-json",
+                "default_execution_mode": "instruction_only",
+            },
+            "output_contract": manifest["output_contract"],
+        }
+    )
+
+    with pytest.raises(AgentCatalogConflictError):
+        plan_package_reuse(spec, enabled_dir=enabled, staging_dir=tmp_path / "staging")

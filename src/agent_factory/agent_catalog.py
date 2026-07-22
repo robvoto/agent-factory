@@ -273,14 +273,22 @@ def _load_manifest_from_path(path: Path) -> AgentManifest:
 def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
     permissions = spec.permissions.model_dump()
     memory = spec.memory_policy.model_dump()
+    output_contract = (
+        spec.output_contract.model_dump(exclude_none=True)
+        if spec.output_contract is not None
+        else None
+    )
     return AgentManifest.from_dict(
         {
             "id": spec.id,
             "name": spec.name,
+            "purpose": spec.purpose,
             "aliases": list(spec.aliases),
             "tools": list(spec.tools),
             "permissions": permissions,
             "memory": memory,
+            "runtime": spec.runtime.model_dump(exclude_none=True),
+            "output_contract": output_contract,
         }
     )
 
@@ -289,10 +297,13 @@ def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
     return (
         lhs.id == rhs.id
         and lhs.name == rhs.name
+        and lhs.purpose == rhs.purpose
         and lhs.aliases == rhs.aliases
         and lhs.tools == rhs.tools
         and lhs.permissions == rhs.permissions
         and lhs.memory == rhs.memory
+        and lhs.runtime == rhs.runtime
+        and lhs.output_contract == rhs.output_contract
     )
 
 

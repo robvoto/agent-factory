@@ -33,6 +33,7 @@ during promotion. Army reads it directly or via the manifest.
 | `permissions` | `network`, `filesystem`, `shell`, `requires_approval`, `allowed_roots` |
 | `memory` | `scope`, `retention` |
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
+| `output_contract` | Required for `runtime.mode = "subprocess"`; declares the validated subprocess status contract |
 | `backlog_sheet_id` | Google Sheet ID for the agent's own backlog (optional) |
 
 ## How Army discovers agents
@@ -83,3 +84,4 @@ Army **must not** use staged agents or read from `staging/agents/`.
 - Army must not discover agents by scanning the repo filesystem without calling manifest
 - Human approval is required before any agent enters the registry
 - The manifest hash covers static fields only; live counts do not invalidate the hash
+- Subprocess specialists must declare `output_contract.status_values = ["success", "needs_clarification", "approval_required", "failed"]` plus the matching terminal/caller-action meaning in the registry spec Factory stages

@@ -11,10 +11,13 @@ def make_registry():
         {
             "id": "alpha",
             "name": "Alpha Agent",
+            "purpose": "Alpha does the alpha work.",
             "aliases": ["alpha", "a"],
             "tools": [],
             "permissions": {},
             "memory": {},
+            "runtime": {"mode": "manual"},
+            "output_contract": None,
         }
     )
     return AgentRegistry([manifest])

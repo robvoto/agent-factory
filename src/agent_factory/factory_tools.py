@@ -91,6 +91,8 @@ def create_staged_agent_package(spec_json: str) -> str:
       tools      - list of approved tool IDs (may be empty)
       permissions - object: network, filesystem, shell, requires_approval
       memory_policy - object: scope, retention
+      runtime    - object: mode plus mode-specific invocation details
+      output_contract - required for subprocess agents: staged status contract
       risks      - list of risk labels (auto-populated from permissions)
       tests      - list of test descriptions
 
@@ -153,7 +155,12 @@ def create_staged_agent_package(spec_json: str) -> str:
                 "tools": spec.tools,
                 "permissions": spec.permissions.model_dump(),
                 "memory": spec.memory_policy.model_dump(),
-                "runtime": {"mode": "manual", "entrypoint": None},
+                "runtime": spec.runtime.model_dump(exclude_none=True),
+                "output_contract": (
+                    spec.output_contract.model_dump(exclude_none=True)
+                    if spec.output_contract is not None
+                    else None
+                ),
                 "backlog_sheet_id": None,
             },
             indent=2,

@@ -11,10 +11,13 @@ def manifest_data(**overrides):
     data = {
         "id": "alpha",
         "name": "Alpha Agent",
+        "purpose": "Alpha does the alpha work.",
         "aliases": ["alpha"],
         "tools": [],
         "permissions": {},
         "memory": {},
+        "runtime": {"mode": "manual"},
+        "output_contract": None,
     }
     data.update(overrides)
     return data

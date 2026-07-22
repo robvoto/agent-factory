@@ -60,6 +60,7 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
     manifest = {
         "id": "alpha-agent",
         "name": "Alpha Agent",
+        "purpose": "Alpha does the alpha work.",
         "aliases": ["alpha"],
         "tools": [],
         "permissions": {
@@ -72,6 +73,10 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
             "scope": "none",
             "retention": "none",
         },
+        "runtime": {
+            "mode": "manual",
+        },
+        "output_contract": None,
     }
     (staging / "agent.json").write_text(json.dumps(manifest), encoding="utf-8")
     (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -121,6 +126,9 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert (pkg / "memory.json").exists()
     assert (pkg / "README.md").exists()
     assert (pkg / "tests" / ".gitkeep").exists()
+    manifest = json.loads((pkg / "agent.json").read_text(encoding="utf-8"))
+    assert manifest["runtime"]["mode"] == "manual"
+    assert manifest["output_contract"] is None
 
     from agent_factory.storage import get_staged_agent_record
     row = get_staged_agent_record("test-agent", db_path=db)
@@ -194,3 +202,85 @@ def test_create_staged_agent_package_duplicate_fails(tmp_path, monkeypatch):
     assert "test-agent" in first
     assert "already exists" in result
     assert "No duplicate package was created" in result
+
+
+def test_create_staged_agent_package_requires_subprocess_output_contract(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging")
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {
+            "spec_json": _spec_json(
+                runtime={
+                    "mode": "subprocess",
+                    "entrypoint": "uv run test-agent run-agent-task",
+                    "working_directory": "/tmp/test-agent",
+                    "input_arg": "--input-json",
+                    "output_arg": "--output-json",
+                    "default_execution_mode": "execute",
+                }
+            )
+        }
+    )
+
+    assert "output_contract" in result
+
+
+def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    spec = _spec_json(
+        id="subprocess-agent",
+        aliases=["subprocess"],
+        runtime={
+            "mode": "subprocess",
+            "entrypoint": "uv run subprocess-agent run-agent-task",
+            "working_directory": "/tmp/subprocess-agent",
+            "input_arg": "--input-json",
+            "output_arg": "--output-json",
+            "default_execution_mode": "execute",
+        },
+        output_contract={
+            "status_values": [
+                "success",
+                "needs_clarification",
+                "approval_required",
+                "failed",
+            ],
+            "status_contract": {
+                "success": {"terminal": True, "caller_action": "consume_result"},
+                "needs_clarification": {
+                    "terminal": False,
+                    "caller_action": "provide_clarification",
+                },
+                "approval_required": {
+                    "terminal": False,
+                    "caller_action": "provide_approval",
+                },
+                "failed": {"terminal": True, "caller_action": "inspect_failure"},
+            },
+        },
+    )
+    result = factory_tools.create_staged_agent_package.invoke({"spec_json": spec})
+
+    assert "subprocess-agent" in result
+    manifest = json.loads((staging / "subprocess-agent" / "agent.json").read_text(encoding="utf-8"))
+    assert manifest["runtime"]["mode"] == "subprocess"
+    assert manifest["output_contract"]["status_values"] == [
+        "success",
+        "needs_clarification",
+        "approval_required",
+        "failed",
+    ]

@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .agent_spec import normalize_output_contract, normalize_runtime_config
 from .errors import ManifestValidationError
 
 
-REQUIRED_FIELDS = {"id", "name", "aliases", "tools", "permissions", "memory"}
+REQUIRED_FIELDS = {"id", "name", "purpose", "aliases", "tools", "permissions", "memory", "runtime"}
 
 
 @dataclass(frozen=True)
@@ -18,11 +19,13 @@ class AgentManifest:
 
     id: str
     name: str
+    purpose: str
     aliases: tuple[str, ...]
     tools: tuple[str, ...]
     permissions: dict[str, Any]
     memory: dict[str, Any]
     runtime: dict[str, Any] = None  # type: ignore[assignment]
+    output_contract: dict[str, Any] | None = None
     source: str | None = None
 
     def __post_init__(self) -> None:
@@ -40,6 +43,7 @@ class AgentManifest:
 
         agent_id = _required_string(data["id"], "id")
         name = _required_string(data["name"], "name")
+        purpose = _required_string(data["purpose"], "purpose")
         aliases = _string_list(data["aliases"], "aliases", allow_empty=False)
         tools = _string_list(data["tools"], "tools", allow_empty=True)
 
@@ -52,18 +56,33 @@ class AgentManifest:
         if not isinstance(data["memory"], dict):
             raise ManifestValidationError("memory must be an object.")
 
-        runtime = data.get("runtime", {})
+        runtime = data["runtime"]
         if not isinstance(runtime, dict):
             raise ManifestValidationError("runtime must be an object.")
+        output_contract = data.get("output_contract")
+        if output_contract is not None and not isinstance(output_contract, dict):
+            raise ManifestValidationError("output_contract must be an object when present.")
+
+        try:
+            normalized_runtime = normalize_runtime_config(agent_id, runtime)
+            normalized_output_contract = normalize_output_contract(
+                agent_id,
+                normalized_runtime["mode"],
+                output_contract,
+            )
+        except ValueError as exc:
+            raise ManifestValidationError(str(exc)) from exc
 
         return cls(
             id=agent_id,
             name=name,
+            purpose=purpose,
             aliases=normalized_aliases,
             tools=tuple(tool.strip() for tool in tools),
             permissions=dict(data["permissions"]),
             memory=dict(data["memory"]),
-            runtime=dict(runtime),
+            runtime=normalized_runtime,
+            output_contract=normalized_output_contract,
             source=str(source) if source is not None else None,
         )
 

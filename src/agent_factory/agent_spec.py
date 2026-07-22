@@ -7,10 +7,24 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any, Mapping
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
+SUBPROCESS_OUTPUT_STATUS_VALUES = (
+    "success",
+    "needs_clarification",
+    "approval_required",
+    "failed",
+)
+SUBPROCESS_STATUS_TERMINAL = {
+    "success": True,
+    "needs_clarification": False,
+    "approval_required": False,
+    "failed": True,
+}
 
 
 class AgentPermissions(BaseModel):
@@ -35,6 +49,107 @@ class AgentMemoryPolicy(BaseModel):
     retention: str = "none"
 
 
+class AgentRuntimeConfig(BaseModel):
+    mode: str = "manual"
+    entrypoint: str | None = None
+    working_directory: str | None = None
+    input_arg: str | None = None
+    output_arg: str | None = None
+    default_execution_mode: str | None = None
+    manifest_command: str | None = None
+    notes: str | None = None
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        if v not in SUPPORTED_RUNTIME_MODES:
+            raise ValueError(
+                f"Unsupported runtime.mode {v!r}. "
+                f"Supported modes: {sorted(SUPPORTED_RUNTIME_MODES)}."
+            )
+        return v
+
+    @model_validator(mode="after")
+    def validate_mode_specific_fields(self) -> "AgentRuntimeConfig":
+        if self.mode == "manual":
+            return self
+
+        if self.mode == "subprocess":
+            _require_non_empty_runtime_fields(
+                self,
+                "entrypoint",
+                "working_directory",
+                "input_arg",
+                "output_arg",
+                "default_execution_mode",
+            )
+            if self.default_execution_mode not in {"instruction_only", "execute"}:
+                raise ValueError(
+                    "runtime.default_execution_mode must be 'instruction_only' or 'execute' "
+                    f"for subprocess agents. Got: {self.default_execution_mode!r}"
+                )
+            return self
+
+        if self.mode == "factory_brain":
+            _require_non_empty_runtime_fields(
+                self,
+                "working_directory",
+                "manifest_command",
+            )
+        return self
+
+
+class AgentStatusMeaning(BaseModel):
+    terminal: bool
+    caller_action: str
+    notes: str | None = None
+
+    @field_validator("caller_action")
+    @classmethod
+    def validate_caller_action(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("status_contract caller_action values must be non-empty strings.")
+        return v.strip()
+
+
+class AgentOutputContract(BaseModel):
+    status_values: list[str]
+    status_contract: dict[str, AgentStatusMeaning]
+
+    @field_validator("status_values")
+    @classmethod
+    def validate_status_values(cls, v: list[str]) -> list[str]:
+        normalized = [status.strip() for status in v if status.strip()]
+        if len(normalized) != len(v):
+            raise ValueError("output_contract.status_values must contain only non-empty strings.")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("output_contract.status_values must not contain duplicates.")
+        expected = set(SUBPROCESS_OUTPUT_STATUS_VALUES)
+        if set(normalized) != expected:
+            raise ValueError(
+                "output_contract.status_values must contain exactly: "
+                f"{list(SUBPROCESS_OUTPUT_STATUS_VALUES)}."
+            )
+        return list(SUBPROCESS_OUTPUT_STATUS_VALUES)
+
+    @model_validator(mode="after")
+    def validate_status_contract(self) -> "AgentOutputContract":
+        expected = set(SUBPROCESS_OUTPUT_STATUS_VALUES)
+        if set(self.status_contract) != expected:
+            raise ValueError(
+                "output_contract.status_contract must define exactly these statuses: "
+                f"{list(SUBPROCESS_OUTPUT_STATUS_VALUES)}."
+            )
+        for status, expected_terminal in SUBPROCESS_STATUS_TERMINAL.items():
+            actual = self.status_contract[status].terminal
+            if actual != expected_terminal:
+                raise ValueError(
+                    f"output_contract.status_contract[{status!r}].terminal must be "
+                    f"{expected_terminal!r}. Got: {actual!r}"
+                )
+        return self
+
+
 class McpServer(BaseModel):
     name: str
     description: str = ""
@@ -49,8 +164,10 @@ class AgentPackageSpec(BaseModel):
     aliases: list[str]
     tools: list[str] = []
     mcp_servers: list[McpServer] = []
-    permissions: AgentPermissions = AgentPermissions()
-    memory_policy: AgentMemoryPolicy = AgentMemoryPolicy()
+    permissions: AgentPermissions = Field(default_factory=AgentPermissions)
+    memory_policy: AgentMemoryPolicy = Field(default_factory=AgentMemoryPolicy)
+    runtime: AgentRuntimeConfig = Field(default_factory=AgentRuntimeConfig)
+    output_contract: AgentOutputContract | None = None
     risks: list[str] = []
     tests: list[str] = []
 
@@ -102,6 +219,14 @@ class AgentPackageSpec(BaseModel):
                 self.risks.append("mcp_servers")
         return self
 
+    @model_validator(mode="after")
+    def validate_runtime_contract(self) -> "AgentPackageSpec":
+        if self.runtime.mode == "subprocess" and self.output_contract is None:
+            raise ValueError(
+                "Subprocess agents must define output_contract with the staged status contract."
+            )
+        return self
+
 
 class DuplicateStagedAgentError(ValueError):
     """Raised when a staged agent with the same ID already exists."""
@@ -114,3 +239,38 @@ def validate_not_duplicate(spec: AgentPackageSpec, staged_dir: Path) -> None:
             f"Staged agent package already exists: {spec.id!r}. "
             "Remove or rename it before re-staging."
         )
+
+
+def normalize_runtime_config(agent_id: str, runtime: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        return AgentRuntimeConfig.model_validate(dict(runtime)).model_dump(exclude_none=True)
+    except Exception as exc:  # pragma: no cover - exercised through caller-specific tests
+        raise ValueError(f"Agent {agent_id!r} has invalid runtime config: {exc}") from exc
+
+
+def normalize_output_contract(
+    agent_id: str,
+    runtime_mode: str,
+    output_contract: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if runtime_mode == "subprocess" and output_contract is None:
+        raise ValueError(
+            f"Agent {agent_id!r} uses runtime.mode='subprocess' but has no output_contract."
+        )
+    if output_contract is None:
+        return None
+    try:
+        return AgentOutputContract.model_validate(dict(output_contract)).model_dump(exclude_none=True)
+    except Exception as exc:  # pragma: no cover - exercised through caller-specific tests
+        raise ValueError(f"Agent {agent_id!r} has invalid output_contract: {exc}") from exc
+
+
+def _require_non_empty_runtime_fields(runtime: AgentRuntimeConfig, *fields: str) -> None:
+    missing = [
+        field
+        for field in fields
+        if not isinstance(getattr(runtime, field), str) or not str(getattr(runtime, field)).strip()
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise ValueError(f"runtime is missing required fields: {joined}.")

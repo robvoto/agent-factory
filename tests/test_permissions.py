@@ -10,10 +10,13 @@ def test_permission_check_accepts_empty_tool_list():
         {
             "id": "alpha",
             "name": "Alpha Agent",
+            "purpose": "Alpha does the alpha work.",
             "aliases": ["alpha"],
             "tools": [],
             "permissions": {},
             "memory": {},
+            "runtime": {"mode": "manual"},
+            "output_contract": None,
         }
     )
 
@@ -25,10 +28,13 @@ def test_permission_check_denies_unknown_tools():
         {
             "id": "alpha",
             "name": "Alpha Agent",
+            "purpose": "Alpha does the alpha work.",
             "aliases": ["alpha"],
             "tools": ["shell.run"],
             "permissions": {},
             "memory": {},
+            "runtime": {"mode": "manual"},
+            "output_contract": None,
         }
     )
 

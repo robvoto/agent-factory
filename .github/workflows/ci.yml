@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest --tb=short -q
+        env:
+          # Prevent any real API calls during CI
+          OPENAI_API_KEY: "ci-placeholder"
+          ANTHROPIC_API_KEY: "ci-placeholder"
+          TELEGRAM_FACTORY_TOKEN: "ci-placeholder"
+          TELEGRAM_FACTORY_CHAT_IDS: "0"
+
+  node-deps:
+    name: Node dependency install
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Node deps (lockfile)
+        run: npm ci
