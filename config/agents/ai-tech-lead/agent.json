@@ -10,7 +10,9 @@
     "shell": false,
     "requires_approval": true,
     "allowed_roots": [
-      "/home/robvoto/projects/ai-tech-lead"
+      "/home/robvoto/projects/ai-tech-lead",
+      "/home/robvoto/projects/agent-hub",
+      "/home/robvoto/projects/agent-factory"
     ]
   },
   "memory": {
