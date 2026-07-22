@@ -8,4 +8,5 @@ For code changes:
 4. Delete old and unused code — if something is replaced, remove the original. No dead code left behind.
 5. Real agents require an explicit request.
 6. Run focused tests first, then full validation when practical.
-7. Report files changed and validation evidence.
+7. If the change matches a trigger type in `skills/documentation-hygiene/SKILL.md` (AF-049), check and update the listed docs before reporting done.
+8. Report files changed, documentation impact, and validation evidence.

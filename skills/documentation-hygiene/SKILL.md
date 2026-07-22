@@ -26,8 +26,11 @@ These change types **require** checking and updating docs before closing the tas
 | Change type | Docs to check |
 |-------------|---------------|
 | Architecture or module layout | `docs/architecture.md`, `docs/platform-architecture.md` |
+| Ownership change | `docs/architecture.md`, relevant `AGENTS.md` (root or nested) |
+| Setup or runtime change | `README.md`, `docs/architecture.md` |
 | New CLI command | `README.md`, `docs/INDEX.md` |
 | Registry or lifecycle change | `docs/agent-registry-contract.md`, `docs/agent-lifecycle.md` |
+| Agent-boundary change | `docs/agent-contract.md`, `docs/platform-architecture.md` |
 | Data or settings change | `docs/data-classification.md`, `docs/settings-hygiene.md` |
 | Army integration change | `docs/agent-registry-contract.md` |
 | New doc added | `docs/INDEX.md` |

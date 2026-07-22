@@ -73,10 +73,11 @@ Before touching `.gitignore`, `data/`, `config/`, `staging/`, or `templates/`:
 
 ## Documentation impact (AF-049)
 
-After any change to architecture, commands, registry, lifecycle, agent boundaries, setup, or runtime:
+After any change to architecture, ownership, setup, runtime, commands, registry, lifecycle, or agent boundaries:
 - Check whether `README.md`, `docs/INDEX.md`, or architecture docs need updating
 - Update `docs/INDEX.md` if a new doc was added
 - Do not rewrite docs unless the backlog item explicitly asks for an audit
+- See `skills/documentation-hygiene/SKILL.md` for the full trigger-to-doc table
 
 ## Session closeout — open work register (AF-041)
 
@@ -89,5 +90,6 @@ Before ending a session:
 
 - Files changed
 - Behaviour changed
+- Documentation impact check done (see Documentation impact (AF-049) above)
 - Validation command/result, or why not run
 - Remaining risk or follow-up

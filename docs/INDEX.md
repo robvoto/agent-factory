@@ -22,6 +22,7 @@ Reusable project standards:
 Instruction governance:
 
 - `instruction-governance.md` - scoped model for root, nested, template, and agent-specific `AGENTS.md` files plus reusable skills.
+- `../skills/documentation-hygiene/SKILL.md` - documentation impact process and closeout checklist (AF-049)
 
 Core direction:
 
