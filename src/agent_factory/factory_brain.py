@@ -14,6 +14,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .progress_events import ProgressReporter, run_agent_with_progress
+
 _PROJECT_ROOT = Path(__file__).parents[2]
 _CHECKPOINT_DB = _PROJECT_ROOT / "data" / "factory_checkpoints.sqlite3"
 logger = logging.getLogger(__name__)
@@ -117,6 +119,7 @@ def invoke_factory_brain(
     thread_id: str | None = None,
     model: str | None = None,
     purpose: str = "coding",
+    progress_reporter: ProgressReporter | None = None,
 ) -> tuple[str, bool]:
     """Invoke the Factory Brain with a plain-language request.
 
@@ -143,10 +146,24 @@ def invoke_factory_brain(
     logger.info("Invoking Factory Brain for thread %s.", tid)
     logger.debug("Factory Brain request: %s", request)
 
+    reporter = progress_reporter or ProgressReporter()
+    reporter.started("Factory Brain accepted the agent-design request.")
+    reporter.phase("design", "Factory Brain is designing the agent package.")
+
     started_at = time.perf_counter()
     try:
-        result = agent.invoke({"messages": [{"role": "user", "content": request}]}, config=run_config)
+        with reporter.heartbeat_scope():
+            result = run_agent_with_progress(
+                agent,
+                {"messages": [{"role": "user", "content": request}]},
+                config=run_config,
+                reporter=reporter,
+            )
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
     except Exception as exc:
+        reporter.failed()
         _record_llm_run(
             operation="invoke_factory_brain",
             request_kind="new-thread" if thread_id is None else "thread-turn",
@@ -160,8 +177,16 @@ def invoke_factory_brain(
         )
         raise
 
+    reporter.phase("validation", "Factory Brain is validating the result.")
     response = _extract_response(result)
     interrupted = _is_interrupted(agent, config)
+    if interrupted:
+        reporter.waiting(
+            "waiting_approval",
+            "Factory Brain is waiting for human approval.",
+        )
+    else:
+        reporter.completed("Factory Brain completed the agent-design task.")
     _record_llm_run(
         operation="invoke_factory_brain",
         request_kind="new-thread" if thread_id is None else "thread-turn",
@@ -177,7 +202,13 @@ def invoke_factory_brain(
     return response, interrupted
 
 
-def resume_factory_brain(thread_id: str, *, model: str | None = None, purpose: str = "coding") -> tuple[str, bool]:
+def resume_factory_brain(
+    thread_id: str,
+    *,
+    model: str | None = None,
+    purpose: str = "coding",
+    progress_reporter: ProgressReporter | None = None,
+) -> tuple[str, bool]:
     """Resume an interrupted Factory Brain conversation.
 
     Call this after the human has approved the pending action.
@@ -193,10 +224,23 @@ def resume_factory_brain(thread_id: str, *, model: str | None = None, purpose: s
     usage_cb = UsageMetadataCallbackHandler()
     run_config = {**config, "callbacks": [usage_cb]}
     logger.info("Resuming Factory Brain thread %s.", thread_id)
+    reporter = progress_reporter or ProgressReporter()
+    reporter.started("Factory Brain resumed the approved task.")
+    reporter.phase("approval", "Factory Brain is applying the approved action.")
     started_at = time.perf_counter()
     try:
-        result = agent.invoke(None, config=run_config)
+        with reporter.heartbeat_scope():
+            result = run_agent_with_progress(
+                agent,
+                None,
+                config=run_config,
+                reporter=reporter,
+            )
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
     except Exception as exc:
+        reporter.failed()
         _record_llm_run(
             operation="resume_factory_brain",
             request_kind="resume",
@@ -209,8 +253,16 @@ def resume_factory_brain(thread_id: str, *, model: str | None = None, purpose: s
             error=str(exc),
         )
         raise
+    reporter.phase("validation", "Factory Brain is validating the resumed result.")
     response = _extract_response(result)
     interrupted = _is_interrupted(agent, config)
+    if interrupted:
+        reporter.waiting(
+            "waiting_approval",
+            "Factory Brain is waiting for another human approval.",
+        )
+    else:
+        reporter.completed("Factory Brain completed the approved task.")
     _record_llm_run(
         operation="resume_factory_brain",
         request_kind="resume",
@@ -231,6 +283,7 @@ def reject_factory_brain(
     *,
     model: str | None = None,
     purpose: str = "coding",
+    progress_reporter: ProgressReporter | None = None,
 ) -> str:
     """Inject a rejection message into an interrupted conversation and resume.
 
@@ -244,13 +297,26 @@ def reject_factory_brain(
     agent = _get_agent(resolved_model)
     config = {"configurable": {"thread_id": thread_id}}
     logger.info("Rejecting Factory Brain thread %s: %s", thread_id, reason)
+    reporter = progress_reporter or ProgressReporter()
+    reporter.started("Factory Brain received the rejection.")
+    reporter.phase("approval", "Factory Brain is applying the rejection safely.")
     usage_cb = UsageMetadataCallbackHandler()
     run_config = {**config, "callbacks": [usage_cb]}
     started_at = time.perf_counter()
     agent.update_state(config, {"messages": [HumanMessage(content=f"Rejected: {reason}")]})
     try:
-        result = agent.invoke(None, config=run_config)
+        with reporter.heartbeat_scope():
+            result = run_agent_with_progress(
+                agent,
+                None,
+                config=run_config,
+                reporter=reporter,
+            )
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
     except Exception as exc:
+        reporter.failed()
         _record_llm_run(
             operation="reject_factory_brain",
             request_kind="reject",
@@ -263,7 +329,9 @@ def reject_factory_brain(
             error=str(exc),
         )
         raise
+    reporter.phase("validation", "Factory Brain is validating the rejection result.")
     response = _extract_response(result)
+    reporter.completed("Factory Brain completed the rejected task safely.")
     _record_llm_run(
         operation="reject_factory_brain",
         request_kind="reject",

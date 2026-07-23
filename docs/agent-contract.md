@@ -40,7 +40,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `tools` | Yes | List of tool IDs the agent exposes |
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
 | `memory` | Yes | Object: `scope`, `retention` |
-| `runtime` | Yes | Object: `mode`, `entrypoint` — how army invokes the agent |
+| `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how army invokes the agent |
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `backlog_sheet_id` | No | Google Sheets spreadsheet ID for this agent's backlog. Army uses this to add backlog items without hardcoding sheet locations. `null` if no sheet. |
 
@@ -72,3 +72,33 @@ For `runtime.mode = "subprocess"`, Factory now validates the staged caller contr
 - Every status entry must include a non-empty `caller_action`
 
 Factory does not currently standardize `result_kind` or `caller_action` names across all specialists. It only validates that subprocess agents declare the four status outcomes and their terminal/caller-facing meaning in the staged spec.
+
+## Optional Hub progress contract
+
+`runtime.progress` is optional and defaults to absent/disabled. Enable it only for a subprocess agent that is Hub-callable or genuinely long-running.
+
+```json
+{
+  "progress": {
+    "enabled": true,
+    "hub_callable": true,
+    "long_running": false,
+    "adapter": "deep_agent",
+    "schema_version": 1,
+    "transport": "stdout_jsonl"
+  }
+}
+```
+
+Rules:
+
+- `adapter` must be `deterministic_workflow`, `simple_agent`, or `deep_agent`
+- enabled progress requires `hub_callable=true` or `long_running=true`
+- enabled progress is valid only for `runtime.mode="subprocess"`
+- stdout is reserved for versioned progress JSONL when Hub supplies `run_id` and `request_id`
+- normal/debug logs stay on stderr
+- the final result stays in the existing output JSON file
+- the adapter must not emit prompts, hidden reasoning, raw model/provider payloads, secrets, or unbounded logs
+- deterministic heartbeats must not create additional LLM calls
+
+When enabled, Factory copies `runtime/progress_events.py` and `PROGRESS.md` into the staged package. Short standalone and manual agents receive no progress adapter.

@@ -17,12 +17,15 @@
 - Enables agents only after human approval
 - Tracks agent lifecycle: staged → approved → enabled
 - Exposes enabled agents via `config/agents/` — army reads from there
+- Emits bounded progress for Factory Brain when Army/Hub calls it
+- Adds the shared progress adapter only to generated agents explicitly declared Hub-callable or long-running
 
 ## What agent-factory does NOT do
 
 - Does not run or dispatch tasks to agents (army does this)
 - Does not own the user-facing Telegram gateway (army does this)
 - Does not route user requests (army does this)
+- Does not persist or present progress to users; Army/Hub owns `/status`, stale detection, cancellation, and Telegram updates
 
 ## Responsibilities within factory
 

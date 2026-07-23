@@ -19,6 +19,14 @@ def test_build_factory_manifest_contains_core_fields() -> None:
     assert "does not orchestrate or dispatch tasks" in manifest["boundaries"]
     assert manifest["registry"]["enabled_agents_dir"] == "config/agents"
     assert len(manifest["manifest_hash"]) == 64
+    assert manifest["progress_contract"]["schema_version"] == 1
+    assert manifest["progress_contract"]["transport"] == "stdout_jsonl"
+    assert manifest["progress_contract"]["log_transport"] == "stderr"
+    assert manifest["progress_contract"]["generated_adapters"] == [
+        "deterministic_workflow",
+        "simple_agent",
+        "deep_agent",
+    ]
     assert "backlog_url" in manifest
     assert "army_integration" in manifest
     assert manifest["army_integration"]["approval_required_before_registry_entry"] is True

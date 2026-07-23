@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,6 +22,7 @@ _PROJECT_ROOT = Path(__file__).parents[2]
 _STAGING_DIR = _PROJECT_ROOT / "staging" / "agents"
 _MEMORY_DIR = _PROJECT_ROOT / "memory" / "factory"
 _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
+_PROGRESS_TEMPLATE_DIR = _TEMPLATES_DIR / "progress-adapter"
 logger = logging.getLogger(__name__)
 
 @tool
@@ -93,6 +95,7 @@ def create_staged_agent_package(spec_json: str) -> str:
       memory_policy - object: scope, retention
       runtime    - object: mode plus mode-specific invocation details
       output_contract - required for subprocess agents: staged status contract
+      runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
       tests      - list of test descriptions
 
@@ -140,6 +143,15 @@ def create_staged_agent_package(spec_json: str) -> str:
             f"Locations: {locations}\n"
             "No duplicate package was created."
         )
+
+    progress = spec.runtime.progress
+    if (
+        progress is not None
+        and progress.enabled
+        and not _PROGRESS_TEMPLATE_DIR.is_dir()
+    ):
+        logger.error("Progress adapter template is missing: %s", _PROGRESS_TEMPLATE_DIR)
+        return f"Progress adapter template is missing: {_PROGRESS_TEMPLATE_DIR}"
 
     package_dir = _STAGING_DIR / spec.id
     logger.info("Creating staged agent package for %s at %s.", spec.id, package_dir)
@@ -222,6 +234,14 @@ def create_staged_agent_package(spec_json: str) -> str:
         "Do not copy this agent into `config/agents` until a human approves it.\n",
         encoding="utf-8",
     )
+    if progress is not None and progress.enabled:
+        _copy_progress_adapter(package_dir)
+        logger.info(
+            "Added %s progress adapter to staged agent %s.",
+            progress.adapter,
+            spec.id,
+        )
+
     logger.debug("Wrote staged agent files for %s.", spec.id)
 
     created = sorted(
@@ -248,6 +268,25 @@ def create_staged_agent_package(spec_json: str) -> str:
         "Review the package at staging/agents/ before approving. "
         "Do not enable without human approval."
     )
+
+
+def _copy_progress_adapter(package_dir: Path) -> None:
+    """Copy the reviewed self-contained progress adapter into a staged package."""
+
+    if not _PROGRESS_TEMPLATE_DIR.is_dir():
+        raise RuntimeError(
+            f"Progress adapter template is missing: {_PROGRESS_TEMPLATE_DIR}"
+        )
+    for source in _PROGRESS_TEMPLATE_DIR.rglob("*"):
+        relative = source.relative_to(_PROGRESS_TEMPLATE_DIR)
+        if "__pycache__" in relative.parts or source.suffix == ".pyc":
+            continue
+        target = package_dir / relative
+        if source.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
 
 
 @tool

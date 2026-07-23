@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -49,6 +49,36 @@ class AgentMemoryPolicy(BaseModel):
     retention: str = "none"
 
 
+class AgentProgressConfig(BaseModel):
+    enabled: bool = False
+    hub_callable: bool = False
+    long_running: bool = False
+    adapter: Literal[
+        "deterministic_workflow",
+        "simple_agent",
+        "deep_agent",
+    ] | None = None
+    schema_version: int = 1
+    transport: Literal["stdout_jsonl"] = "stdout_jsonl"
+
+    @model_validator(mode="after")
+    def validate_enabled_progress(self) -> "AgentProgressConfig":
+        if not self.enabled:
+            return self
+        if not (self.hub_callable or self.long_running):
+            raise ValueError(
+                "Enabled progress requires hub_callable=true or long_running=true."
+            )
+        if self.adapter is None:
+            raise ValueError(
+                "Enabled progress requires an adapter: deterministic_workflow, "
+                "simple_agent, or deep_agent."
+            )
+        if self.schema_version != 1:
+            raise ValueError("Only SpecialistProgressEvent schema_version=1 is supported.")
+        return self
+
+
 class AgentRuntimeConfig(BaseModel):
     mode: str = "manual"
     entrypoint: str | None = None
@@ -57,6 +87,7 @@ class AgentRuntimeConfig(BaseModel):
     output_arg: str | None = None
     default_execution_mode: str | None = None
     manifest_command: str | None = None
+    progress: AgentProgressConfig | None = None
     notes: str | None = None
 
     @field_validator("mode")
@@ -71,6 +102,11 @@ class AgentRuntimeConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_specific_fields(self) -> "AgentRuntimeConfig":
+        if self.progress is not None and self.progress.enabled and self.mode != "subprocess":
+            raise ValueError(
+                "Enabled progress is supported only for subprocess agents."
+            )
+
         if self.mode == "manual":
             return self
 

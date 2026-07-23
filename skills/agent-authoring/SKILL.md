@@ -52,6 +52,18 @@ Army reads these fields from agent.json when deciding how to route:
 
 Always set `purpose` to a clear one-sentence description of what the agent does and who should route to it.
 
+## Optional Hub progress
+
+Do not add progress infrastructure to every agent.
+
+Enable `runtime.progress` only when the agent is a subprocess agent and is either Hub-callable or genuinely long-running. Select exactly one adapter:
+
+- `deterministic_workflow`
+- `simple_agent`
+- `deep_agent`
+
+The generated adapter must preserve the final output JSON contract, reserve stdout for progress JSONL, keep logs on stderr, and exclude prompts, hidden reasoning, raw provider payloads, secrets, and unbounded logs. Heartbeats are deterministic and must not make additional LLM calls.
+
 ## Prompt standards (SYSTEM.md)
 
 The system prompt must:

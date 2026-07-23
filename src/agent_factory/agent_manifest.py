@@ -111,7 +111,26 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "support factory admin workflows",
             "provide machine-readable handshake for army discovery",
             "run setup and health-check (doctor) commands",
+            "emit bounded structured progress for Hub-called Factory Brain work",
+            "generate optional progress adapters for Hub-callable agents",
         ],
+        "progress_contract": {
+            "optional": True,
+            "activation": "Hub supplies run_id and request_id",
+            "schema_version": 1,
+            "transport": "stdout_jsonl",
+            "log_transport": "stderr",
+            "final_result_transport": "existing output JSON file",
+            "generated_adapters": [
+                "deterministic_workflow",
+                "simple_agent",
+                "deep_agent",
+            ],
+            "notes": (
+                "Progress is operational telemetry only. It excludes hidden reasoning, "
+                "full prompts, secrets, raw provider payloads, and unbounded logs."
+            ),
+        },
         "boundaries": [
             "does not orchestrate or dispatch tasks",
             "does not own the user-facing Telegram gateway",

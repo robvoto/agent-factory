@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+import io
+import json
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from agent_factory import factory_brain
+from agent_factory.progress_events import ProgressReporter, StdoutJsonlProgressSink
+
+
+def _events(stream: io.StringIO) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in stream.getvalue().splitlines() if line]
+
+
+class _FakeAgent:
+    def __init__(self, *, interrupted: bool = False, error: BaseException | None = None) -> None:
+        self._interrupted = interrupted
+        self._error = error
+
+    def stream(self, _input_value: Any, *, config: dict[str, Any], stream_mode: list[str]):
+        assert config["configurable"]["thread_id"] == "thread-1"
+        assert stream_mode == ["updates", "values"]
+        if self._error is not None:
+            raise self._error
+        yield ("updates", {"tools": {"name": "list_known_agents"}})
+        yield (
+            "values",
+            {"messages": [SimpleNamespace(content="Factory response")]},
+        )
+
+    def get_state(self, _config: dict[str, Any]):
+        return SimpleNamespace(
+            next=("approval",) if self._interrupted else (),
+            values={"messages": [SimpleNamespace(content="Factory response")]},
+        )
+
+    def update_state(self, _config: dict[str, Any], _values: dict[str, Any]) -> None:
+        return None
+
+
+def _prepare(monkeypatch: pytest.MonkeyPatch, agent: _FakeAgent) -> None:
+    monkeypatch.setattr(factory_brain, "_check_api_key", lambda: None)
+    monkeypatch.setattr(factory_brain, "_get_agent", lambda _model: agent)
+    monkeypatch.setattr(factory_brain, "_record_llm_run", lambda **_kwargs: None)
+    monkeypatch.setattr("agent_factory.factory_settings.resolve_model", lambda *_a, **_k: "test:model")
+
+
+def _reporter(stream: io.StringIO) -> ProgressReporter:
+    return ProgressReporter(
+        StdoutJsonlProgressSink(
+            run_id="run-1",
+            request_id="req-1",
+            stream=stream,
+        ),
+        agent_name="Agent Factory",
+        heartbeat_interval_seconds=0,
+    )
+
+
+def test_factory_brain_emits_design_tool_validation_and_completion(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent())
+
+    response, interrupted = factory_brain.invoke_factory_brain(
+        "Create an agent",
+        thread_id="thread-1",
+        progress_reporter=_reporter(stream),
+    )
+
+    assert response == "Factory response"
+    assert interrupted is False
+    phases = [event["phase"] for event in _events(stream)]
+    assert phases == ["starting", "design", "tool", "validation", "completed"]
+
+
+def test_factory_brain_emits_waiting_approval_without_changing_result(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent(interrupted=True))
+
+    response, interrupted = factory_brain.invoke_factory_brain(
+        "Create an agent",
+        thread_id="thread-1",
+        progress_reporter=_reporter(stream),
+    )
+
+    assert response == "Factory response"
+    assert interrupted is True
+    assert _events(stream)[-1]["event_type"] == "waiting"
+    assert _events(stream)[-1]["phase"] == "waiting_approval"
+
+
+def test_factory_brain_emits_generic_failure(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent(error=RuntimeError("SECRET provider payload")))
+
+    with pytest.raises(RuntimeError, match="SECRET provider payload"):
+        factory_brain.invoke_factory_brain(
+            "Create an agent",
+            thread_id="thread-1",
+            progress_reporter=_reporter(stream),
+        )
+
+    assert _events(stream)[-1]["event_type"] == "failure"
+    assert "SECRET provider payload" not in stream.getvalue()
+
+
+def test_factory_brain_emits_cancellation(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent(error=KeyboardInterrupt()))
+
+    with pytest.raises(KeyboardInterrupt):
+        factory_brain.invoke_factory_brain(
+            "Create an agent",
+            thread_id="thread-1",
+            progress_reporter=_reporter(stream),
+        )
+
+    assert _events(stream)[-1]["phase"] == "cancelled"
+
+
+def test_factory_brain_resume_emits_approval_and_completion(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent())
+
+    response, interrupted = factory_brain.resume_factory_brain(
+        "thread-1",
+        progress_reporter=_reporter(stream),
+    )
+
+    assert response == "Factory response"
+    assert interrupted is False
+    assert [event["phase"] for event in _events(stream)] == [
+        "starting",
+        "approval",
+        "tool",
+        "validation",
+        "completed",
+    ]
+
+
+def test_factory_brain_reject_emits_safe_completion(monkeypatch) -> None:
+    stream = io.StringIO()
+    _prepare(monkeypatch, _FakeAgent())
+
+    response = factory_brain.reject_factory_brain(
+        "thread-1",
+        reason="Do not create it",
+        progress_reporter=_reporter(stream),
+    )
+
+    assert response == "Factory response"
+    assert [event["phase"] for event in _events(stream)] == [
+        "starting",
+        "approval",
+        "tool",
+        "validation",
+        "completed",
+    ]
+    assert "Do not create it" not in stream.getvalue()
