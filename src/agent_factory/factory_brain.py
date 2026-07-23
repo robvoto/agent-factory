@@ -128,29 +128,37 @@ def invoke_factory_brain(
 
     Requires OPENAI_API_KEY in the environment or a .env file at the project root.
     """
-    if not os.environ.get("OPENAI_API_KEY"):
-        _try_load_dotenv()
-    _check_api_key()
+    reporter = progress_reporter or ProgressReporter()
+    reporter.started("Factory Brain accepted the agent-design request.")
+    started_at = time.perf_counter()
 
-    import uuid
-    from langchain_core.callbacks import UsageMetadataCallbackHandler
-    from .factory_settings import resolve_model
+    try:
+        if not os.environ.get("OPENAI_API_KEY"):
+            _try_load_dotenv()
+        _check_api_key()
 
-    resolved_model = resolve_model(model, purpose=purpose)
-    agent = _get_agent(resolved_model)
-    tid = thread_id or str(uuid.uuid4())
-    config = {"configurable": {"thread_id": tid}}
-    usage_cb = UsageMetadataCallbackHandler()
-    run_config = {**config, "callbacks": [usage_cb]}
+        import uuid
+        from langchain_core.callbacks import UsageMetadataCallbackHandler
+        from .factory_settings import resolve_model
+
+        resolved_model = resolve_model(model, purpose=purpose)
+        agent = _get_agent(resolved_model)
+        tid = thread_id or str(uuid.uuid4())
+        config = {"configurable": {"thread_id": tid}}
+        usage_cb = UsageMetadataCallbackHandler()
+        run_config = {**config, "callbacks": [usage_cb]}
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
+    except Exception:
+        reporter.failed("Factory Brain could not start. Check the final error.")
+        logger.exception("Factory Brain failed during startup.")
+        raise
 
     logger.info("Invoking Factory Brain for thread %s.", tid)
     logger.debug("Factory Brain request: %s", request)
-
-    reporter = progress_reporter or ProgressReporter()
-    reporter.started("Factory Brain accepted the agent-design request.")
     reporter.phase("design", "Factory Brain is designing the agent package.")
 
-    started_at = time.perf_counter()
     try:
         with reporter.heartbeat_scope():
             result = run_agent_with_progress(
@@ -215,19 +223,29 @@ def resume_factory_brain(
     Returns (response_text, is_interrupted) — is_interrupted=True if it
     paused again waiting for another approval.
     """
-    from langchain_core.callbacks import UsageMetadataCallbackHandler
-    from .factory_settings import resolve_model
-
-    resolved_model = resolve_model(model, purpose=purpose)
-    agent = _get_agent(resolved_model)
-    config = {"configurable": {"thread_id": thread_id}}
-    usage_cb = UsageMetadataCallbackHandler()
-    run_config = {**config, "callbacks": [usage_cb]}
-    logger.info("Resuming Factory Brain thread %s.", thread_id)
     reporter = progress_reporter or ProgressReporter()
     reporter.started("Factory Brain resumed the approved task.")
-    reporter.phase("approval", "Factory Brain is applying the approved action.")
     started_at = time.perf_counter()
+
+    try:
+        from langchain_core.callbacks import UsageMetadataCallbackHandler
+        from .factory_settings import resolve_model
+
+        resolved_model = resolve_model(model, purpose=purpose)
+        agent = _get_agent(resolved_model)
+        config = {"configurable": {"thread_id": thread_id}}
+        usage_cb = UsageMetadataCallbackHandler()
+        run_config = {**config, "callbacks": [usage_cb]}
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
+    except Exception:
+        reporter.failed("Factory Brain could not resume. Check the final error.")
+        logger.exception("Factory Brain failed during resume startup.")
+        raise
+
+    logger.info("Resuming Factory Brain thread %s.", thread_id)
+    reporter.phase("approval", "Factory Brain is applying the approved action.")
     try:
         with reporter.heartbeat_scope():
             result = run_agent_with_progress(
@@ -289,21 +307,34 @@ def reject_factory_brain(
 
     The agent will receive the rejection and respond accordingly.
     """
-    from langchain_core.callbacks import UsageMetadataCallbackHandler
-    from langchain_core.messages import HumanMessage
-    from .factory_settings import resolve_model
-
-    resolved_model = resolve_model(model, purpose=purpose)
-    agent = _get_agent(resolved_model)
-    config = {"configurable": {"thread_id": thread_id}}
-    logger.info("Rejecting Factory Brain thread %s: %s", thread_id, reason)
     reporter = progress_reporter or ProgressReporter()
     reporter.started("Factory Brain received the rejection.")
-    reporter.phase("approval", "Factory Brain is applying the rejection safely.")
-    usage_cb = UsageMetadataCallbackHandler()
-    run_config = {**config, "callbacks": [usage_cb]}
     started_at = time.perf_counter()
-    agent.update_state(config, {"messages": [HumanMessage(content=f"Rejected: {reason}")]})
+
+    try:
+        from langchain_core.callbacks import UsageMetadataCallbackHandler
+        from langchain_core.messages import HumanMessage
+        from .factory_settings import resolve_model
+
+        resolved_model = resolve_model(model, purpose=purpose)
+        agent = _get_agent(resolved_model)
+        config = {"configurable": {"thread_id": thread_id}}
+        usage_cb = UsageMetadataCallbackHandler()
+        run_config = {**config, "callbacks": [usage_cb]}
+        agent.update_state(
+            config,
+            {"messages": [HumanMessage(content=f"Rejected: {reason}")]},
+        )
+    except (KeyboardInterrupt, SystemExit):
+        reporter.cancelled()
+        raise
+    except Exception:
+        reporter.failed("Factory Brain could not apply the rejection. Check the final error.")
+        logger.exception("Factory Brain failed during rejection startup.")
+        raise
+
+    logger.info("Rejecting Factory Brain thread %s: %s", thread_id, reason)
+    reporter.phase("approval", "Factory Brain is applying the rejection safely.")
     try:
         with reporter.heartbeat_scope():
             result = run_agent_with_progress(
@@ -413,6 +444,12 @@ def _extract_response(result: Any) -> str:
     return content
 
 
+def check_factory_brain_dependencies() -> None:
+    """Fail clearly when the declared Factory Brain runtime is incomplete."""
+
+    _ensure_dependencies()
+
+
 def _ensure_dependencies() -> None:
     try:
         import deepagents  # noqa: F401
@@ -420,8 +457,8 @@ def _ensure_dependencies() -> None:
     except ImportError as exc:
         logger.exception("Factory Brain dependencies are missing.")
         raise RuntimeError(
-            "Factory Brain dependencies not installed. "
-            "Run: uv pip install deepagents langgraph-checkpoint-sqlite"
+            "Factory Brain dependencies are not installed. "
+            "Run: uv sync --extra langchain"
         ) from exc
 
 

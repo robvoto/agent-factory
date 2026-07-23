@@ -7,7 +7,7 @@ Current technical shape of agent-factory. For product direction, read `platform-
 ## Implemented pieces
 
 1. **AgentManifest / AgentPackageSpec** — Pydantic models for agent spec validation (`agent_spec.py`)
-2. **Factory Brain** — LangGraph deep agent that designs and stages packages (`factory_brain.py`)
+2. **Factory Brain** — LangGraph deep agent that designs and stages packages (`factory_brain.py`); its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use
 3. **Factory Tools** — bounded tools: create, promote, approve, delete (`factory_tools.py`)
 4. **Agent Catalog** — staged + enabled inventory (`agent_catalog.py`)
 5. **Creator Workflow** — deterministic scaffolding from spec (`creator_workflow.py`)

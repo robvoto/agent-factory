@@ -110,6 +110,7 @@ def run_doctor() -> int:
     checks += _check_settings()
     checks += _check_sqlite()
     checks += _check_git_hygiene()
+    checks += _check_factory_brain_dependencies()
     checks += _check_factory_manifest()
 
     _print_report(checks)
@@ -211,6 +212,28 @@ def _check_git_hygiene() -> list[CheckResult]:
         ))
 
     return results
+
+
+def _check_factory_brain_dependencies() -> list[CheckResult]:
+    try:
+        from .factory_brain import check_factory_brain_dependencies
+
+        check_factory_brain_dependencies()
+        return [
+            CheckResult(
+                ok=True,
+                label="Factory Brain runtime dependencies",
+                detail="deepagents and SQLite checkpoint support are available",
+            )
+        ]
+    except Exception as exc:
+        return [
+            CheckResult(
+                ok=False,
+                label="Factory Brain runtime dependencies",
+                detail=str(exc),
+            )
+        ]
 
 
 def _check_factory_manifest() -> list[CheckResult]:

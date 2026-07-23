@@ -33,6 +33,8 @@ Staged (unapproved) drafts live in `staging/agents/`.
 ```bash
 cd ~/projects/agent-factory
 uv sync --all-extras
+uv run agent-factory setup
+uv run agent-factory doctor
 uv run pytest
 uv run agent-factory list
 ```
@@ -40,7 +42,7 @@ uv run agent-factory list
 ## Factory Brain
 
 The Factory Brain is a LangGraph deep agent that designs and stages agent packages.
-Requires `OPENAI_API_KEY` in `.env`.
+It requires `OPENAI_API_KEY` in `.env` and the `langchain` optional dependency set, which includes SQLite checkpoint support. `uv run agent-factory doctor` verifies that runtime before Factory Brain is invoked.
 
 ```bash
 uv run agent-factory factory "Create an agent that researches LangChain docs safely"

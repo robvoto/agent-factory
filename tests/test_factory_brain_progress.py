@@ -107,6 +107,32 @@ def test_factory_brain_emits_generic_failure(monkeypatch) -> None:
     assert "SECRET provider payload" not in stream.getvalue()
 
 
+def test_factory_brain_emits_failure_when_runtime_construction_fails(monkeypatch) -> None:
+    stream = io.StringIO()
+    monkeypatch.setattr(factory_brain, "_check_api_key", lambda: None)
+    monkeypatch.setattr(
+        factory_brain,
+        "_get_agent",
+        lambda _model: (_ for _ in ()).throw(RuntimeError("missing runtime dependency")),
+    )
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.resolve_model",
+        lambda *_a, **_k: "test:model",
+    )
+
+    with pytest.raises(RuntimeError, match="missing runtime dependency"):
+        factory_brain.invoke_factory_brain(
+            "Create an agent",
+            thread_id="thread-1",
+            progress_reporter=_reporter(stream),
+        )
+
+    events = _events(stream)
+    assert [event["event_type"] for event in events] == ["start", "failure"]
+    assert events[-1]["human_summary"] == "Factory Brain could not start. Check the final error."
+    assert "missing runtime dependency" not in stream.getvalue()
+
+
 def test_factory_brain_emits_cancellation(monkeypatch) -> None:
     stream = io.StringIO()
     _prepare(monkeypatch, _FakeAgent(error=KeyboardInterrupt()))
