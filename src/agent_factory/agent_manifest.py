@@ -75,7 +75,7 @@ def _count_pending_approvals() -> int:
 
 
 def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
-    """Return the compact handshake other agents (Army) can cache.
+    """Return the compact handshake other agents (Agent Hub) can cache.
 
     include_live=True (default) adds live registry counts and enabled agent list.
     Set include_live=False for static/offline manifests in tests.
@@ -146,12 +146,12 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "package_template_dir": "templates/agent-package",
         },
         "backlog_url": _BACKLOG_URL,
-        "army_integration": {
+        "hub_integration": {
             "handshake_command": MANIFEST_COMMAND,
             "handshake_ttl_seconds": 3600,
-            "discovery": "registry-driven — Army reads config/agents/<id>/agent.json or calls manifest",
+            "discovery": "registry-driven — Agent Hub reads config/agents/<id>/agent.json or calls manifest",
             "approval_required_before_registry_entry": True,
-            "notes": "Army should call `manifest` once per session or when TTL expires. Never auto-scan the repo.",
+            "notes": "Agent Hub should call `manifest` once per session or when TTL expires. Never auto-scan the repo.",
         },
     }
 

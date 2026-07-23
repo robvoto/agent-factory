@@ -37,7 +37,7 @@ Contracts and controls:
 - `agent-contract.md` — specialist package rules, including the universal Agent Hub task boundary
 - `permission-model.md`
 - `trusted-sources.md`
-- `agent-registry-contract.md` — how Army discovers agents; registry-driven protocol (AF-047)
+- `agent-registry-contract.md` — how Agent Hub discovers agents; registry-driven protocol (AF-047)
 
 Data and operations:
 

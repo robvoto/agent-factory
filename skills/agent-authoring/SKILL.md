@@ -44,12 +44,12 @@ Rules:
 - `runtime.mode`: `"manual"` until explicitly promoted
 - `runtime.entrypoint`: `null` until a real implementation exists
 
-## Army discovery fields
+## Agent Hub discovery fields
 
-Army reads these fields from agent.json when deciding how to route:
-- `id`, `name`, `purpose`, `aliases` — routing identity
-- `runtime.entrypoint` — how Army invokes the agent
-- `permissions.requires_approval` — whether Army must ask before running
+Agent Hub reads these fields from agent.json when deciding how to route:
+- `id`, `name`, `purpose` — routing identity (`purpose` is the sole routing contract; `aliases` are human-facing only)
+- `runtime.entrypoint` — how Agent Hub invokes the agent
+- `permissions.requires_approval` — whether Agent Hub must ask before running
 
 Factory must reject vague or one-sentence purposes. `purpose` is the only routing description and must clearly state the primary responsibility, positive selection scope, and exclusion scope.
 
@@ -86,7 +86,7 @@ The system prompt must:
 - A human must review REVIEW.md before promotion
 - Never copy to `config/agents` without explicit approval
 - record_decision must log any durable decisions made during the creation process
-- Once promoted to `config/agents/`, Army can discover the agent via manifest or direct file read
+- Once promoted to `config/agents/`, Agent Hub can discover the agent via manifest or direct file read
 
 ## Routing-purpose examples
 

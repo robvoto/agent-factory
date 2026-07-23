@@ -19,9 +19,9 @@ flowchart TB
     subgraph Agents["All Agents - Read + Write"]
         direction TB
         FactoryBrain["Factory Brain<br/>reads architecture<br/>writes decisions"]
-        ArmyOrch["Army Orchestrator<br/>reads routing patterns<br/>writes routing outcomes"]
+        HubOrch["Agent Hub Orchestrator<br/>reads routing patterns<br/>writes routing outcomes"]
         ATL["AI Tech Lead<br/>reads coding patterns<br/>writes task outcomes"]
-        FutureAgents["Future agents<br/>add as they join the army"]
+        FutureAgents["Future agents<br/>add as they join the hub"]
     end
 
     subgraph KeeperSection["Knowledge Keeper"]
@@ -38,8 +38,8 @@ flowchart TB
     SharedTrusted <-->|search| FactoryBrain
     AgentLearnings <-->|search + write| FactoryBrain
 
-    SharedDocs <-->|search| ArmyOrch
-    AgentLearnings <-->|search + write| ArmyOrch
+    SharedDocs <-->|search| HubOrch
+    AgentLearnings <-->|search + write| HubOrch
 
     SharedDocs <-->|search| ATL
     SharedTrusted <-->|search| ATL

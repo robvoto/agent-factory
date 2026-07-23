@@ -1,33 +1,33 @@
 ---
-name: army-handshake
-description: How Army discovers and caches Agent Factory capabilities; how to update the manifest
+name: hub-handshake
+description: How Agent Hub discovers and caches Agent Factory capabilities; how to update the manifest
 ---
 
-# Skill: Army Handshake
+# Skill: Hub Handshake
 
-How Army discovers Agent Factory capabilities and how to keep the manifest current.
+How Agent Hub discovers Agent Factory capabilities and how to keep the manifest current.
 
 ## What the manifest is
 
-`uv run agent-factory manifest` emits a single-line JSON document that Army can cache.
+`uv run agent-factory manifest` emits a single-line JSON document that Agent Hub can cache.
 It includes:
-- Static fields: agent_id, capabilities, boundaries, entrypoints, army_integration config
+- Static fields: agent_id, capabilities, boundaries, entrypoints, hub_integration config
 - `live_registry`: enabled agents list, staged count, pending approval count, as_of timestamp
 
-Army should call this once per session (or when `army_integration.handshake_ttl_seconds` expires).
+Agent Hub should call this once per session (or when `hub_integration.handshake_ttl_seconds` expires).
 
-## Army integration contract
+## Hub integration contract
 
 ```
-army_integration.handshake_command  = "uv run agent-factory manifest"
-army_integration.handshake_ttl_seconds = 3600
-army_integration.discovery = "registry-driven"
-army_integration.approval_required_before_registry_entry = true
+hub_integration.handshake_command  = "uv run agent-factory manifest"
+hub_integration.handshake_ttl_seconds = 3600
+hub_integration.discovery = "registry-driven"
+hub_integration.approval_required_before_registry_entry = true
 ```
 
-Army must not scan the repo or call factory commands on every request — cache the manifest.
+Agent Hub must not scan the repo or call factory commands on every request — cache the manifest.
 
-## live_registry fields Army reads
+## live_registry fields Agent Hub reads
 
 ```json
 {
@@ -57,7 +57,7 @@ Update `src/agent_factory/agent_manifest.py` when:
 - A new CLI command is added (add to `entrypoints`)
 - A new capability is implemented (add to `capabilities`)
 - A boundary changes (update `boundaries`)
-- The army integration protocol changes (update `army_integration`)
+- The hub integration protocol changes (update `hub_integration`)
 
 Do not change `live_registry` fields — those are always populated from the live filesystem.
 Do not change `manifest_hash` logic without bumping `MANIFEST_SCHEMA_VERSION`.
@@ -65,18 +65,18 @@ Do not change `manifest_hash` logic without bumping `MANIFEST_SCHEMA_VERSION`.
 ## Manifest hash
 
 The hash covers all static fields (excludes `live_registry` and `manifest_hash` itself).
-This means Army can detect structural changes without the hash flickering on every call.
+This means Agent Hub can detect structural changes without the hash flickering on every call.
 
-## How Army should detect new agents
+## How Agent Hub should detect new agents
 
-1. Army calls manifest on startup
+1. Agent Hub calls manifest on startup
 2. If `live_registry.enabled_count` changes from cached value → re-call manifest
-3. Army reads each agent's full spec from `config/agents/<id>/agent.json` for routing details
+3. Agent Hub reads each agent's full spec from `config/agents/<id>/agent.json` for routing details
 4. See `docs/agent-registry-contract.md` for the full protocol
 
 ## Related files
 
 - `src/agent_factory/agent_manifest.py` — manifest builder
-- `docs/agent-registry-contract.md` — full Army ↔ Factory protocol
+- `docs/agent-registry-contract.md` — full Agent Hub ↔ Factory protocol
 - `config/agents/<id>/agent.json` — individual agent specs
 - `tests/test_agent_manifest.py` — manifest tests

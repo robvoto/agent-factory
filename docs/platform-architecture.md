@@ -4,11 +4,11 @@
 
 | Repo | Role |
 |------|------|
-| `agent-army` | Orchestrator / runtime / control plane — main entry point for users |
+| `agent-hub` | Orchestrator / runtime / control plane — main entry point for users |
 | `agent-factory` (this repo) | Specialist agent — creates, configures, and stages agents only |
 | `ai-tech-lead` | Specialist coding agent |
 
-`agent-factory` is **not** the runtime or orchestrator. `agent-army` runs agents and routes tasks.
+`agent-factory` is **not** the runtime or orchestrator. `agent-hub` runs agents and routes tasks.
 
 ## What agent-factory does
 
@@ -16,16 +16,16 @@
 - Validates manifests, tools, permissions, and memory policy
 - Enables agents only after human approval
 - Tracks agent lifecycle: staged → approved → enabled
-- Exposes enabled agents via `config/agents/` — army reads from there
-- Emits bounded progress for Factory Brain when Army/Hub calls it
+- Exposes enabled agents via `config/agents/` — Agent Hub reads from there
+- Emits bounded progress for Factory Brain when Agent Hub calls it
 - Adds the shared progress adapter only to generated agents explicitly declared Hub-callable or long-running
 
 ## What agent-factory does NOT do
 
-- Does not run or dispatch tasks to agents (army does this)
-- Does not own the user-facing Telegram gateway (army does this)
-- Does not route user requests (army does this)
-- Does not persist or present progress to users; Army/Hub owns `/status`, stale detection, cancellation, and Telegram updates
+- Does not run or dispatch tasks to agents (Agent Hub does this)
+- Does not own the user-facing Telegram gateway (Agent Hub does this)
+- Does not route user requests (Agent Hub does this)
+- Does not persist or present progress to users; Agent Hub owns `/status`, stale detection, cancellation, and Telegram updates
 
 ## Responsibilities within factory
 
@@ -46,7 +46,7 @@ Governance:
 ```text
 agent-factory/
   src/agent_factory/          # factory logic only
-  config/agents/              # enabled agent manifests (read by army)
+  config/agents/              # enabled agent manifests (read by Agent Hub)
   staging/agents/             # staged (unapproved) drafts
   templates/agent-package/    # scaffold template
   docs/

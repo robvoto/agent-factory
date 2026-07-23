@@ -38,8 +38,8 @@ def test_build_factory_manifest_contains_core_fields() -> None:
         "deep_agent",
     ]
     assert "backlog_url" in manifest
-    assert "army_integration" in manifest
-    assert manifest["army_integration"]["approval_required_before_registry_entry"] is True
+    assert "hub_integration" in manifest
+    assert manifest["hub_integration"]["approval_required_before_registry_entry"] is True
 
 
 def test_build_factory_manifest_live_registry() -> None:
@@ -56,7 +56,7 @@ def test_build_factory_manifest_live_registry() -> None:
 
 
 def test_build_factory_manifest_enabled_agent_fields() -> None:
-    """Enabled agents include the fields Army needs for routing."""
+    """Enabled agents include the fields Agent Hub needs for routing."""
     manifest = build_factory_manifest(include_live=True)
 
     for agent in manifest["live_registry"]["enabled_agents"]:

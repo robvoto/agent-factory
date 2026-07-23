@@ -10,10 +10,10 @@ flowchart TD
         Browser[Browser / VS Code]
     end
 
-    subgraph Army["agent-army — Orchestrator"]
-        ArmyBot[Army Telegram Bot]
-        ArmyOrch[Orchestrator\ncreate_react_agent]
-        ArmyReg[Agent Registry\nreads config/agents/]
+    subgraph Hub["agent-hub — Orchestrator"]
+        HubBot[Agent Hub Telegram Bot]
+        HubOrch[Orchestrator\ncreate_react_agent]
+        HubReg[Agent Registry\nreads config/agents/]
     end
 
     subgraph Factory["agent-factory — Control Plane"]
@@ -42,19 +42,19 @@ flowchart TD
         CodingBackend[Coding Backend\nCodex / Claude Code]
     end
 
-    Phone -->|any task| ArmyBot
+    Phone -->|any task| HubBot
     Phone -->|factory commands| FactoryBot
     Phone -->|coding tasks| ATLBot
     Phone -->|job tasks| JobBot
     Browser --> AdminUI
 
-    ArmyBot --> ArmyOrch
-    ArmyOrch --> ArmyReg
-    ArmyReg --> Registry
+    HubBot --> HubOrch
+    HubOrch --> HubReg
+    HubReg --> Registry
 
-    ArmyOrch -->|coding task\nJSON subprocess| ATLGraph
-    ArmyOrch -->|job task\nJSON subprocess| JobGraph
-    ArmyOrch -->|design agent\nJSON subprocess| FactoryBrain
+    HubOrch -->|coding task\nJSON subprocess| ATLGraph
+    HubOrch -->|job task\nJSON subprocess| JobGraph
+    HubOrch -->|design agent\nJSON subprocess| FactoryBrain
 
     FactoryBot --> FactoryBrain
     FactoryBrain --> Staging
@@ -69,13 +69,13 @@ flowchart TD
     JobBot --> JobGraph
 
     FactoryBrain <-->|read/write| KnowledgeDB
-    ArmyOrch <-->|read/write| KnowledgeDB
+    HubOrch <-->|read/write| KnowledgeDB
     ATLGraph <-->|read/write| KnowledgeDB
     JobGraph <-->|read/write| KnowledgeDB
 
     FactoryBrain --- CheckpointDB
     ATLGraph --- CheckpointDB
-    ArmyOrch --- CheckpointDB
+    HubOrch --- CheckpointDB
 
     style KnowledgeDB fill:#e8f4e8,stroke:#5a9e5a
     style CheckpointDB fill:#fff3e0,stroke:#e6a817
@@ -88,7 +88,7 @@ flowchart TD
 
 - **Factory** designs and promotes agents. It never runs coding work itself.
 - **Orchestrator** routes requests. It never performs the work itself.
-- **Specialist agents** (ai-tech-lead, job-hunter) do the actual work. They exist independently of the army.
+- **Specialist agents** (ai-tech-lead, job-hunter) do the actual work. They exist independently of the hub.
 - **Knowledge Store** is shared. One SQLite file, all agents read from and write to it.
 - **Checkpoints** are per-project. Each agent's conversation history stays in its own file.
-- Every agent can also be used directly via its own Telegram bot — the army is an additional entry point, not a replacement.
+- Every agent can also be used directly via its own Telegram bot — the hub is an additional entry point, not a replacement.

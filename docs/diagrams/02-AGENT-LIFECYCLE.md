@@ -1,6 +1,6 @@
-# Agent Lifecycle — From Idea to Army
+# Agent Lifecycle — From Idea to Agent Hub
 
-How an agent goes from an idea to a running specialist in the army.
+How an agent goes from an idea to a running specialist in the hub.
 
 ```mermaid
 stateDiagram-v2
@@ -15,9 +15,9 @@ stateDiagram-v2
 
     Rejected --> Designing : Factory Brain refines
 
-    Approved --> Enabled : Promoted to config/agents/\nArmy registry picks it up
+    Approved --> Enabled : Promoted to config/agents/\nAgent Hub registry picks it up
 
-    Enabled --> Running : Army Orchestrator\nroutes tasks to it
+    Enabled --> Running : Agent Hub Orchestrator\nroutes tasks to it
 
     Running --> Learning : Agent writes outcomes\nto shared knowledge store
 
@@ -40,6 +40,6 @@ stateDiagram-v2
 | Staged | Factory Brain | `staging/agents/<id>/` |
 | Under Review | You | Admin UI or Telegram `/staged` |
 | Enabled | Factory (on `/approve`) | `config/agents/<id>/agent.json` |
-| Running | Army Orchestrator | Live, called via subprocess |
+| Running | Agent Hub Orchestrator | Live, called via subprocess |
 | Learning | The agent itself | `knowledge_store.sqlite3` |
 | Improving | Factory Brain (reads logs) | New staging draft |

@@ -32,7 +32,7 @@ These change types **require** checking and updating docs before closing the tas
 | Registry or lifecycle change | `docs/agent-registry-contract.md`, `docs/agent-lifecycle.md` |
 | Agent-boundary change | `docs/agent-contract.md`, `docs/platform-architecture.md` |
 | Data or settings change | `docs/data-classification.md`, `docs/settings-hygiene.md` |
-| Army integration change | `docs/agent-registry-contract.md` |
+| Agent Hub integration change | `docs/agent-registry-contract.md` |
 | New doc added | `docs/INDEX.md` |
 
 ## Docs index

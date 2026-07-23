@@ -2,7 +2,7 @@
 
 Agent Factory creates, configures, and stages agents. It is a specialist agent, not the main orchestrator.
 
-`agent-army` is the orchestrator and runtime control plane.
+`agent-hub` is the orchestrator and runtime control plane.
 `agent-factory` creates and configures agents only.
 
 Minimal always-loaded instructions. Not the project manual, architecture guide, backlog, standards document, or command reference.

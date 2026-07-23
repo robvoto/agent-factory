@@ -13,7 +13,7 @@ Each diagram has two files: `.mmd` (source) and `.svg` (scalable preview).
 | # | Diagram | What it shows |
 |---|---|---|
 | 01 | [System Overview](01-SYSTEM-OVERVIEW.md) | Every component and how they connect. Start here. |
-| 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | How an agent goes from idea → factory → army → improvement. |
+| 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | How an agent goes from idea → factory → Agent Hub → improvement. |
 | 03 | [Telegram Flows](03-TELEGRAM-FLOWS.md) | Which bot to use, what each handles, all commands. |
 | 04 | [Knowledge Flow](04-KNOWLEDGE-FLOW.md) | How agents share knowledge and learn from each other. |
 ---
@@ -37,4 +37,4 @@ The preview `.svg` is maintained alongside the source model.
 | Document | What it shows |
 |---|---|
 | [Factory Brain Flow](../factory-brain-flow.md) | Inside the Factory Brain: tools, memory, approvals. |
-| [AI Tech Lead: Army Integration](../../staging/agents/ai-tech-lead/SYSTEM.md) | How the army calls AI Tech Lead via JSON subprocess contract. |
+| [AI Tech Lead: Agent Hub Integration](../../staging/agents/ai-tech-lead/SYSTEM.md) | How Agent Hub calls AI Tech Lead via JSON subprocess contract. |

@@ -11,20 +11,20 @@ Agent Factory is a **specialist agent** in the platform. Its job is:
 - Enable agents only after human approval
 - Track the agent lifecycle (staged → approved → enabled)
 
-**Agent Army (`agent-army`) is the orchestrator and entry point for users.**
-Factory is called by army when an agent-creation task is requested.
+**Agent Hub (`agent-hub`) is the orchestrator and entry point for users.**
+Factory is called by Agent Hub when an agent-creation task is requested.
 
 ## Related repos
 
 | Repo | Role |
 |------|------|
-| `agent-army` | Orchestrator / runtime / control plane — **main entry point** |
+| `agent-hub` | Orchestrator / runtime / control plane — **main entry point** |
 | `agent-factory` (this repo) | Creates, configures, and stages agents only |
 | `ai-tech-lead` | Specialist coding agent |
 
 ## Agent registry
 
-Enabled agents live in `config/agents/<id>/agent.json`. Army reads from here.
+Enabled agents live in `config/agents/<id>/agent.json`. Agent Hub reads from here.
 
 Staged (unapproved) drafts live in `staging/agents/`.
 
@@ -57,7 +57,7 @@ uv run agent-factory telegram
 Factory's Telegram bot handles factory admin commands only:
 `/staged`, `/pending`, `/approve`, `/reject`, `/create`, `/promote`, `/delete`.
 
-This is **not** the main user bot — that is army's Telegram gateway.
+This is **not** the main user bot — that is Agent Hub's Telegram gateway.
 
 ## Key commands
 
@@ -83,7 +83,7 @@ uv run agent-factory promote <id>  # request promotion to config/agents
 - `src/agent_factory/storage.py` — SQLite persistence
 - `templates/agent-package/` — agent package template
 - `staging/agents/` — staged (unapproved) drafts
-- `config/agents/` — enabled agents (read by army)
+- `config/agents/` — enabled agents (read by Agent Hub)
 
 ## Backlog
 

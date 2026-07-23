@@ -2,24 +2,24 @@ flowchart TD
     You([You])
 
     subgraph Bots["Telegram Bots"]
-        ArmyBot["Army Bot<br/>One bot for everything"]
+        HubBot["Agent Hub Bot<br/>One bot for everything"]
         FactoryBot["Factory Bot<br/>Agent design only"]
         ATLBot["AI Tech Lead Bot<br/>Direct coding work"]
     end
 
-    subgraph Army["Army Orchestrator"]
+    subgraph Hub["Agent Hub Orchestrator"]
         IntentRouter{What kind<br/>of request?}
         CodingRoute[Route to AI Tech Lead]
         FactoryRoute[Route to Factory Brain]
         UnknownRoute[Route to direct answer<br/>or no agent exists yet]
     end
 
-    You -->|"fix the login bug"| ArmyBot
-    You -->|"design me an agent for X"| ArmyBot
+    You -->|"fix the login bug"| HubBot
+    You -->|"design me an agent for X"| HubBot
     You -->|/approve /reject /staged| FactoryBot
     You -->|direct coding task| ATLBot
 
-    ArmyBot --> IntentRouter
+    HubBot --> IntentRouter
     IntentRouter -->|coding| CodingRoute
     IntentRouter -->|factory/design| FactoryRoute
     IntentRouter -->|unknown| UnknownRoute

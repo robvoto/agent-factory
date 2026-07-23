@@ -36,11 +36,11 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `id` | Yes | Unique agent identifier (kebab-case) |
 | `name` | Yes | Human-readable name |
 | `purpose` | Yes | Single routing contract with `Primary responsibility:`, `Select for:`, and `Do not select for:` sections |
-| `aliases` | Yes | Non-empty list of strings army uses to route tasks |
+| `aliases` | Yes | Non-empty list of short human-facing command words (not used for Agent Hub routing — `purpose` is the sole routing contract) |
 | `tools` | Yes | List of tool IDs the agent exposes |
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
 | `memory` | Yes | Object: `scope`, `retention` |
-| `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how army invokes the agent |
+| `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how Agent Hub invokes the agent |
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts — see "Universal Agent Hub task boundary" below |
 | `interaction_contract` | No | Declares lifecycle support: `progress`, `clarification`, `approval`, `resume`, `cancellation` |
@@ -48,7 +48,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 Any other top-level field (e.g. a specialist's own backlog pointer) is
 specialist-owned metadata with no universal meaning — Factory writes it
 through unchanged from `AgentPackageSpec.extensions`, and neither Factory nor
-Army interprets it. `backlog_sheet_id` is no longer part of the core
+Agent Hub interprets it. `backlog_sheet_id` is no longer part of the core
 manifest; a specialist that wants one supplies it as an extension field
 (`"extensions": {"backlog_sheet_id": "..."}`), the same way any custom field
 works.

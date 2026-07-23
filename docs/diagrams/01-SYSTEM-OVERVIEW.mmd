@@ -5,10 +5,10 @@ flowchart TD
         Browser[Browser / VS Code]
     end
 
-    subgraph Army["agent-army - Orchestrator"]
-        ArmyBot[Army Telegram Bot]
-        ArmyOrch[Orchestrator<br/>create_react_agent]
-        ArmyReg[Agent Registry<br/>reads config/agents/]
+    subgraph Hub["agent-hub - Orchestrator"]
+        HubBot[Agent Hub Telegram Bot]
+        HubOrch[Orchestrator<br/>create_react_agent]
+        HubReg[Agent Registry<br/>reads config/agents/]
     end
 
     subgraph Factory["agent-factory - Control Plane"]
@@ -36,17 +36,17 @@ flowchart TD
         CodingBackend[Coding Backend<br/>Codex / Claude Code]
     end
 
-    Phone -->|any task| ArmyBot
+    Phone -->|any task| HubBot
     Phone -->|factory commands| FactoryBot
     Phone -->|coding tasks| ATLBot
     Browser --> AdminUI
 
-    ArmyBot --> ArmyOrch
-    ArmyOrch --> ArmyReg
-    ArmyReg --> Registry
+    HubBot --> HubOrch
+    HubOrch --> HubReg
+    HubReg --> Registry
 
-    ArmyOrch -->|coding task<br/>JSON subprocess| ATLGraph
-    ArmyOrch -->|design agent<br/>JSON subprocess| FactoryBrain
+    HubOrch -->|coding task<br/>JSON subprocess| ATLGraph
+    HubOrch -->|design agent<br/>JSON subprocess| FactoryBrain
 
     FactoryBot --> FactoryBrain
     FactoryBrain --> Staging
@@ -59,12 +59,12 @@ flowchart TD
     ATLGraph --> ATLBacklog
 
     FactoryBrain <-->|read/write| KnowledgeDB
-    ArmyOrch <-->|read/write| KnowledgeDB
+    HubOrch <-->|read/write| KnowledgeDB
     ATLGraph <-->|read/write| KnowledgeDB
 
     FactoryBrain --- CheckpointDB
     ATLGraph --- CheckpointDB
-    ArmyOrch --- CheckpointDB
+    HubOrch --- CheckpointDB
 
     style KnowledgeDB fill:#e8f4e8,stroke:#5a9e5a
     style CheckpointDB fill:#fff3e0,stroke:#e6a817

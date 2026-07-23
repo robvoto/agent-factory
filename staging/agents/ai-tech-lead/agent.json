@@ -31,7 +31,7 @@
     "input_arg": "--input-json",
     "output_arg": "--output-json",
     "default_execution_mode": "execute",
-    "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Army passes human_approved=true only after the human explicitly says yes via Telegram."
+    "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Agent Hub passes human_approved=true only after the human explicitly says yes via Telegram."
   },
   "output_contract": {
     "status_values": [

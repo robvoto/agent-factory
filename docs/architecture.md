@@ -2,7 +2,7 @@
 
 Current technical shape of agent-factory. For product direction, read `platform-architecture.md`.
 
-> **Role:** agent-factory is a specialist agent — it creates, configures, and stages agents. It does NOT orchestrate or run them. `agent-army` is the orchestrator.
+> **Role:** agent-factory is a specialist agent — it creates, configures, and stages agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
 
 ## Implemented pieces
 
@@ -21,7 +21,7 @@ Current technical shape of agent-factory. For product direction, read `platform-
 ```text
 agent-factory/
   src/agent_factory/       # factory logic only
-  config/agents/           # enabled agents (read by army)
+  config/agents/           # enabled agents (read by Agent Hub)
   staging/agents/          # unapproved drafts
   templates/agent-package/ # base scaffold template
   templates/progress-adapter/ # optional Hub progress capability
@@ -31,19 +31,19 @@ agent-factory/
 
 ## Registry contract
 
-Factory writes `config/agents/<id>/agent.json`. Army reads it. Required fields:
+Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fields:
 
 | Field | Written by | Read by |
 |-------|-----------|---------|
-| `id`, `name`, `purpose` | Factory | Army routing |
-| `aliases` | Factory | Army dispatch |
-| `runtime` | Factory | Army invocation |
-| `input_contract`, `interaction_contract` | Factory | Army universal dispatch/capability discovery |
-| `extensions` (e.g. a backlog pointer) | Factory | Specialist's own tooling — Army does not interpret it |
+| `id`, `name`, `purpose` | Factory | Agent Hub routing |
+| `aliases` | Factory | Human-facing command shortcuts (not Agent Hub routing) |
+| `runtime` | Factory | Agent Hub invocation |
+| `input_contract`, `interaction_contract` | Factory | Agent Hub universal dispatch/capability discovery |
+| `extensions` (e.g. a backlog pointer) | Factory | Specialist's own tooling — Agent Hub does not interpret it |
 
 ## Current boundary
 
-`src/agent_factory` is factory logic only. Do not put orchestration, routing, or runtime dispatch code here — those belong in `agent-army`.
+`src/agent_factory` is factory logic only. Do not put orchestration, routing, or runtime dispatch code here — those belong in `agent-hub`.
 
 ## Hub progress boundary
 

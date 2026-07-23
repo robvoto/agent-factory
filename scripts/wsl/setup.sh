@@ -28,7 +28,7 @@ echo "Runtime: uv"
 #      git clone git@github.com:robvoto/agent-factory.git ~/projects/agent-factory
 #      git clone git@github.com:robvoto/ai-tech-lead-agent.git ~/projects/ai-tech-lead
 #      git clone git@github.com:robvoto/job-hunter-agent.git ~/projects/job-hunter-agent
-#      git clone git@github.com:robvoto/agent-army.git ~/projects/agent-army
+#      git clone git@github.com:robvoto/agent-hub.git ~/projects/agent-hub
 #
 # 4. Shared resources
 #      Agent Factory Backlog (Google Sheet):
