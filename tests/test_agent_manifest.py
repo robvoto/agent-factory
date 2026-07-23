@@ -16,7 +16,15 @@ def test_build_factory_manifest_contains_core_fields() -> None:
     assert manifest["entrypoints"]["cli"] == "agent-factory"
     assert manifest["entrypoints"]["setup"] == "setup"
     assert manifest["entrypoints"]["doctor"] == "doctor"
-    assert "does not orchestrate or dispatch tasks" in manifest["boundaries"]
+    assert manifest["purpose"] == (
+        "Primary responsibility: Design and govern new specialist agent packages.\n"
+        "Select for: Creating, configuring, validating, staging, approving, rejecting, "
+        "or promoting specialist agent packages.\n"
+        "Do not select for: Modifying source code in an existing software project."
+    )
+    assert "one_line" not in manifest
+    assert "capabilities" not in manifest
+    assert "boundaries" not in manifest
     assert manifest["registry"]["enabled_agents_dir"] == "config/agents"
     assert len(manifest["manifest_hash"]) == 64
     assert manifest["progress_contract"]["schema_version"] == 1

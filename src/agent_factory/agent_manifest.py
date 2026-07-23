@@ -85,7 +85,12 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
         "package": "agent_factory",
         "package_version": __version__,
         "role": "specialist agent that creates, validates, and stages agents",
-        "one_line": "Creates and configures specialist agents; Army orchestrates them.",
+        "purpose": (
+            "Primary responsibility: Design and govern new specialist agent packages.\n"
+            "Select for: Creating, configuring, validating, staging, approving, rejecting, "
+            "or promoting specialist agent packages.\n"
+            "Do not select for: Modifying source code in an existing software project."
+        ),
         "entrypoints": {
             "cli": "agent-factory",
             "manifest": "manifest",
@@ -103,17 +108,6 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "setup": "setup",
             "doctor": "doctor",
         },
-        "capabilities": [
-            "design staged agent packages",
-            "validate manifests, tools, permissions, and memory policy",
-            "promote approved agents into config/agents",
-            "list staged and enabled agents",
-            "support factory admin workflows",
-            "provide machine-readable handshake for army discovery",
-            "run setup and health-check (doctor) commands",
-            "emit bounded structured progress for Hub-called Factory Brain work",
-            "generate optional progress adapters for Hub-callable agents",
-        ],
         "progress_contract": {
             "optional": True,
             "activation": "Hub supplies run_id and request_id",
@@ -131,12 +125,6 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
                 "full prompts, secrets, raw provider payloads, and unbounded logs."
             ),
         },
-        "boundaries": [
-            "does not orchestrate or dispatch tasks",
-            "does not own the user-facing Telegram gateway",
-            "does not route user requests",
-            "does not let agents rewrite themselves directly",
-        ],
         "required_docs": _REQUIRED_DOCS,
         "registry": {
             "enabled_agents_dir": "config/agents",

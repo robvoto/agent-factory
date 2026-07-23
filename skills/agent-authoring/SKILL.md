@@ -86,3 +86,27 @@ The system prompt must:
 - Never copy to `config/agents` without explicit approval
 - record_decision must log any durable decisions made during the creation process
 - Once promoted to `config/agents/`, Army can discover the agent via manifest or direct file read
+
+## Routing-purpose examples
+
+Good:
+
+```text
+Primary responsibility: Lead and execute changes to existing software.
+Select for: Code review, implementation, debugging, testing, refactoring, architecture guidance, documentation changes, and backlog delivery for existing software.
+Do not select for: Designing, staging, approving, or promoting new specialist agent packages.
+```
+
+Good:
+
+```text
+Primary responsibility: Research and summarise LangChain documentation and implementation patterns.
+Select for: Evidence-based questions requiring current LangChain documentation, APIs, or architecture guidance.
+Do not select for: Implementing code changes or researching topics outside the LangChain ecosystem.
+```
+
+Reject vague purposes such as:
+
+```text
+Handles useful work and helps with agents.
+```
