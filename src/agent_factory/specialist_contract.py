@@ -9,13 +9,20 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 UNIVERSAL_TASK_PROTOCOL = "agent-hub.task"
 UNIVERSAL_TASK_PROTOCOL_VERSION = 1
 UNIVERSAL_CONTEXT_KEYS = (
-    "selected_project",
-    "user_supplied_references",
+    "project_root",
+    "references",
 )
 
 
 class SpecialistInputContract(BaseModel):
-    """Manifest declaration for the stable universal task envelope."""
+    """Manifest declaration for the stable universal task envelope.
+
+    The envelope is flat — Hub sends the same top-level keys to every
+    specialist regardless of which one it is. `project_root` and `references`
+    are the two context-carrying fields; a specialist declares which of them
+    it actually reads via `accepted_context`, but Hub sends both whenever it
+    knows them either way.
+    """
 
     protocol: str = UNIVERSAL_TASK_PROTOCOL
     protocol_version: int = UNIVERSAL_TASK_PROTOCOL_VERSION
@@ -26,10 +33,11 @@ class SpecialistInputContract(BaseModel):
             "run_id",
             "source",
             "execution_mode",
-            "context",
+            "progress_jsonl",
+            "project_root",
+            "references",
             "human_approved",
             "approval_token",
-            "resume",
         ]
     )
     accepted_context: list[str] = Field(default_factory=lambda: list(UNIVERSAL_CONTEXT_KEYS))
@@ -54,13 +62,11 @@ class SpecialistInputContract(BaseModel):
     def validate_fields(self) -> "SpecialistInputContract":
         if self.required_fields != ["task"]:
             raise ValueError("input_contract.required_fields must be exactly ['task'].")
-        if "context" not in self.optional_fields:
-            raise ValueError("input_contract.optional_fields must include 'context'.")
-        unknown = sorted(set(self.accepted_context).difference(UNIVERSAL_CONTEXT_KEYS))
-        if unknown:
+        unknown_context = sorted(set(self.accepted_context).difference(UNIVERSAL_CONTEXT_KEYS))
+        if unknown_context:
             raise ValueError(
                 "input_contract.accepted_context contains unsupported universal keys: "
-                + ", ".join(unknown)
+                + ", ".join(unknown_context)
             )
         return self
 
@@ -95,7 +101,12 @@ def validate_universal_task_envelope(
     payload: dict[str, Any],
     contract: SpecialistInputContract | None = None,
 ) -> dict[str, Any]:
-    """Validate and normalize a universal task envelope without interpreting context."""
+    """Validate and normalize a universal task envelope without interpreting context.
+
+    `project_root` and `references` are passed through unchanged — this
+    function does not inspect what they mean, only that they are present
+    among the fields the specialist declared it accepts.
+    """
 
     active_contract = contract or default_input_contract()
     if not isinstance(payload, dict):
@@ -111,14 +122,4 @@ def validate_universal_task_envelope(
 
     normalized = dict(payload)
     normalized["task"] = task.strip()
-    context = normalized.get("context")
-    if context is not None:
-        if not isinstance(context, dict):
-            raise ValueError("Universal task 'context' must be an object when supplied.")
-        unsupported_context = sorted(set(context).difference(active_contract.accepted_context))
-        if unsupported_context:
-            raise ValueError(
-                "Unsupported universal context fields: " + ", ".join(unsupported_context)
-            )
-        normalized["context"] = dict(context)
     return normalized

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, ClassVar, Literal, Mapping
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -216,6 +216,37 @@ class AgentPackageSpec(BaseModel):
     output_contract: AgentOutputContract | None = None
     risks: list[str] = []
     tests: list[str] = []
+    # Specialist-owned manifest metadata with no universal meaning (e.g. a
+    # specialist's own backlog pointer). Written verbatim into agent.json;
+    # Factory and Hub never interpret its contents.
+    extensions: dict[str, Any] = Field(default_factory=dict)
+
+    _CORE_MANIFEST_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "id",
+            "name",
+            "purpose",
+            "aliases",
+            "tools",
+            "mcp_servers",
+            "permissions",
+            "memory",
+            "runtime",
+            "input_contract",
+            "interaction_contract",
+            "output_contract",
+        }
+    )
+
+    @field_validator("extensions")
+    @classmethod
+    def validate_extensions(cls, v: dict[str, Any]) -> dict[str, Any]:
+        collisions = sorted(set(v).intersection(cls._CORE_MANIFEST_FIELDS))
+        if collisions:
+            raise ValueError(
+                "extensions must not shadow core manifest fields: " + ", ".join(collisions)
+            )
+        return v
 
     @field_validator("id")
     @classmethod

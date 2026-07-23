@@ -38,7 +38,8 @@ Factory writes `config/agents/<id>/agent.json`. Army reads it. Required fields:
 | `id`, `name`, `purpose` | Factory | Army routing |
 | `aliases` | Factory | Army dispatch |
 | `runtime` | Factory | Army invocation |
-| `backlog_sheet_id` | Factory | Army backlog routing |
+| `input_contract`, `interaction_contract` | Factory | Army universal dispatch/capability discovery |
+| `extensions` (e.g. a backlog pointer) | Factory | Specialist's own tooling — Army does not interpret it |
 
 ## Current boundary
 

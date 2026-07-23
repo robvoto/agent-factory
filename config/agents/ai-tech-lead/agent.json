@@ -35,6 +35,30 @@
     "default_execution_mode": "execute",
     "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Army passes human_approved=true only after the human explicitly says yes via Telegram."
   },
+  "input_contract": {
+    "protocol": "agent-hub.task",
+    "protocol_version": 1,
+    "required_fields": ["task"],
+    "optional_fields": [
+      "request_id",
+      "run_id",
+      "source",
+      "execution_mode",
+      "progress_jsonl",
+      "project_root",
+      "references",
+      "human_approved",
+      "approval_token"
+    ],
+    "accepted_context": ["project_root"]
+  },
+  "interaction_contract": {
+    "progress": true,
+    "clarification": true,
+    "approval": true,
+    "resume": true,
+    "cancellation": true
+  },
   "output_contract": {
     "status_values": [
       "success",

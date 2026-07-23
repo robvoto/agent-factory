@@ -34,7 +34,10 @@ during promotion. Army reads it directly or via the manifest.
 | `memory` | `scope`, `retention` |
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
 | `output_contract` | Required for `runtime.mode = "subprocess"`; declares the validated subprocess status contract |
-| `backlog_sheet_id` | Google Sheet ID for the agent's own backlog (optional) |
+| `input_contract` / `interaction_contract` | Universal Hub task-envelope declaration and advertised lifecycle capabilities (optional; see `agent-contract.md`) |
+
+Any other top-level field (e.g. a backlog sheet ID) is specialist-owned
+metadata, not a required registry field — see `extensions` in `agent-contract.md`.
 
 ## How Army discovers agents
 

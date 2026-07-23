@@ -1,7 +1,8 @@
 """Boundary adapter for Agent Hub's universal task envelope.
 
-Keep specialist-specific interpretation behind this boundary. Agent Hub supplies
-known context and uninterpreted references; this package decides what they mean.
+Keep specialist-specific interpretation behind this boundary. Agent Hub sends
+the same flat envelope to every specialist — `project_root` and `references`
+are uninterpreted context; this package decides what they mean, if anything.
 """
 
 from __future__ import annotations
@@ -14,16 +15,16 @@ _ALLOWED_FIELDS = {
     "run_id",
     "source",
     "execution_mode",
-    "context",
+    "progress_jsonl",
+    "project_root",
+    "references",
     "human_approved",
     "approval_token",
-    "resume",
 }
-_ALLOWED_CONTEXT = {"selected_project", "user_supplied_references"}
 
 
 def adapt_universal_task(payload: dict[str, Any]) -> dict[str, Any]:
-    """Validate common fields and preserve context without interpreting it."""
+    """Validate common fields and preserve project_root/references without interpreting them."""
 
     if not isinstance(payload, dict):
         raise ValueError("Task input must be a JSON object.")
@@ -34,21 +35,15 @@ def adapt_universal_task(payload: dict[str, Any]) -> dict[str, Any]:
     if unsupported:
         raise ValueError("Unsupported task fields: " + ", ".join(unsupported))
 
-    context = payload.get("context", {})
-    if not isinstance(context, dict):
-        raise ValueError("context must be an object when supplied.")
-    unsupported_context = sorted(set(context).difference(_ALLOWED_CONTEXT))
-    if unsupported_context:
-        raise ValueError("Unsupported context fields: " + ", ".join(unsupported_context))
-
     return {
         "task": task.strip(),
         "request_id": payload.get("request_id"),
         "run_id": payload.get("run_id"),
         "source": payload.get("source"),
         "execution_mode": payload.get("execution_mode"),
-        "context": dict(context),
+        "progress_jsonl": payload.get("progress_jsonl"),
+        "project_root": payload.get("project_root"),
+        "references": payload.get("references"),
         "human_approved": bool(payload.get("human_approved", False)),
         "approval_token": payload.get("approval_token"),
-        "resume": payload.get("resume"),
     }

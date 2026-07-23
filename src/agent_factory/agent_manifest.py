@@ -116,7 +116,7 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "protocol": "agent-hub.task",
             "protocol_version": 1,
             "required_fields": ["task"],
-            "optional_context": ["selected_project", "user_supplied_references"],
+            "optional_context": ["project_root", "references"],
             "ownership": (
                 "Agent Hub transports known context without interpreting it; each specialist "
                 "adapts the universal envelope into its own workflow."

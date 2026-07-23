@@ -22,7 +22,6 @@
     "mode": "manual",
     "entrypoint": null
   },
-  "backlog_sheet_id": null,
   "input_contract": {
     "protocol": "agent-hub.task",
     "protocol_version": 1,
@@ -34,14 +33,15 @@
       "run_id",
       "source",
       "execution_mode",
-      "context",
+      "progress_jsonl",
+      "project_root",
+      "references",
       "human_approved",
-      "approval_token",
-      "resume"
+      "approval_token"
     ],
     "accepted_context": [
-      "selected_project",
-      "user_supplied_references"
+      "project_root",
+      "references"
     ]
   },
   "interaction_contract": {

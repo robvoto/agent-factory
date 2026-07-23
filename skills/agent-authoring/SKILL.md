@@ -35,7 +35,8 @@ Required fields: `id`, `name`, `aliases`, `tools`, `permissions`, `memory`, `run
 
 Required routing field:
 - `purpose`: the single routing contract used by Hub. It must contain exactly `Primary responsibility:`, `Select for:`, and `Do not select for:` sections
-- `backlog_sheet_id`: Google Sheet ID for the agent's own backlog (if it has one)
+
+Universal dispatch fields (`input_contract`, `interaction_contract`) default automatically — see `docs/agent-contract.md`. A backlog pointer or other specialist-owned metadata goes under `extensions`, not a dedicated field.
 
 Rules:
 - `tools`: list of approved tool IDs; may be empty

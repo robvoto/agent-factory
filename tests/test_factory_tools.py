@@ -136,6 +136,37 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert row["status"] == "staged"
 
 
+def test_create_staged_agent_package_writes_extensions_verbatim(tmp_path, monkeypatch):
+    """Specialist-owned metadata Factory has no defined meaning for (e.g. a
+    backlog pointer) is written through unchanged — Factory neither validates
+    nor interprets its contents beyond rejecting core-field collisions."""
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {
+            "spec_json": _spec_json(
+                extensions={"backlog_sheet_id": "some-sheet-id"},
+            )
+        }
+    )
+
+    assert "test-agent" in result
+    manifest = json.loads(
+        (staging / "test-agent" / "agent.json").read_text(encoding="utf-8")
+    )
+    assert manifest["backlog_sheet_id"] == "some-sheet-id"
+
+
 def test_create_staged_agent_package_invalid_json(tmp_path, monkeypatch):
     from agent_factory import factory_tools
 

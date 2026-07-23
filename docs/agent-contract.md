@@ -42,15 +42,16 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `memory` | Yes | Object: `scope`, `retention` |
 | `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how army invokes the agent |
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
-| `backlog_sheet_id` | No | Google Sheets spreadsheet ID for this agent's backlog. Army uses this to add backlog items without hardcoding sheet locations. `null` if no sheet. |
+| `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts — see "Universal Agent Hub task boundary" below |
+| `interaction_contract` | No | Declares lifecycle support: `progress`, `clarification`, `approval`, `resume`, `cancellation` |
 
-### backlog_sheet_id
-
-Army reads `backlog_sheet_id` from each agent's registry entry to know where to route "add backlog item" requests. This lets army manage any agent's backlog without hardcoded URLs.
-
-Example: `"backlog_sheet_id": "1-e2lQ6vLUD8A5t3cuLhrjRvdTbs3hfs4ptdEE2yDaEc"`
-
-Set to `null` if the agent has no backlog sheet.
+Any other top-level field (e.g. a specialist's own backlog pointer) is
+specialist-owned metadata with no universal meaning — Factory writes it
+through unchanged from `AgentPackageSpec.extensions`, and neither Factory nor
+Army interprets it. `backlog_sheet_id` is no longer part of the core
+manifest; a specialist that wants one supplies it as an extension field
+(`"extensions": {"backlog_sheet_id": "..."}`), the same way any custom field
+works.
 
 ## Enabled versus staged
 
@@ -107,10 +108,10 @@ When enabled, Factory copies `runtime/progress_events.py` and `PROGRESS.md` into
 
 Newly generated specialists declare the versioned `agent-hub.task` protocol in `agent.json`.
 
-Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It may pass selected-project context and user-supplied references when known, but it does not interpret those references.
+Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It sends the same flat envelope to every specialist regardless of which one it is: `task` (required), plus optional `request_id`, `run_id`, `source`, `execution_mode`, `progress_jsonl`, `project_root`, `references`, `human_approved`, `approval_token`. `project_root` and `references` are the two context-carrying fields — Hub passes them through when known but does not interpret `references` (user-provided or Hub-observed pointers such as file paths, URLs, or ticket IDs).
 
-The specialist owns the boundary adapter. It validates the common envelope, preserves the original task, adapts known context into its internal workflow, and asks for clarification instead of guessing. Specialist-specific fields and provider logic do not belong in Agent Hub.
+The specialist owns the boundary adapter. It validates the common envelope, preserves the original task, adapts known context (`project_root`, `references`) into its internal workflow, and asks for clarification instead of guessing. Specialist-specific fields and provider logic do not belong in Agent Hub — a specialist that needs richer structure (e.g. a resolved project name, a backlog lookup) builds that itself from the fields Hub gives it, or from its own `extensions` metadata.
 
-The protocol requires only `task`. Request/run identity, source, execution mode, context, approval, and resume data are optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation.
+The protocol requires only `task`. Request/run identity, source, execution mode, `project_root`, `references`, approval, and progress data are all optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation via `interaction_contract`.
 
 Existing agents without these declarations remain readable during migration. New staged packages include the declarations and `specialist_contract.py` by default.

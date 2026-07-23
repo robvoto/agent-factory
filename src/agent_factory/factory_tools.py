@@ -11,6 +11,7 @@ import logging
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from langchain_core.tools import tool
 
@@ -100,6 +101,8 @@ def create_staged_agent_package(spec_json: str) -> str:
       runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
       tests      - list of test descriptions
+      extensions - specialist-owned metadata with no universal meaning (e.g. a
+                   backlog pointer); written through verbatim, never interpreted
 
     Returns a summary of created files or an error message.
     """
@@ -159,29 +162,29 @@ def create_staged_agent_package(spec_json: str) -> str:
     logger.info("Creating staged agent package for %s at %s.", spec.id, package_dir)
     package_dir.mkdir(parents=True, exist_ok=False)
 
+    agent_manifest_data: dict[str, Any] = {
+        "id": spec.id,
+        "name": spec.name,
+        "purpose": spec.purpose,
+        "aliases": spec.aliases,
+        "tools": spec.tools,
+        "permissions": spec.permissions.model_dump(),
+        "memory": spec.memory_policy.model_dump(),
+        "runtime": spec.runtime.model_dump(exclude_none=True),
+        "input_contract": spec.input_contract.model_dump(),
+        "interaction_contract": spec.interaction_contract.model_dump(),
+        "output_contract": (
+            spec.output_contract.model_dump(exclude_none=True)
+            if spec.output_contract is not None
+            else None
+        ),
+    }
+    # Specialist-owned metadata (e.g. a backlog pointer) — written through
+    # verbatim, never interpreted by Factory or Hub.
+    agent_manifest_data.update(spec.extensions)
+
     (package_dir / "agent.json").write_text(
-        json.dumps(
-            {
-                "id": spec.id,
-                "name": spec.name,
-                "purpose": spec.purpose,
-                "aliases": spec.aliases,
-                "tools": spec.tools,
-                "permissions": spec.permissions.model_dump(),
-                "memory": spec.memory_policy.model_dump(),
-                "runtime": spec.runtime.model_dump(exclude_none=True),
-                "input_contract": spec.input_contract.model_dump(),
-                "interaction_contract": spec.interaction_contract.model_dump(),
-                "output_contract": (
-                    spec.output_contract.model_dump(exclude_none=True)
-                    if spec.output_contract is not None
-                    else None
-                ),
-                "backlog_sheet_id": None,
-            },
-            indent=2,
-        )
-        + "\n",
+        json.dumps(agent_manifest_data, indent=2) + "\n",
         encoding="utf-8",
     )
 

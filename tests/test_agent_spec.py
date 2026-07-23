@@ -176,3 +176,38 @@ def test_agent_package_spec_defaults_to_universal_hub_contract() -> None:
     assert spec.input_contract.protocol_version == 1
     assert spec.interaction_contract.clarification is True
     assert spec.interaction_contract.cancellation is True
+
+
+def test_agent_package_spec_accepts_specialist_owned_extensions() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "widget-forge",
+            "name": "Widget Forge",
+            "purpose": (
+                "Primary responsibility: Forge widgets.\n"
+                "Select for: Requests to forge a widget.\n"
+                "Do not select for: Anything else."
+            ),
+            "aliases": ["widgets"],
+            "extensions": {"backlog_sheet_id": "some-sheet-id"},
+        }
+    )
+
+    assert spec.extensions == {"backlog_sheet_id": "some-sheet-id"}
+
+
+def test_agent_package_spec_rejects_extensions_that_shadow_core_fields() -> None:
+    with pytest.raises(ValidationError):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "widget-forge",
+                "name": "Widget Forge",
+                "purpose": (
+                    "Primary responsibility: Forge widgets.\n"
+                    "Select for: Requests to forge a widget.\n"
+                    "Do not select for: Anything else."
+                ),
+                "aliases": ["widgets"],
+                "extensions": {"runtime": {"mode": "manual"}},
+            }
+        )
