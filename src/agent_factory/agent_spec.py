@@ -12,6 +12,10 @@ from typing import Any, Literal, Mapping
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .routing_purpose import validate_routing_purpose
+from .specialist_contract import (
+    SpecialistInputContract,
+    SpecialistInteractionContract,
+)
 
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
@@ -205,6 +209,10 @@ class AgentPackageSpec(BaseModel):
     permissions: AgentPermissions = Field(default_factory=AgentPermissions)
     memory_policy: AgentMemoryPolicy = Field(default_factory=AgentMemoryPolicy)
     runtime: AgentRuntimeConfig = Field(default_factory=AgentRuntimeConfig)
+    input_contract: SpecialistInputContract = Field(default_factory=SpecialistInputContract)
+    interaction_contract: SpecialistInteractionContract = Field(
+        default_factory=SpecialistInteractionContract
+    )
     output_contract: AgentOutputContract | None = None
     risks: list[str] = []
     tests: list[str] = []
@@ -257,6 +265,10 @@ class AgentPackageSpec(BaseModel):
 
     @model_validator(mode="after")
     def validate_runtime_contract(self) -> "AgentPackageSpec":
+        if self.runtime.progress is not None and self.runtime.progress.enabled:
+            self.interaction_contract.progress = True
+        if self.permissions.requires_approval:
+            self.interaction_contract.approval = True
         if self.runtime.mode == "subprocess" and self.output_contract is None:
             raise ValueError(
                 "Subprocess agents must define output_contract with the staged status contract."

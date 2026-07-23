@@ -160,3 +160,19 @@ def test_agent_package_spec_normalizes_structured_routing_purpose() -> None:
         "Select for: Requests requiring specialist-routing review.\n"
         "Do not select for: Implementing unrelated application features."
     )
+
+
+def test_agent_package_spec_defaults_to_universal_hub_contract() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "universal-agent",
+            "name": "Universal Agent",
+            "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+            "aliases": ["universal"],
+        }
+    )
+
+    assert spec.input_contract.protocol == "agent-hub.task"
+    assert spec.input_contract.protocol_version == 1
+    assert spec.interaction_contract.clarification is True
+    assert spec.interaction_contract.cancellation is True

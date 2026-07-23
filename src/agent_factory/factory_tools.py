@@ -94,6 +94,8 @@ def create_staged_agent_package(spec_json: str) -> str:
       permissions - object: network, filesystem, shell, requires_approval
       memory_policy - object: scope, retention
       runtime    - object: mode plus mode-specific invocation details
+      input_contract - universal Hub task-envelope declaration
+      interaction_contract - advertised progress/clarification/approval/resume/cancellation support
       output_contract - required for subprocess agents: staged status contract
       runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
@@ -168,6 +170,8 @@ def create_staged_agent_package(spec_json: str) -> str:
                 "permissions": spec.permissions.model_dump(),
                 "memory": spec.memory_policy.model_dump(),
                 "runtime": spec.runtime.model_dump(exclude_none=True),
+                "input_contract": spec.input_contract.model_dump(),
+                "interaction_contract": spec.interaction_contract.model_dump(),
                 "output_contract": (
                     spec.output_contract.model_dump(exclude_none=True)
                     if spec.output_contract is not None
@@ -212,6 +216,11 @@ def create_staged_agent_package(spec_json: str) -> str:
         f"**Purpose:** {spec.purpose}\n\n"
         f"**Aliases:** {', '.join(spec.aliases)}\n\n"
         "Do not move to `config/agents` without human approval.\n",
+        encoding="utf-8",
+    )
+
+    (package_dir / "specialist_contract.py").write_text(
+        (_TEMPLATES_DIR / "agent-package" / "specialist_contract.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
 

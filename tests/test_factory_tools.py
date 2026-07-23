@@ -278,6 +278,10 @@ def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path,
     assert "subprocess-agent" in result
     manifest = json.loads((staging / "subprocess-agent" / "agent.json").read_text(encoding="utf-8"))
     assert manifest["runtime"]["mode"] == "subprocess"
+    assert manifest["input_contract"]["protocol"] == "agent-hub.task"
+    assert manifest["input_contract"]["protocol_version"] == 1
+    assert manifest["interaction_contract"]["clarification"] is True
+    assert (staging / "subprocess-agent" / "specialist_contract.py").is_file()
     assert manifest["output_contract"]["status_values"] == [
         "success",
         "needs_clarification",

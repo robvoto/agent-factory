@@ -273,6 +273,8 @@ def _load_manifest_from_path(path: Path) -> AgentManifest:
 def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
     permissions = spec.permissions.model_dump()
     memory = spec.memory_policy.model_dump()
+    input_contract = spec.input_contract.model_dump()
+    interaction_contract = spec.interaction_contract.model_dump()
     output_contract = (
         spec.output_contract.model_dump(exclude_none=True)
         if spec.output_contract is not None
@@ -288,6 +290,8 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
             "permissions": permissions,
             "memory": memory,
             "runtime": spec.runtime.model_dump(exclude_none=True),
+            "input_contract": input_contract,
+            "interaction_contract": interaction_contract,
             "output_contract": output_contract,
         }
     )
@@ -303,8 +307,19 @@ def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
         and lhs.permissions == rhs.permissions
         and lhs.memory == rhs.memory
         and lhs.runtime == rhs.runtime
+        and _compatible_optional_contract(lhs.input_contract, rhs.input_contract)
+        and _compatible_optional_contract(lhs.interaction_contract, rhs.interaction_contract)
         and lhs.output_contract == rhs.output_contract
     )
+
+
+def _compatible_optional_contract(
+    lhs: dict[str, Any] | None,
+    rhs: dict[str, Any] | None,
+) -> bool:
+    """Treat absent legacy declarations as compatible during migration."""
+
+    return lhs == rhs or lhs is None or rhs is None
 
 
 def _relative_path(path_text: str | None) -> str:

@@ -85,3 +85,9 @@ Army **must not** use staged agents or read from `staging/agents/`.
 - Human approval is required before any agent enters the registry
 - The manifest hash covers static fields only; live counts do not invalidate the hash
 - Subprocess specialists must declare `output_contract.status_values = ["success", "needs_clarification", "approval_required", "failed"]` plus the matching terminal/caller-action meaning in the registry spec Factory stages
+
+## Universal specialist protocol metadata
+
+Enabled registry entries may publish `input_contract` and `interaction_contract`. Agent Hub reads these declarations generically; it must not branch on specialist ID, project name, backlog provider, or identifier prefix.
+
+A conforming generated specialist declares `protocol: agent-hub.task`, `protocol_version: 1`, required field `task`, accepted universal context, and its supported lifecycle interactions. Legacy entries without these fields remain discoverable during the migration period.

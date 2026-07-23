@@ -96,3 +96,11 @@ def test_cli_manifest_command_prints_compact_handshake(capsys) -> None:
     assert manifest["agent_id"] == "agent-factory"
     assert manifest["manifest_hash"]
     assert "live_registry" in manifest
+
+
+def test_factory_manifest_advertises_universal_specialist_protocol() -> None:
+    manifest = build_factory_manifest(include_live=False)
+
+    assert manifest["specialist_protocol"]["protocol"] == "agent-hub.task"
+    assert manifest["specialist_protocol"]["protocol_version"] == 1
+    assert manifest["specialist_protocol"]["required_fields"] == ["task"]

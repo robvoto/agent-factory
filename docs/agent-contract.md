@@ -102,3 +102,15 @@ Rules:
 - deterministic heartbeats must not create additional LLM calls
 
 When enabled, Factory copies `runtime/progress_events.py` and `PROGRESS.md` into the staged package. Short standalone and manual agents receive no progress adapter.
+
+## Universal Agent Hub task boundary
+
+Newly generated specialists declare the versioned `agent-hub.task` protocol in `agent.json`.
+
+Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It may pass selected-project context and user-supplied references when known, but it does not interpret those references.
+
+The specialist owns the boundary adapter. It validates the common envelope, preserves the original task, adapts known context into its internal workflow, and asks for clarification instead of guessing. Specialist-specific fields and provider logic do not belong in Agent Hub.
+
+The protocol requires only `task`. Request/run identity, source, execution mode, context, approval, and resume data are optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation.
+
+Existing agents without these declarations remain readable during migration. New staged packages include the declarations and `specialist_contract.py` by default.

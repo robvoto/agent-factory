@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_spec import normalize_output_contract, normalize_runtime_config
+from .specialist_contract import SpecialistInputContract, SpecialistInteractionContract
 from .errors import ManifestValidationError
 from .routing_purpose import validate_routing_purpose
 
@@ -26,6 +27,8 @@ class AgentManifest:
     permissions: dict[str, Any]
     memory: dict[str, Any]
     runtime: dict[str, Any] = None  # type: ignore[assignment]
+    input_contract: dict[str, Any] | None = None
+    interaction_contract: dict[str, Any] | None = None
     output_contract: dict[str, Any] | None = None
     source: str | None = None
 
@@ -63,12 +66,28 @@ class AgentManifest:
         runtime = data["runtime"]
         if not isinstance(runtime, dict):
             raise ManifestValidationError("runtime must be an object.")
+        input_contract = data.get("input_contract")
+        interaction_contract = data.get("interaction_contract")
         output_contract = data.get("output_contract")
+        if input_contract is not None and not isinstance(input_contract, dict):
+            raise ManifestValidationError("input_contract must be an object when present.")
+        if interaction_contract is not None and not isinstance(interaction_contract, dict):
+            raise ManifestValidationError("interaction_contract must be an object when present.")
         if output_contract is not None and not isinstance(output_contract, dict):
             raise ManifestValidationError("output_contract must be an object when present.")
 
         try:
             normalized_runtime = normalize_runtime_config(agent_id, runtime)
+            normalized_input_contract = (
+                SpecialistInputContract.model_validate(input_contract).model_dump()
+                if input_contract is not None
+                else None
+            )
+            normalized_interaction_contract = (
+                SpecialistInteractionContract.model_validate(interaction_contract).model_dump()
+                if interaction_contract is not None
+                else None
+            )
             normalized_output_contract = normalize_output_contract(
                 agent_id,
                 normalized_runtime["mode"],
@@ -86,6 +105,8 @@ class AgentManifest:
             permissions=dict(data["permissions"]),
             memory=dict(data["memory"]),
             runtime=normalized_runtime,
+            input_contract=normalized_input_contract,
+            interaction_contract=normalized_interaction_contract,
             output_contract=normalized_output_contract,
             source=str(source) if source is not None else None,
         )

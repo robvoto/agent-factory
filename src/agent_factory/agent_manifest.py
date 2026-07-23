@@ -50,6 +50,8 @@ def _load_enabled_agents() -> list[dict[str, Any]]:
                 "runtime_entrypoint": spec.get("runtime", {}).get("entrypoint", ""),
                 "requires_approval": spec.get("permissions", {}).get("requires_approval", True),
                 "backlog_sheet_id": spec.get("backlog_sheet_id"),
+                "input_contract": spec.get("input_contract"),
+                "interaction_contract": spec.get("interaction_contract"),
             })
         except Exception:
             logger.warning("Could not read agent spec: %s", spec_file)
@@ -109,6 +111,16 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "route": "route",
             "setup": "setup",
             "doctor": "doctor",
+        },
+        "specialist_protocol": {
+            "protocol": "agent-hub.task",
+            "protocol_version": 1,
+            "required_fields": ["task"],
+            "optional_context": ["selected_project", "user_supplied_references"],
+            "ownership": (
+                "Agent Hub transports known context without interpreting it; each specialist "
+                "adapts the universal envelope into its own workflow."
+            ),
         },
         "progress_contract": {
             "optional": True,

@@ -8,6 +8,7 @@ This package is a template for a new agent. It is not enabled until approved.
 
 - `docs/INDEX.md` is the single documentation entry point when this agent becomes a project.
 - `agent.json` defines the staged agent contract.
+- `specialist_contract.py` adapts the universal Agent Hub task envelope into this specialist.
 - `skills/INDEX.md` lists reusable skills if skills exist.
 
 Do not turn `README.md` or `AGENTS.md` into a documentation index.
@@ -15,6 +16,7 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 ## Working rules
 
 - Keep context bounded and read the smallest relevant docs first.
+- Preserve unknown project/resource references as unknown; ask for clarification instead of guessing.
 - Change only files required for the task.
 - If you are writing code, make the smallest change that solves the task.
 - Update tests and docs when behavior changes.

@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "name": "{{agent_name}}",
   "purpose": "{{agent_purpose}}",
-  "aliases": ["{{agent_alias}}"],
+  "aliases": [
+    "{{agent_alias}}"
+  ],
   "tools": [],
   "mcp_servers": [],
   "permissions": {
@@ -20,5 +22,33 @@
     "mode": "manual",
     "entrypoint": null
   },
-  "backlog_sheet_id": null
+  "backlog_sheet_id": null,
+  "input_contract": {
+    "protocol": "agent-hub.task",
+    "protocol_version": 1,
+    "required_fields": [
+      "task"
+    ],
+    "optional_fields": [
+      "request_id",
+      "run_id",
+      "source",
+      "execution_mode",
+      "context",
+      "human_approved",
+      "approval_token",
+      "resume"
+    ],
+    "accepted_context": [
+      "selected_project",
+      "user_supplied_references"
+    ]
+  },
+  "interaction_contract": {
+    "progress": false,
+    "clarification": true,
+    "approval": true,
+    "resume": false,
+    "cancellation": true
+  }
 }
