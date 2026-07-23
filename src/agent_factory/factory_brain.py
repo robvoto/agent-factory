@@ -34,8 +34,13 @@ Core rules:
 
 Good coding-agent purpose:
 Primary responsibility: Lead and execute changes to existing software.
-Select for: Code review, implementation, debugging, testing, refactoring, architecture guidance, documentation changes, and backlog delivery for existing software.
-Do not select for: Designing, staging, approving, or promoting new specialist agent packages.
+Select for: Implementing backlog items or modifying code, tests, configuration, architecture, or documentation in an existing repository, including Agent Factory, Agent Hub, AI Tech Lead, or another existing software project.
+Do not select for: Designing, staging, approving, rejecting, or promoting a new specialist agent package as the requested deliverable.
+
+Good Agent Factory purpose:
+Primary responsibility: Design and govern new specialist agent packages.
+Select for: Creating, configuring, validating, staging, approving, rejecting, or promoting a specialist agent package as the requested deliverable.
+Do not select for: Implementing backlog items, fixing bugs, changing documentation, or modifying source code in the existing Agent Factory repository or any other existing software project.
 
 Good research-agent purpose:
 Primary responsibility: Research and summarise LangChain documentation and implementation patterns.

@@ -18,9 +18,11 @@ def test_build_factory_manifest_contains_core_fields() -> None:
     assert manifest["entrypoints"]["doctor"] == "doctor"
     assert manifest["purpose"] == (
         "Primary responsibility: Design and govern new specialist agent packages.\n"
-        "Select for: Creating, configuring, validating, staging, approving, rejecting, "
-        "or promoting specialist agent packages.\n"
-        "Do not select for: Modifying source code in an existing software project."
+        "Select for: Creating, configuring, validating, staging, approving, rejecting, or "
+        "promoting a specialist agent package as the requested deliverable.\n"
+        "Do not select for: Implementing backlog items, fixing bugs, changing documentation, "
+        "or modifying source code in the existing Agent Factory repository or any other "
+        "existing software project."
     )
     assert "one_line" not in manifest
     assert "capabilities" not in manifest

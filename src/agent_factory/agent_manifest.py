@@ -87,9 +87,11 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
         "role": "specialist agent that creates, validates, and stages agents",
         "purpose": (
             "Primary responsibility: Design and govern new specialist agent packages.\n"
-            "Select for: Creating, configuring, validating, staging, approving, rejecting, "
-            "or promoting specialist agent packages.\n"
-            "Do not select for: Modifying source code in an existing software project."
+            "Select for: Creating, configuring, validating, staging, approving, rejecting, or "
+            "promoting a specialist agent package as the requested deliverable.\n"
+            "Do not select for: Implementing backlog items, fixing bugs, changing documentation, "
+            "or modifying source code in the existing Agent Factory repository or any other "
+            "existing software project."
         ),
         "entrypoints": {
             "cli": "agent-factory",
