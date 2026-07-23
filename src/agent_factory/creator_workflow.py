@@ -10,6 +10,8 @@ from pathlib import Path
 from string import Template
 from typing import TypedDict
 
+from .routing_purpose import build_routing_purpose
+
 PROJECT_ROOT = Path.cwd()
 TEMPLATE_DIR = PROJECT_ROOT / "templates" / "agent-package"
 STAGING_DIR = PROJECT_ROOT / "staging" / "agents"
@@ -96,7 +98,11 @@ def draft_agent_identity(state: AgentCreationState) -> AgentCreationState:
         "agent_id": agent_id,
         "agent_name": agent_name,
         "agent_alias": agent_alias,
-        "agent_purpose": request,
+        "agent_purpose": build_routing_purpose(
+            primary=request,
+            select_for=f"Requests that directly require: {request}",
+            do_not_select_for="Requests outside this stated responsibility.",
+        ),
         "package_dir": str(STAGING_DIR / agent_id),
     }
 
@@ -160,7 +166,10 @@ def scaffold_agent_package(state: AgentCreationState) -> AgentCreationState:
             shutil.copyfile(template_file, target)
         else:
             text = template_file.read_text(encoding="utf-8")
-            rendered = render_template(text, replacements)
+            file_replacements = dict(replacements)
+            if template_file.name == "agent.json":
+                file_replacements["agent_purpose"] = json.dumps(state["agent_purpose"])[1:-1]
+            rendered = render_template(text, file_replacements)
             target.write_text(rendered, encoding="utf-8", newline="\n")
 
         created_files.append(str(target.relative_to(PROJECT_ROOT)))

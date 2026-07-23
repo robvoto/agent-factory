@@ -34,7 +34,7 @@ def test_agent_package_spec_defaults_to_manual_runtime() -> None:
         {
             "id": "alpha-agent",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
         }
     )
@@ -49,7 +49,7 @@ def test_subprocess_runtime_requires_output_contract() -> None:
             {
                 "id": "alpha-agent",
                 "name": "Alpha Agent",
-                "purpose": "Alpha does the alpha work.",
+                "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
                 "aliases": ["alpha"],
                 "runtime": {
                     "mode": "subprocess",
@@ -69,7 +69,7 @@ def test_subprocess_runtime_validates_status_contract() -> None:
             {
                 "id": "alpha-agent",
                 "name": "Alpha Agent",
-                "purpose": "Alpha does the alpha work.",
+                "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
                 "aliases": ["alpha"],
                 "runtime": {
                     "mode": "subprocess",
@@ -106,7 +106,7 @@ def test_subprocess_runtime_accepts_valid_output_contract() -> None:
         {
             "id": "alpha-agent",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
             "runtime": {
                 "mode": "subprocess",
@@ -128,3 +128,35 @@ def test_subprocess_runtime_accepts_valid_output_contract() -> None:
         "approval_required",
         "failed",
     ]
+
+def test_agent_package_spec_rejects_vague_one_sentence_purpose() -> None:
+    with pytest.raises(ValidationError, match="exactly three routing sections"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "vague-agent",
+                "name": "Vague Agent",
+                "purpose": "Handles useful work.",
+                "aliases": ["vague"],
+            }
+        )
+
+
+def test_agent_package_spec_normalizes_structured_routing_purpose() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "routing-agent",
+            "name": "Routing Agent",
+            "purpose": (
+                "Primary responsibility:   Review routing decisions.\n"
+                "Select for: Requests requiring specialist-routing review.\n"
+                "Do not select for: Implementing unrelated application features."
+            ),
+            "aliases": ["routing"],
+        }
+    )
+
+    assert spec.purpose == (
+        "Primary responsibility: Review routing decisions.\n"
+        "Select for: Requests requiring specialist-routing review.\n"
+        "Do not select for: Implementing unrelated application features."
+    )

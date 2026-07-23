@@ -35,7 +35,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 |-------|----------|-------------|
 | `id` | Yes | Unique agent identifier (kebab-case) |
 | `name` | Yes | Human-readable name |
-| `purpose` | Yes | One-line description — used by army for routing decisions |
+| `purpose` | Yes | Single routing contract with `Primary responsibility:`, `Select for:`, and `Do not select for:` sections |
 | `aliases` | Yes | Non-empty list of strings army uses to route tasks |
 | `tools` | Yes | List of tool IDs the agent exposes |
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |

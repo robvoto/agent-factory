@@ -13,7 +13,7 @@ def _spec_json(**overrides) -> str:
     base = {
         "id": "test-agent",
         "name": "Test Agent",
-        "purpose": "A safe test agent",
+        "purpose": "Primary responsibility: Perform safe test-agent work.\nSelect for: Requests that exercise the test agent.\nDo not select for: Production work or unrelated agent tasks.",
         "aliases": ["test"],
     }
     base.update(overrides)
@@ -60,7 +60,7 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
     manifest = {
         "id": "alpha-agent",
         "name": "Alpha Agent",
-        "purpose": "Alpha does the alpha work.",
+        "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
         "aliases": ["alpha"],
         "tools": [],
         "permissions": {

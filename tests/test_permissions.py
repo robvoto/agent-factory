@@ -10,7 +10,7 @@ def test_permission_check_accepts_empty_tool_list():
         {
             "id": "alpha",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
             "tools": [],
             "permissions": {},
@@ -28,7 +28,7 @@ def test_permission_check_denies_unknown_tools():
         {
             "id": "alpha",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
             "tools": ["shell.run"],
             "permissions": {},

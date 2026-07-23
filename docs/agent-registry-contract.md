@@ -27,7 +27,7 @@ during promotion. Army reads it directly or via the manifest.
 |-------|-------------|
 | `id` | Unique stable identifier (kebab-case) |
 | `name` | Human-readable display name |
-| `purpose` | One-sentence description for routing decisions |
+| `purpose` | Single structured routing contract used by Hub |
 | `aliases` | Short names Army uses to route commands (e.g. `["code", "atl"]`) |
 | `tools` | Array of tool IDs the agent may use |
 | `permissions` | `network`, `filesystem`, `shell`, `requires_approval`, `allowed_roots` |

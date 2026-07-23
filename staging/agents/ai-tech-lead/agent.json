@@ -1,7 +1,7 @@
 {
   "id": "ai-tech-lead",
   "name": "AI Tech Lead",
-  "purpose": "Specialist coding agent for software engineering tasks: code review, implementation, debugging, and architecture guidance.",
+  "purpose": "Primary responsibility: Lead and execute changes to existing software.\nSelect for: Code review, implementation, debugging, testing, refactoring, architecture guidance, documentation changes, and backlog delivery for existing software.\nDo not select for: Designing, staging, approving, or promoting new specialist agent packages.",
   "aliases": ["techlead", "atl", "code", "coding-specialist"],
   "tools": ["run_agent_task"],
   "permissions": {

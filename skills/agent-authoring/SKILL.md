@@ -33,8 +33,8 @@ tests/.gitkeep
 
 Required fields: `id`, `name`, `aliases`, `tools`, `permissions`, `memory`, `runtime`
 
-Optional but expected fields:
-- `purpose`: one-sentence description used by Army for routing decisions — always include it
+Required routing field:
+- `purpose`: the single routing contract used by Hub. It must contain exactly `Primary responsibility:`, `Select for:`, and `Do not select for:` sections
 - `backlog_sheet_id`: Google Sheet ID for the agent's own backlog (if it has one)
 
 Rules:
@@ -50,7 +50,7 @@ Army reads these fields from agent.json when deciding how to route:
 - `runtime.entrypoint` — how Army invokes the agent
 - `permissions.requires_approval` — whether Army must ask before running
 
-Always set `purpose` to a clear one-sentence description of what the agent does and who should route to it.
+Factory must reject vague or one-sentence purposes. `purpose` is the only routing description and must clearly state the primary responsibility, positive selection scope, and exclusion scope.
 
 ## Optional Hub progress
 

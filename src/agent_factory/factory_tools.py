@@ -88,7 +88,7 @@ def create_staged_agent_package(spec_json: str) -> str:
     The spec must be a JSON object with these fields:
       id         - lowercase identifier, e.g. "research-agent"
       name       - human-readable name, e.g. "Research Agent"
-      purpose    - what this agent does
+      purpose    - routing contract with Primary responsibility, Select for, and Do not select for sections
       aliases    - list of command aliases, e.g. ["research", "find"]
       tools      - list of approved tool IDs (may be empty)
       permissions - object: network, filesystem, shell, requires_approval

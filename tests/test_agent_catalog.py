@@ -17,7 +17,7 @@ def _manifest() -> dict:
     return {
         "id": "alpha-agent",
         "name": "Alpha Agent",
-        "purpose": "Alpha does the alpha work.",
+        "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
         "aliases": ["alpha"],
         "tools": [],
         "permissions": {
@@ -42,7 +42,7 @@ def _spec() -> AgentPackageSpec:
         {
             "id": "alpha-agent",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
         }
     )
@@ -127,7 +127,7 @@ def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):
         {
             "id": "alpha-agent",
             "name": "Alpha Agent",
-            "purpose": "Alpha does the alpha work.",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
             "runtime": {
                 "mode": "subprocess",

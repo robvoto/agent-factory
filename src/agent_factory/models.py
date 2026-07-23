@@ -8,6 +8,7 @@ from typing import Any
 
 from .agent_spec import normalize_output_contract, normalize_runtime_config
 from .errors import ManifestValidationError
+from .routing_purpose import validate_routing_purpose
 
 
 REQUIRED_FIELDS = {"id", "name", "purpose", "aliases", "tools", "permissions", "memory", "runtime"}
@@ -43,7 +44,10 @@ class AgentManifest:
 
         agent_id = _required_string(data["id"], "id")
         name = _required_string(data["name"], "name")
-        purpose = _required_string(data["purpose"], "purpose")
+        try:
+            purpose = validate_routing_purpose(_required_string(data["purpose"], "purpose"))
+        except ValueError as exc:
+            raise ManifestValidationError(str(exc)) from exc
         aliases = _string_list(data["aliases"], "aliases", allow_empty=False)
         tools = _string_list(data["tools"], "tools", allow_empty=True)
 

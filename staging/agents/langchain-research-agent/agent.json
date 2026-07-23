@@ -1,7 +1,7 @@
 {
   "id": "langchain-research-agent",
   "name": "LangChain Research Agent",
-  "purpose": "Researches and summarises LangChain documentation and patterns.",
+  "purpose": "Primary responsibility: Research and summarise LangChain documentation and implementation patterns.\nSelect for: Evidence-based questions requiring current LangChain documentation, APIs, or architecture guidance.\nDo not select for: Implementing code changes or researching topics outside the LangChain ecosystem.",
   "aliases": [
     "research",
     "lc-docs"

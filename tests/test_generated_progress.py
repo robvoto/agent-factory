@@ -38,7 +38,7 @@ def _spec(adapter: str, agent_id: str) -> dict:
     return {
         "id": agent_id,
         "name": f"{adapter} Agent",
-        "purpose": "Test optional progress generation",
+        "purpose": "Primary responsibility: Test optional progress generation.\nSelect for: Tests of generated progress adapters.\nDo not select for: Unrelated runtime behavior.",
         "aliases": [agent_id.replace("-agent", "")],
         "runtime": {
             "mode": "subprocess",
@@ -145,7 +145,7 @@ def test_manual_short_agent_does_not_receive_progress_adapter(tmp_path, monkeypa
                 {
                     "id": "manual-agent",
                     "name": "Manual Agent",
-                    "purpose": "Short standalone work",
+                    "purpose": "Primary responsibility: Perform short standalone work.\nSelect for: Small bounded standalone requests.\nDo not select for: Long-running or unrelated work.",
                     "aliases": ["manual"],
                 }
             )

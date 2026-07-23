@@ -11,6 +11,8 @@ from typing import Any, Literal, Mapping
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .routing_purpose import validate_routing_purpose
+
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
 SUBPROCESS_OUTPUT_STATUS_VALUES = (
@@ -229,9 +231,7 @@ class AgentPackageSpec(BaseModel):
     @field_validator("purpose")
     @classmethod
     def validate_purpose(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Agent purpose cannot be empty.")
-        return v.strip()
+        return validate_routing_purpose(v)
 
     @field_validator("aliases")
     @classmethod
