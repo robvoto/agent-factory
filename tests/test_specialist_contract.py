@@ -39,6 +39,7 @@ def test_manifest_contract_is_versioned() -> None:
     assert "project_root" in contract.optional_fields
     assert "references" in contract.optional_fields
     assert "progress_jsonl" in contract.optional_fields
+    assert "resume" in contract.optional_fields
 
 
 def test_resume_requires_clarification_or_approval() -> None:
@@ -48,3 +49,15 @@ def test_resume_requires_clarification_or_approval() -> None:
             approval=False,
             resume=True,
         )
+
+
+def test_envelope_accepts_opaque_resume_field_without_interpreting_it() -> None:
+    payload = {
+        "task": "Square widgets, please.",
+        "request_id": "req-1",
+        "resume": {"checkpoint": "thread-42", "step": 3},
+    }
+
+    result = validate_universal_task_envelope(payload)
+
+    assert result["resume"] == {"checkpoint": "thread-42", "step": 3}

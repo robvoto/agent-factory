@@ -3,6 +3,12 @@
 Keep specialist-specific interpretation behind this boundary. Agent Hub sends
 the same flat envelope to every specialist — `project_root` and `references`
 are uninterpreted context; this package decides what they mean, if anything.
+
+`resume` is only ever populated when this specialist itself set
+`interaction_contract.resume = true` in agent.json and previously returned a
+`resume_token` alongside a `needs_clarification` result. Hub replays that
+value verbatim here on the next dispatch — it is this specialist's own
+checkpoint reference, not something Hub constructs or interprets.
 """
 
 from __future__ import annotations
@@ -20,6 +26,7 @@ _ALLOWED_FIELDS = {
     "references",
     "human_approved",
     "approval_token",
+    "resume",
 }
 
 
@@ -46,4 +53,5 @@ def adapt_universal_task(payload: dict[str, Any]) -> dict[str, Any]:
         "references": payload.get("references"),
         "human_approved": bool(payload.get("human_approved", False)),
         "approval_token": payload.get("approval_token"),
+        "resume": payload.get("resume"),
     }

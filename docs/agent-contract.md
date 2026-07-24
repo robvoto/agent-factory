@@ -108,10 +108,35 @@ When enabled, Factory copies `runtime/progress_events.py` and `PROGRESS.md` into
 
 Newly generated specialists declare the versioned `agent-hub.task` protocol in `agent.json`.
 
-Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It sends the same flat envelope to every specialist regardless of which one it is: `task` (required), plus optional `request_id`, `run_id`, `source`, `execution_mode`, `progress_jsonl`, `project_root`, `references`, `human_approved`, `approval_token`. `project_root` and `references` are the two context-carrying fields — Hub passes them through when known but does not interpret `references` (user-provided or Hub-observed pointers such as file paths, URLs, or ticket IDs).
+Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It sends the same flat envelope to every specialist regardless of which one it is: `task` (required), plus optional `request_id`, `run_id`, `source`, `execution_mode`, `progress_jsonl`, `project_root`, `references`, `human_approved`, `approval_token`, `resume`. `project_root` and `references` are the two context-carrying fields — Hub passes them through when known but does not interpret `references` (user-provided or Hub-observed pointers such as file paths, URLs, or ticket IDs).
 
 The specialist owns the boundary adapter. It validates the common envelope, preserves the original task, adapts known context (`project_root`, `references`) into its internal workflow, and asks for clarification instead of guessing. Specialist-specific fields and provider logic do not belong in Agent Hub — a specialist that needs richer structure (e.g. a resolved project name, a backlog lookup) builds that itself from the fields Hub gives it, or from its own `extensions` metadata.
 
-The protocol requires only `task`. Request/run identity, source, execution mode, `project_root`, `references`, approval, and progress data are all optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation via `interaction_contract`.
+The protocol requires only `task`. Request/run identity, source, execution mode, `project_root`, `references`, approval, resume, and progress data are all optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation via `interaction_contract`.
 
 Existing agents without these declarations remain readable during migration. New staged packages include the declarations and `specialist_contract.py` by default.
+
+### True clarification resume (`interaction_contract.resume`)
+
+A specialist that declares `interaction_contract.resume = true` may return an
+opaque `resume_token` (any bounded, JSON-serializable value) alongside a
+`needs_clarification` result. Agent Hub stores that token with the paused
+task without inspecting it, and on the next user message replays it verbatim
+via the envelope's `resume` field — together with the same `request_id`/
+`run_id`, the clarification reply as `task`, and the original `project_root`/
+`references` captured at the first dispatch (not whatever the operator's
+`/project` selection happens to be by the time they reply). The specialist
+uses `resume` to continue its own checkpoint instead of receiving a
+reconstructed task string.
+
+A specialist that does not declare `resume` (the default) keeps using Hub's
+universal fallback: the clarification reply is concatenated onto the
+original task and redispatched as a fresh instruction. This is unconditional
+and requires no declaration — every current specialist, including AI Tech
+Lead, uses it today.
+
+If a specialist declares `resume = true` but a paused task has no recorded
+`resume_token` (missing, oversized, or non-serializable), Agent Hub fails the
+resume attempt clearly instead of silently falling back to the reconstructed-
+task shape, since that shape may not be one a true-resume specialist knows
+how to interpret.

@@ -37,7 +37,8 @@
       "project_root",
       "references",
       "human_approved",
-      "approval_token"
+      "approval_token",
+      "resume"
     ],
     "accepted_context": [
       "project_root",

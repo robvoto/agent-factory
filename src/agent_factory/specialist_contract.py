@@ -38,6 +38,7 @@ class SpecialistInputContract(BaseModel):
             "references",
             "human_approved",
             "approval_token",
+            "resume",
         ]
     )
     accepted_context: list[str] = Field(default_factory=lambda: list(UNIVERSAL_CONTEXT_KEYS))
@@ -72,7 +73,17 @@ class SpecialistInputContract(BaseModel):
 
 
 class SpecialistInteractionContract(BaseModel):
-    """Lifecycle behaviours advertised to Agent Hub."""
+    """Lifecycle behaviours advertised to Agent Hub.
+
+    `resume=True` means this specialist implements *true* checkpoint resume:
+    when it pauses for clarification it returns an opaque `resume_token` in
+    its output, and Hub replays that token verbatim (via the envelope's
+    `resume` field) alongside the clarification reply and the original
+    request/run identity and universal context, instead of reconstructing a
+    combined task string. This is independent of Hub's reconstructed-task
+    fallback, which is always available regardless of this flag — a
+    specialist that never sets `resume_token` simply keeps using it.
+    """
 
     progress: bool = False
     clarification: bool = True
