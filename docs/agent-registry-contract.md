@@ -35,6 +35,7 @@ during promotion. Agent Hub reads it directly or via the manifest.
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
 | `output_contract` | Required for `runtime.mode = "subprocess"`; declares the validated subprocess status contract |
 | `input_contract` / `interaction_contract` | Universal Hub task-envelope declaration and advertised lifecycle capabilities (optional; see `agent-contract.md`) |
+| `project_context_contract` | Factory-side project-context participation: supported schema versions, whether a target project is required, consumed capabilities, enforced filesystem permission (optional; see "Project-context contract" in `agent-contract.md`) |
 
 Any other top-level field (e.g. a backlog sheet ID) is specialist-owned
 metadata, not a required registry field — see `extensions` in `agent-contract.md`.

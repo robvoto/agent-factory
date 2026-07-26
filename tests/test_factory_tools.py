@@ -130,11 +130,51 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None
     assert manifest["manifest_schema_version"] == 1
+    assert manifest["project_context_contract"]["required"] is False
+    assert manifest["project_context_contract"]["supported_schema_versions"] == [1]
+
+    specialist_contract = (pkg / "specialist_contract.py").read_text(encoding="utf-8")
+    assert "PROJECT_ROOT_REQUIRED = False" in specialist_contract
 
     from agent_factory.storage import get_staged_agent_record
     row = get_staged_agent_record("test-agent", db_path=db)
     assert row is not None
     assert row["status"] == "staged"
+
+
+def test_create_staged_agent_package_renders_project_root_required(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {
+            "spec_json": _spec_json(
+                project_context_contract={
+                    "required": True,
+                    "capabilities": ["read"],
+                    "enforced_filesystem_permission": "read",
+                },
+                input_contract={"required_context": ["project_root"]},
+            )
+        }
+    )
+
+    assert "Files created" in result
+
+    pkg = staging / "test-agent"
+    specialist_contract = (pkg / "specialist_contract.py").read_text(encoding="utf-8")
+    assert "PROJECT_ROOT_REQUIRED = True" in specialist_contract
+    # Rendered output must be valid, importable Python — not a leftover placeholder.
+    compile(specialist_contract, "specialist_contract.py", "exec")
 
 
 def test_create_staged_agent_package_writes_extensions_verbatim(tmp_path, monkeypatch):

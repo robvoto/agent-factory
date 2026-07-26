@@ -204,6 +204,57 @@ def test_agent_package_spec_rejects_unsupported_manifest_schema_version() -> Non
         )
 
 
+def test_agent_package_spec_defaults_project_context_contract() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "universal-agent",
+            "name": "Universal Agent",
+            "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+            "aliases": ["universal"],
+        }
+    )
+
+    assert spec.project_context_contract.required is False
+    assert spec.project_context_contract.supported_schema_versions == [1]
+
+
+def test_agent_package_spec_requires_project_root_in_required_context_when_project_context_required() -> None:
+    with pytest.raises(ValidationError, match="requires 'project_root' in"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "universal-agent",
+                "name": "Universal Agent",
+                "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+                "aliases": ["universal"],
+                "project_context_contract": {
+                    "required": True,
+                    "capabilities": ["read"],
+                    "enforced_filesystem_permission": "read",
+                },
+            }
+        )
+
+
+def test_agent_package_spec_accepts_consistent_project_context_declarations() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "universal-agent",
+            "name": "Universal Agent",
+            "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+            "aliases": ["universal"],
+            "input_contract": {"required_context": ["project_root"]},
+            "project_context_contract": {
+                "required": True,
+                "capabilities": ["read"],
+                "enforced_filesystem_permission": "read",
+            },
+        }
+    )
+
+    assert spec.project_context_contract.required is True
+    assert spec.input_contract.required_context == ["project_root"]
+
+
 def test_agent_package_spec_accepts_specialist_owned_extensions() -> None:
     spec = AgentPackageSpec.model_validate(
         {

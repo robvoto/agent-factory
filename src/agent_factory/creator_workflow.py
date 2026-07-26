@@ -150,6 +150,7 @@ def scaffold_agent_package(state: AgentCreationState) -> AgentCreationState:
         "agent_name": state["agent_name"],
         "agent_alias": state["agent_alias"],
         "agent_purpose": state["agent_purpose"],
+        "project_root_required": "False",
     }
 
     for template_file in TEMPLATE_DIR.rglob("*"):

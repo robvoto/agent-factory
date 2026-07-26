@@ -53,5 +53,11 @@
     "approval": true,
     "resume": false,
     "cancellation": true
+  },
+  "project_context_contract": {
+    "supported_schema_versions": [1],
+    "required": false,
+    "capabilities": [],
+    "enforced_filesystem_permission": "none"
   }
 }

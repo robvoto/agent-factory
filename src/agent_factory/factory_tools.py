@@ -18,6 +18,7 @@ from langchain_core.tools import tool
 from .agent_catalog import build_agent_catalog, describe_agent_catalog, plan_package_reuse
 from .errors import AgentFactoryError
 from .agent_spec import AgentPackageSpec
+from .project_context import ProjectContextConsistencyError, verify_project_context_consistency
 
 _PROJECT_ROOT = Path(__file__).parents[2]
 _STAGING_DIR = _PROJECT_ROOT / "staging" / "agents"
@@ -98,6 +99,13 @@ def create_staged_agent_package(spec_json: str) -> str:
       runtime    - object: mode plus mode-specific invocation details
       input_contract - universal Hub task-envelope declaration
       interaction_contract - advertised progress/clarification/approval/resume/cancellation support
+      project_context_contract - Factory-side project-context participation: supported
+                   schema versions, whether a target project is required,
+                   consumed capabilities (read/write), and the enforced
+                   filesystem permission on the target project root. After
+                   writing files, Factory independently re-reads agent.json
+                   and specialist_contract.py from disk and fails staging if
+                   they disagree.
       output_contract - required for subprocess agents: staged status contract
       runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
@@ -175,6 +183,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         "runtime": spec.runtime.model_dump(exclude_none=True),
         "input_contract": spec.input_contract.model_dump(),
         "interaction_contract": spec.interaction_contract.model_dump(),
+        "project_context_contract": spec.project_context_contract.model_dump(),
         "output_contract": (
             spec.output_contract.model_dump(exclude_none=True)
             if spec.output_contract is not None
@@ -224,8 +233,14 @@ def create_staged_agent_package(spec_json: str) -> str:
         encoding="utf-8",
     )
 
+    specialist_contract_template = (
+        _TEMPLATES_DIR / "agent-package" / "specialist_contract.py"
+    ).read_text(encoding="utf-8")
     (package_dir / "specialist_contract.py").write_text(
-        (_TEMPLATES_DIR / "agent-package" / "specialist_contract.py").read_text(encoding="utf-8"),
+        specialist_contract_template.replace(
+            "{{project_root_required}}",
+            str(spec.project_context_contract.required),
+        ),
         encoding="utf-8",
     )
 
@@ -255,6 +270,12 @@ def create_staged_agent_package(spec_json: str) -> str:
             progress.adapter,
             spec.id,
         )
+
+    try:
+        verify_project_context_consistency(package_dir)
+    except ProjectContextConsistencyError as exc:
+        logger.error("Project-context consistency check failed for %s: %s", spec.id, exc)
+        return f"Staged agent package {spec.id} failed independent validation: {exc}"
 
     logger.debug("Wrote staged agent files for %s.", spec.id)
 

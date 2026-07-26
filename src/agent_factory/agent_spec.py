@@ -11,6 +11,7 @@ from typing import Any, ClassVar, Literal, Mapping
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .project_context import ProjectContextContract
 from .routing_purpose import validate_routing_purpose
 from .specialist_contract import (
     SpecialistInputContract,
@@ -216,6 +217,9 @@ class AgentPackageSpec(BaseModel):
     interaction_contract: SpecialistInteractionContract = Field(
         default_factory=SpecialistInteractionContract
     )
+    project_context_contract: ProjectContextContract = Field(
+        default_factory=ProjectContextContract
+    )
     output_contract: AgentOutputContract | None = None
     risks: list[str] = []
     tests: list[str] = []
@@ -238,6 +242,7 @@ class AgentPackageSpec(BaseModel):
             "runtime",
             "input_contract",
             "interaction_contract",
+            "project_context_contract",
             "output_contract",
         }
     )
@@ -317,6 +322,16 @@ class AgentPackageSpec(BaseModel):
         if self.runtime.mode == "subprocess" and self.output_contract is None:
             raise ValueError(
                 "Subprocess agents must define output_contract with the staged status contract."
+            )
+        if (
+            self.project_context_contract.required
+            and "project_root" not in self.input_contract.required_context
+        ):
+            raise ValueError(
+                "project_context_contract.required=true requires 'project_root' in "
+                "input_contract.required_context, so Hub's dispatch-side check "
+                "(accepted_context/required_context) and Factory's project-context "
+                "contract stay a single source of truth instead of drifting apart."
             )
         return self
 

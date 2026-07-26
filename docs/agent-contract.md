@@ -45,6 +45,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts, including which context fields it reads (`accepted_context`) and cannot function without (`required_context`) — see "Universal Agent Hub task boundary" below |
 | `interaction_contract` | No | Declares lifecycle support: `progress`, `clarification`, `approval`, `resume`, `cancellation` |
+| `project_context_contract` | No | Declares this specialist's project-context participation: `supported_schema_versions`, `required`, `capabilities` (`read`/`write`), `enforced_filesystem_permission` — see "Project-context contract" below |
 
 ## Manifest schema version
 
@@ -153,6 +154,56 @@ If a specialist declares `resume = true` but a paused task has no recorded
 resume attempt clearly instead of silently falling back to the reconstructed-
 task shape, since that shape may not be one a true-resume specialist knows
 how to interpret.
+
+## Project-context contract (AF-054, Factory scope)
+
+`input_contract.accepted_context`/`required_context` declare which envelope
+*fields* a specialist reads. `project_context_contract` goes further: it is
+Factory's own manifest schema and generation contract, declaring supported
+context schema versions, whether a target project is required, which
+capabilities the specialist exercises there, and the filesystem permission a
+runtime should enforce.
+
+This is Factory-side scope only. `src/agent_factory/project_context.py` is
+an internal reference used to (a) validate `project_context_contract` in the
+manifest, (b) generate the fail-closed logic baked into each staged
+package's `specialist_contract.py`, and (c) independently re-verify a staged
+package's files after they are written. It is not a shared runtime
+dependency: generated `specialist_contract.py` files inline their own
+validation and never import this module, and neither Agent Hub nor existing
+specialists are required to import it, copy it, or match its shape.
+
+Whether Agent Hub adopts an analogous versioned wire contract is tracked
+separately as `AGENT-HUB-039`; whether AI Tech Lead adapts to it is tracked
+as `ATL-072`. Neither had defined such a schema as of 2026-07-25. This
+section does not claim that work is done, and Factory does not wait on it —
+today's Hub envelope still carries `project_root`/`references` as two
+untyped strings, and Factory's own contract and adapters are unaffected by
+that either way.
+
+```json
+{
+  "project_context_contract": {
+    "supported_schema_versions": [1],
+    "required": false,
+    "capabilities": [],
+    "enforced_filesystem_permission": "none"
+  }
+}
+```
+
+Fields:
+
+- `supported_schema_versions` — the `ProjectContext.schema_version` values this specialist accepts. Factory currently supports only version `1` and rejects any other value on a staged spec.
+- `required` — this specialist cannot do meaningful work without a real target project. When `true`, `input_contract.required_context` must include `"project_root"` (Factory validates this cross-reference so the two declarations cannot drift apart), and the specialist's generated boundary adapter (`specialist_contract.py`) raises instead of substituting its own repository as the target when `project_root` is missing.
+- `capabilities` — what the specialist actually does with the target project: `read`, `write`, or both. Drives the minimum `enforced_filesystem_permission` (a `required=true`, `capabilities=[]` spec is rejected — declare what the context is for).
+- `enforced_filesystem_permission` — the filesystem permission ceiling Hub/runtime should grant this specialist on the target project root: `none`, `read`, or `write`. Independent of `permissions.filesystem`, which governs the agent's own `working_directory`, not an externally supplied target project. Must be at least as permissive as `capabilities` implies (`write` capability requires `enforced_filesystem_permission="write"`).
+
+Every generated specialist's boundary adapter fails closed on drift rather than silently reinterpreting it: a non-string `project_root`, a `project_root` path that no longer exists on disk (a stale project context), or (when `required=true`) a missing `project_root` all raise instead of falling through — this is what prevents a generated specialist from silently substituting its own repository as the target.
+
+After writing a staged package's files, Factory independently re-reads `agent.json` and `specialist_contract.py` from disk (`verify_project_context_consistency`) and fails staging if the generated adapter's `PROJECT_ROOT_REQUIRED` constant disagrees with the manifest's `project_context_contract.required` — catching a template-rendering bug instead of trusting that writing the files correctly is the same as generating them correctly.
+
+`permissions.allowed_roots` (seen today as a hand-added field on `ai-tech-lead`'s enabled manifest, predating this contract) is the kind of ungoverned, per-specialist field this contract is meant to replace. Migrating it is out of scope here: it is a live enabled agent, and any cutover is downstream of whatever Agent Hub and AI Tech Lead decide under `AGENT-HUB-039`/`ATL-072`, not something Factory does unilaterally.
 
 ### Generic paused decisions (`pending_decision` / `decision`)
 
