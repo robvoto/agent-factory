@@ -40,7 +40,7 @@ PROJECT_ROOT_REQUIRED = {{project_root_required}}
 
 
 class ProjectContextError(ValueError):
-    """Raised when the dispatched project context fails the canonical contract."""
+    """Raised when the dispatched project context fails this package's declared contract."""
 
 
 def _validate_project_root(project_root: Any) -> str | None:

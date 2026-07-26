@@ -59,11 +59,14 @@ _CAPABILITY_FLOOR: dict[ProjectContextCapability, FilesystemPermission] = {
 
 
 class ProjectContext(BaseModel):
-    """The canonical, versioned shape of "the target project" Hub dispatches.
+    """The versioned shape Factory expects for "the target project" once dispatched.
 
     Supersedes treating `project_root`/`references` as untyped envelope
-    strings: a schema_version travels with the data, so a specialist (or
-    Hub) can reject a shape it does not understand instead of guessing.
+    strings: a schema_version travels with the data, so a Factory-generated
+    specialist's own boundary adapter can reject a shape it does not
+    understand instead of guessing. Whether Agent Hub sends this shape, or a
+    consuming specialist's own model matches it exactly, is out of scope
+    here — see the module docstring.
     """
 
     schema_version: int = PROJECT_CONTEXT_SCHEMA_VERSION
@@ -82,20 +85,24 @@ class ProjectContext(BaseModel):
 
 
 class ProjectContextContract(BaseModel):
-    """Manifest declaration of a specialist's participation in the canonical
-    project-context contract.
+    """Manifest declaration of a specialist's project-context participation.
 
     `required` — this specialist cannot do meaningful work without a real
-    target project; Hub must reject dispatch instead of letting the
-    specialist fall back to substituting its own repository as the target.
+    target project. Factory generates this specialist's own boundary adapter
+    (`specialist_contract.py`) to reject dispatch when `project_root` is
+    missing, rather than letting it silently substitute its own repository
+    as the target — this is enforced by the generated specialist itself, not
+    by Agent Hub (Hub-side enforcement of this declaration is out of scope
+    here; see the module docstring).
 
     `capabilities` — what the specialist actually does with the target
     project (`read`, `write`). Drives the minimum `enforced_filesystem_permission`.
 
-    `enforced_filesystem_permission` — the filesystem permission ceiling
-    Hub/runtime grants this specialist on the target project root. This is
-    independent of `permissions.filesystem`, which governs the agent's own
-    working_directory, not an externally supplied target project.
+    `enforced_filesystem_permission` — the filesystem permission this
+    specialist declares it needs on the target project root, as a ceiling a
+    runtime *could* enforce. This is independent of `permissions.filesystem`,
+    which governs the agent's own working_directory, not an externally
+    supplied target project.
 
     `supported_schema_versions` — the `ProjectContext.schema_version` values
     this specialist accepts. Hub must reject dispatching an unsupported
