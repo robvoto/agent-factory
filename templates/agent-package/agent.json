@@ -1,6 +1,7 @@
 {
   "id": "{{agent_id}}",
   "version": "1.0.0",
+  "manifest_schema_version": 1,
   "name": "{{agent_name}}",
   "purpose": "{{agent_purpose}}",
   "aliases": [
@@ -43,7 +44,8 @@
     "accepted_context": [
       "project_root",
       "references"
-    ]
+    ],
+    "required_context": []
   },
   "interaction_contract": {
     "progress": false,

@@ -88,6 +88,7 @@ def create_staged_agent_package(spec_json: str) -> str:
 
     The spec must be a JSON object with these fields:
       id         - lowercase identifier, e.g. "research-agent"
+      manifest_schema_version - agent.json schema version (defaults to current)
       name       - human-readable name, e.g. "Research Agent"
       purpose    - routing contract with Primary responsibility, Select for, and Do not select for sections
       aliases    - list of command aliases, e.g. ["research", "find"]
@@ -164,6 +165,7 @@ def create_staged_agent_package(spec_json: str) -> str:
 
     agent_manifest_data: dict[str, Any] = {
         "id": spec.id,
+        "manifest_schema_version": spec.manifest_schema_version,
         "name": spec.name,
         "purpose": spec.purpose,
         "aliases": spec.aliases,

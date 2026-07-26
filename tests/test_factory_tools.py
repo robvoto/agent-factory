@@ -129,6 +129,7 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     manifest = json.loads((pkg / "agent.json").read_text(encoding="utf-8"))
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None
+    assert manifest["manifest_schema_version"] == 1
 
     from agent_factory.storage import get_staged_agent_record
     row = get_staged_agent_record("test-agent", db_path=db)

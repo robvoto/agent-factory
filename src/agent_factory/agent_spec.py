@@ -19,6 +19,8 @@ from .specialist_contract import (
 
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
+AGENT_MANIFEST_SCHEMA_VERSION = 1
+SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS = {1}
 SUBPROCESS_OUTPUT_STATUS_VALUES = (
     "success",
     "needs_clarification",
@@ -201,6 +203,7 @@ class McpServer(BaseModel):
 class AgentPackageSpec(BaseModel):
     id: str
     version: str = "1.0.0"
+    manifest_schema_version: int = AGENT_MANIFEST_SCHEMA_VERSION
     name: str
     purpose: str
     aliases: list[str]
@@ -224,6 +227,7 @@ class AgentPackageSpec(BaseModel):
     _CORE_MANIFEST_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {
             "id",
+            "manifest_schema_version",
             "name",
             "purpose",
             "aliases",
@@ -255,6 +259,16 @@ class AgentPackageSpec(BaseModel):
             raise ValueError(
                 f"Agent ID must start with a letter, contain only lowercase letters, "
                 f"digits, and hyphens, and be at most 64 characters. Got: {v!r}"
+            )
+        return v
+
+    @field_validator("manifest_schema_version")
+    @classmethod
+    def validate_manifest_schema_version(cls, v: int) -> int:
+        if v not in SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS:
+            raise ValueError(
+                "Unsupported manifest_schema_version "
+                f"{v!r}. Supported versions: {sorted(SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS)}."
             )
         return v
 

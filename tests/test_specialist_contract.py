@@ -42,6 +42,24 @@ def test_manifest_contract_is_versioned() -> None:
     assert "resume" in contract.optional_fields
 
 
+def test_required_context_defaults_empty() -> None:
+    contract = SpecialistInputContract()
+    assert contract.required_context == []
+
+
+def test_required_context_must_be_subset_of_accepted_context() -> None:
+    with pytest.raises(ValueError, match="required_context must be a subset"):
+        SpecialistInputContract(accepted_context=["references"], required_context=["project_root"])
+
+
+def test_required_context_accepts_subset_of_accepted_context() -> None:
+    contract = SpecialistInputContract(
+        accepted_context=["project_root", "references"],
+        required_context=["project_root"],
+    )
+    assert contract.required_context == ["project_root"]
+
+
 def test_resume_requires_clarification_or_approval() -> None:
     with pytest.raises(ValueError, match="resume requires"):
         SpecialistInteractionContract(

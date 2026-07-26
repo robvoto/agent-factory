@@ -21,7 +21,9 @@ class SpecialistInputContract(BaseModel):
     specialist regardless of which one it is. `project_root` and `references`
     are the two context-carrying fields; a specialist declares which of them
     it actually reads via `accepted_context`, but Hub sends both whenever it
-    knows them either way.
+    knows them either way. `required_context` narrows that further to the
+    keys the specialist cannot function without — Hub can use it to decide
+    whether to ask the user for missing context before dispatching.
     """
 
     protocol: str = UNIVERSAL_TASK_PROTOCOL
@@ -42,6 +44,7 @@ class SpecialistInputContract(BaseModel):
         ]
     )
     accepted_context: list[str] = Field(default_factory=lambda: list(UNIVERSAL_CONTEXT_KEYS))
+    required_context: list[str] = Field(default_factory=list)
 
     @field_validator("protocol")
     @classmethod
@@ -68,6 +71,12 @@ class SpecialistInputContract(BaseModel):
             raise ValueError(
                 "input_contract.accepted_context contains unsupported universal keys: "
                 + ", ".join(unknown_context)
+            )
+        unaccepted_required = sorted(set(self.required_context).difference(self.accepted_context))
+        if unaccepted_required:
+            raise ValueError(
+                "input_contract.required_context must be a subset of accepted_context: "
+                + ", ".join(unaccepted_required)
             )
         return self
 

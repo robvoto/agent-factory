@@ -178,6 +178,32 @@ def test_agent_package_spec_defaults_to_universal_hub_contract() -> None:
     assert spec.interaction_contract.cancellation is True
 
 
+def test_agent_package_spec_defaults_manifest_schema_version() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "universal-agent",
+            "name": "Universal Agent",
+            "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+            "aliases": ["universal"],
+        }
+    )
+
+    assert spec.manifest_schema_version == 1
+
+
+def test_agent_package_spec_rejects_unsupported_manifest_schema_version() -> None:
+    with pytest.raises(ValidationError, match="Unsupported manifest_schema_version"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "universal-agent",
+                "name": "Universal Agent",
+                "purpose": "Primary responsibility: Perform universal work.\nSelect for: Requests that require universal work.\nDo not select for: Requests unrelated to universal work.",
+                "aliases": ["universal"],
+                "manifest_schema_version": 99,
+            }
+        )
+
+
 def test_agent_package_spec_accepts_specialist_owned_extensions() -> None:
     spec = AgentPackageSpec.model_validate(
         {

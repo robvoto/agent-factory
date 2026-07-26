@@ -34,6 +34,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | Yes | Unique agent identifier (kebab-case) |
+| `manifest_schema_version` | No (defaults to current) | The `agent.json` schema version this manifest conforms to. Factory only accepts versions it currently supports (see below); existing manifests without the field remain readable |
 | `name` | Yes | Human-readable name |
 | `purpose` | Yes | Single routing contract with `Primary responsibility:`, `Select for:`, and `Do not select for:` sections |
 | `aliases` | Yes | Non-empty list of short human-facing command words (not used for Agent Hub routing — `purpose` is the sole routing contract) |
@@ -42,8 +43,18 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `memory` | Yes | Object: `scope`, `retention` |
 | `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how Agent Hub invokes the agent |
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
-| `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts — see "Universal Agent Hub task boundary" below |
+| `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts, including which context fields it reads (`accepted_context`) and cannot function without (`required_context`) — see "Universal Agent Hub task boundary" below |
 | `interaction_contract` | No | Declares lifecycle support: `progress`, `clarification`, `approval`, `resume`, `cancellation` |
+
+## Manifest schema version
+
+`manifest_schema_version` declares which version of the `agent.json` document
+shape a manifest conforms to, separate from `input_contract.protocol_version`
+(which versions the Hub task envelope) and `runtime.progress.schema_version`
+(which versions progress events). Factory currently supports only version
+`1` and rejects any other value on newly staged specs. Manifests written
+before this field existed have no `manifest_schema_version` and remain
+readable; add the field when next regenerating or hand-editing them.
 
 Any other top-level field (e.g. a specialist's own backlog pointer) is
 specialist-owned metadata with no universal meaning — Factory writes it
@@ -111,6 +122,8 @@ Newly generated specialists declare the versioned `agent-hub.task` protocol in `
 Agent Hub owns task identity, routing, transport, progress, clarification, approval, cancellation, and result delivery. It sends the same flat envelope to every specialist regardless of which one it is: `task` (required), plus optional `request_id`, `run_id`, `source`, `execution_mode`, `progress_jsonl`, `project_root`, `references`, `human_approved`, `approval_token`, `resume`. `project_root` and `references` are the two context-carrying fields — Hub passes them through when known but does not interpret `references` (user-provided or Hub-observed pointers such as file paths, URLs, or ticket IDs).
 
 The specialist owns the boundary adapter. It validates the common envelope, preserves the original task, adapts known context (`project_root`, `references`) into its internal workflow, and asks for clarification instead of guessing. Specialist-specific fields and provider logic do not belong in Agent Hub — a specialist that needs richer structure (e.g. a resolved project name, a backlog lookup) builds that itself from the fields Hub gives it, or from its own `extensions` metadata.
+
+`input_contract.accepted_context` declares which of `project_root`/`references` a specialist reads at all; `input_contract.required_context` (a subset of `accepted_context`) narrows that to the context it cannot function without. A specialist with no hard project-context requirement leaves `required_context` empty (the default) — it treats `project_root`/`references` as best-effort hints, not preconditions.
 
 The protocol requires only `task`. Request/run identity, source, execution mode, `project_root`, `references`, approval, resume, and progress data are all optional. The manifest separately advertises lifecycle capabilities such as progress, clarification, approval, resume, and cancellation via `interaction_contract`.
 
