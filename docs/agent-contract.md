@@ -153,3 +153,47 @@ If a specialist declares `resume = true` but a paused task has no recorded
 resume attempt clearly instead of silently falling back to the reconstructed-
 task shape, since that shape may not be one a true-resume specialist knows
 how to interpret.
+
+### Generic paused decisions (`pending_decision` / `decision`)
+
+A specialist that pauses on something with named next actions — not just a
+plain-text question — may report it structurally instead of relying on the
+fixed `approval_required` shape. Any non-terminal status result may include
+a `pending_decision` object:
+
+```json
+{
+  "pending_decision": {
+    "prompt": "Plain-language description of what's paused.",
+    "options": [
+      {"name": "approve"},
+      {"name": "request_changes", "needs_text": true}
+    ]
+  }
+}
+```
+
+Agent Hub reads only `prompt` (text it relays to the user) and each
+option's `name` (the exact `decision.option` values valid right now,
+optionally flagged `needs_text` to hint the user should supply free text).
+Any other key the specialist puts in `pending_decision` (e.g. its own
+internal `kind` or `thread_id`) is stored and relayed back opaquely —
+Hub never brands its behavior on a specific specialist's option names or
+internal pause kinds. A `pending_decision` with an empty or missing
+`options` list is treated as absent; the specialist's `status`/`summary`
+fields are used instead.
+
+The user resumes such a pause with `/decide <option> [text]`. Agent Hub
+validates `option` against the specialist's own last-reported `options`
+list, then resubmits the same `request_id` with:
+
+```json
+{"decision": {"option": "request_changes", "text": "...", "actor": "human"}}
+```
+
+Resuming a `pending_decision` pause is identified by `request_id` alone —
+no separate resume token is required for this path, unlike the `resume`
+field described above. A specialist can combine both mechanisms (e.g. a
+true-resume `needs_clarification` pause for free-text questions, and
+`pending_decision` for named-option pauses) or use neither and stay on
+Hub's legacy `approval_required`/reconstructed-task fallback.
