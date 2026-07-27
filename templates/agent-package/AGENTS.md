@@ -25,13 +25,22 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 - Use `apply_patch` for manual edits.
 - Do not use destructive commands unless explicitly requested.
 
-## Skills
+## Governed self-improvement
 
-- If a repeatable procedure exists, put it in a small skill and list it under `skills/`.
-- Read only the smallest relevant skill for the task.
-- Do not invent agent-specific skills unless they are actually needed.
+- This agent may improve its own reusable skills or `AGENTS.md` without separate approval when evidence from completed work shows a repeatable problem, recurring correction, avoidable rework, or stable procedure.
+- When the evidence points beyond skills or `AGENTS.md`, propose one of: a bounded code change, a new skill, an update to an existing skill, or an `AGENTS.md` change.
+- Keep every improvement bounded to the demonstrated problem. Do not broaden purpose, permissions, memory access, tool access, runtime authority, repository scope, or promotion status.
+- Before editing, record the evidence, target file, expected reusable benefit, risk, and validation method in the task trace or final report.
+- Approved skills live in `.skills/<name>/SKILL.md` or the package's configured skill directory and must be registered in the relevant skill index.
+- Keep skills concise, procedural, and task-specific. Do not duplicate policy that belongs in `AGENTS.md` or architecture rationale that belongs in docs.
+- Validate every skill or `AGENTS.md` improvement with the smallest relevant test or deterministic check.
+- Code or runtime self-modification still requires the normal approved bounded coding workflow and relevant validation.
+- Stop without changing anything when the evidence, target, ownership, or validation method is unclear.
 
 ## Boundaries
 
-- Do not enable, promote, or self-modify this agent from inside the agent.
+- Do not enable, promote, grant permissions to, or silently widen the scope of this agent from inside the agent.
+- Do not modify manifests, permissions, memory access, tools, runtime authority, or promotion state without explicit human approval.
+- Approved self-code changes must use the normal bounded coding workflow, target the correct repository, and pass relevant tests before activation.
 - Do not expand permissions or memory without approval.
+- Stop when evidence is insufficient, the target is unclear, validation fails, or the proposed change would exceed the approved scope.

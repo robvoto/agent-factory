@@ -44,6 +44,17 @@ Do not create duplicate local backlog files unless explicitly requested.
 - Update tests and docs when behavior changes.
 - Keep config, schema, shared knowledge, data, and docs in their proper locations instead of inline code.
 
+## Governed self-improvement
+
+- Agent Factory and agents it creates may improve their own reusable skills or `AGENTS.md` without separate approval when evidence from completed work shows a repeatable problem, recurring correction, avoidable rework, or stable procedure.
+- Keep every improvement bounded to the demonstrated problem. Do not broaden agent purpose, permissions, memory access, tool access, runtime authority, repository scope, or promotion status.
+- Before editing, record the evidence, target file, expected reusable benefit, risk, and validation method in the task trace or final report.
+- Reusable skills must remain concise and procedural, be registered in the relevant skill index, and be validated with the smallest relevant test or deterministic check.
+- Do not duplicate policy across skills and `AGENTS.md`. Put universal behavioural rules in `AGENTS.md`; put task-specific procedures in skills.
+- Code or runtime self-modification still requires the normal approved bounded coding workflow and relevant validation.
+- Never silently enable, promote, grant permissions to, or widen the scope of an agent.
+- Stop without changing anything when the evidence, target, ownership, or validation method is unclear.
+
 ## Logging and cost discipline
 
 - Add friendly human-readable logs for normal execution and detailed debug logs for troubleshooting.
@@ -71,6 +82,14 @@ Before touching `.gitignore`, `data/`, `config/`, `staging/`, or `templates/`:
 - Never commit SQLite DBs, `.env`, local settings (`data/settings.local.json`), or logs
 - Always have a committed `data/settings.local.example.json` with placeholder values only
 
+## Durable Factory learning
+
+When a reusable lesson changes how Agent Factory should build or upgrade agents:
+- Do not leave the lesson only in chat or backlog text.
+- Update the canonical governance document, generated-agent template, agent-authoring skill, and enforcement tests as applicable.
+- Existing agent-specific instructions may be preserved, but approved standards migrations must be applied to every registered agent package rather than left as indefinite follow-up work.
+- Record incomplete implementation work in the live backlog before session closeout.
+
 ## Documentation impact (AF-049)
 
 After any change to architecture, ownership, setup, runtime, commands, registry, lifecycle, or agent boundaries:
@@ -90,6 +109,7 @@ Before ending a session:
 
 - Files changed
 - Behaviour changed
+- Self-improvement evidence and validation, when applicable
 - Documentation impact check done (see Documentation impact (AF-049) above)
 - Validation command/result, or why not run
 - Remaining risk or follow-up

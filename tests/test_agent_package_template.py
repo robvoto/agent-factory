@@ -38,3 +38,8 @@ def test_agent_package_template_instructions_are_seeded():
     assert "smallest change" in agents
     assert "apply_patch" in agents
     assert "does not define agent-specific skills yet" in skills_index
+    assert "propose one of: a bounded code change" in agents
+    assert "may improve its own reusable skills or `AGENTS.md` without separate approval" in agents
+    assert "Do not modify manifests, permissions, memory access, tools, runtime authority, or promotion state" in agents
+    assert "explicit human approval" in agents
+    assert "pass relevant tests before activation" in agents
