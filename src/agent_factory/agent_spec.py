@@ -26,13 +26,13 @@ SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS = {1}
 SUBPROCESS_OUTPUT_STATUS_VALUES = (
     "success",
     "needs_clarification",
-    "approval_required",
+    "waiting_decision",
     "failed",
 )
 SUBPROCESS_STATUS_TERMINAL = {
     "success": True,
     "needs_clarification": False,
-    "approval_required": False,
+    "waiting_decision": False,
     "failed": True,
 }
 

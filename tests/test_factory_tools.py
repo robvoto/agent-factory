@@ -381,7 +381,7 @@ def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path,
             "status_values": [
                 "success",
                 "needs_clarification",
-                "approval_required",
+                "waiting_decision",
                 "failed",
             ],
             "status_contract": {
@@ -390,9 +390,9 @@ def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path,
                     "terminal": False,
                     "caller_action": "provide_clarification",
                 },
-                "approval_required": {
+                "waiting_decision": {
                     "terminal": False,
-                    "caller_action": "provide_approval",
+                    "caller_action": "provide_decision",
                 },
                 "failed": {"terminal": True, "caller_action": "inspect_failure"},
             },
@@ -410,6 +410,6 @@ def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path,
     assert manifest["output_contract"]["status_values"] == [
         "success",
         "needs_clarification",
-        "approval_required",
+        "waiting_decision",
         "failed",
     ]

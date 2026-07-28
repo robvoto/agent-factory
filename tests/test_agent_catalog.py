@@ -127,13 +127,13 @@ def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):
         "status_values": [
             "success",
             "needs_clarification",
-            "approval_required",
+            "waiting_decision",
             "failed",
         ],
         "status_contract": {
             "success": {"terminal": True, "caller_action": "consume_result"},
             "needs_clarification": {"terminal": False, "caller_action": "provide_clarification"},
-            "approval_required": {"terminal": False, "caller_action": "provide_approval"},
+            "waiting_decision": {"terminal": False, "caller_action": "provide_decision"},
             "failed": {"terminal": True, "caller_action": "inspect_failure"},
         },
     }

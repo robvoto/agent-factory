@@ -11,7 +11,7 @@ def _subprocess_output_contract() -> dict:
         "status_values": [
             "success",
             "needs_clarification",
-            "approval_required",
+            "waiting_decision",
             "failed",
         ],
         "status_contract": {
@@ -20,9 +20,9 @@ def _subprocess_output_contract() -> dict:
                 "terminal": False,
                 "caller_action": "provide_clarification",
             },
-            "approval_required": {
+            "waiting_decision": {
                 "terminal": False,
-                "caller_action": "provide_approval",
+                "caller_action": "provide_decision",
             },
             "failed": {"terminal": True, "caller_action": "inspect_failure"},
         },
@@ -83,7 +83,7 @@ def test_subprocess_runtime_validates_status_contract() -> None:
                     "status_values": [
                         "success",
                         "needs_clarification",
-                        "approval_required",
+                        "waiting_decision",
                     ],
                     "status_contract": {
                         "success": {"terminal": True, "caller_action": "consume_result"},
@@ -91,9 +91,9 @@ def test_subprocess_runtime_validates_status_contract() -> None:
                             "terminal": False,
                             "caller_action": "provide_clarification",
                         },
-                        "approval_required": {
+                        "waiting_decision": {
                             "terminal": False,
-                            "caller_action": "provide_approval",
+                            "caller_action": "provide_decision",
                         },
                     },
                 },
@@ -125,7 +125,7 @@ def test_subprocess_runtime_accepts_valid_output_contract() -> None:
     assert spec.output_contract.status_values == [
         "success",
         "needs_clarification",
-        "approval_required",
+        "waiting_decision",
         "failed",
     ]
 

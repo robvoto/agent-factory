@@ -49,7 +49,6 @@ def _load_enabled_agents() -> list[dict[str, Any]]:
                 "aliases": spec.get("aliases", []),
                 "runtime_entrypoint": spec.get("runtime", {}).get("entrypoint", ""),
                 "requires_approval": spec.get("permissions", {}).get("requires_approval", True),
-                "backlog_sheet_id": spec.get("backlog_sheet_id"),
                 "input_contract": spec.get("input_contract"),
                 "interaction_contract": spec.get("interaction_contract"),
                 "task_contract": spec.get("task_contract"),

@@ -49,13 +49,7 @@
       "approval_token",
       "project_context"
     ],
-    "accepted_context": ["project_root"],
-    "project_context_contract": {
-      "supported_schema_versions": [1],
-      "required": false,
-      "capabilities": ["read", "write"],
-      "enforced_filesystem_permission": "write"
-    }
+    "accepted_context": ["project_root"]
   },
   "project_context_contract": {
     "supported_schema_versions": [
@@ -101,7 +95,7 @@
     "status_values": [
       "success",
       "needs_clarification",
-      "approval_required",
+      "waiting_decision",
       "failed"
     ],
     "status_contract": {
@@ -113,9 +107,9 @@
         "terminal": false,
         "caller_action": "provide_clarification"
       },
-      "approval_required": {
+      "waiting_decision": {
         "terminal": false,
-        "caller_action": "provide_approval"
+        "caller_action": "provide_decision"
       },
       "failed": {
         "terminal": true,

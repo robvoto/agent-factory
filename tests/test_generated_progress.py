@@ -16,7 +16,7 @@ def _output_contract() -> dict:
         "status_values": [
             "success",
             "needs_clarification",
-            "approval_required",
+            "waiting_decision",
             "failed",
         ],
         "status_contract": {
@@ -25,9 +25,9 @@ def _output_contract() -> dict:
                 "terminal": False,
                 "caller_action": "provide_clarification",
             },
-            "approval_required": {
+            "waiting_decision": {
                 "terminal": False,
-                "caller_action": "provide_approval",
+                "caller_action": "provide_decision",
             },
             "failed": {"terminal": True, "caller_action": "inspect_failure"},
         },

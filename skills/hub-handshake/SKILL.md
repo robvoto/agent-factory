@@ -11,7 +11,7 @@ How Agent Hub discovers Agent Factory capabilities and how to keep the manifest 
 
 `uv run agent-factory manifest` emits a single-line JSON document that Agent Hub can cache.
 It includes:
-- Static fields: agent_id, capabilities, boundaries, entrypoints, hub_integration config
+- Static fields: agent_id, purpose, entrypoints, shared protocol/progress metadata, hub_integration config
 - `live_registry`: enabled agents list, staged count, pending approval count, as_of timestamp
 
 Agent Hub should call this once per session (or when `hub_integration.handshake_ttl_seconds` expires).
@@ -41,7 +41,11 @@ Agent Hub must not scan the repo or call factory commands on every request — c
         "aliases": ["techlead", "atl", "code"],
         "runtime_entrypoint": "uv run python -m ai_tech_lead run-agent-task",
         "requires_approval": true,
-        "backlog_sheet_id": "..."
+        "input_contract": {...},
+        "interaction_contract": {...},
+        "task_contract": {...},
+        "project_context_contract": {...},
+        "target_project_access": {...}
       }
     ],
     "enabled_count": 1,
@@ -55,8 +59,7 @@ Agent Hub must not scan the repo or call factory commands on every request — c
 
 Update `src/agent_factory/agent_manifest.py` when:
 - A new CLI command is added (add to `entrypoints`)
-- A new capability is implemented (add to `capabilities`)
-- A boundary changes (update `boundaries`)
+- The shared protocol/progress contract changes
 - The hub integration protocol changes (update `hub_integration`)
 
 Do not change `live_registry` fields — those are always populated from the live filesystem.

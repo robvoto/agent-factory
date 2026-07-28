@@ -174,7 +174,7 @@ def test_subprocess_agent_specs_declare_output_contract() -> None:
         if output_contract.get("status_values") != [
             "success",
             "needs_clarification",
-            "approval_required",
+            "waiting_decision",
             "failed",
         ]:
             problems.append(f"{spec_file.parent.name}: invalid output_contract.status_values")

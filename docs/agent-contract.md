@@ -79,14 +79,14 @@ Only approved agents should be enabled.
 
 For `runtime.mode = "subprocess"`, Factory now validates the staged caller contract instead of leaving it to downstream runtime policy only.
 
-- `output_contract.status_values` must contain exactly `success`, `needs_clarification`, `approval_required`, and `failed`
+- `output_contract.status_values` must contain exactly `success`, `needs_clarification`, `waiting_decision`, and `failed`
 - `output_contract.status_contract.success.terminal` must be `true`
 - `output_contract.status_contract.needs_clarification.terminal` must be `false`
-- `output_contract.status_contract.approval_required.terminal` must be `false`
+- `output_contract.status_contract.waiting_decision.terminal` must be `false`
 - `output_contract.status_contract.failed.terminal` must be `true`
 - Every status entry must include a non-empty `caller_action`
 
-Factory does not currently standardize `result_kind` or `caller_action` names across all specialists. It only validates that subprocess agents declare the four status outcomes and their terminal/caller-facing meaning in the staged spec.
+Factory does not currently standardize `result_kind` values across all specialists. It only validates that subprocess agents declare the four shared status outcomes and their terminal/caller-facing meaning in the staged spec.
 
 ## Optional Hub progress contract
 
@@ -265,9 +265,10 @@ This contract is generic. It is not AI Tech Lead-specific, and future Factory-cr
 ### Generic paused decisions (`pending_decision` / `decision`)
 
 A specialist that pauses on something with named next actions — not just a
-plain-text question — may report it structurally instead of relying on the
-fixed `approval_required` shape. Any non-terminal status result may include
-a `pending_decision` object:
+plain-text question — may report it structurally on the shared
+`waiting_decision` status instead of inventing agent-specific pause statuses.
+Any non-terminal `waiting_decision` result may include a `pending_decision`
+object:
 
 ```json
 {
@@ -304,4 +305,4 @@ no separate resume token is required for this path, unlike the `resume`
 field described above. A specialist can combine both mechanisms (e.g. a
 true-resume `needs_clarification` pause for free-text questions, and
 `pending_decision` for named-option pauses) or use neither and stay on
-Hub's legacy `approval_required`/reconstructed-task fallback.
+Hub's legacy approval/reconstructed-task fallback when talking to older callers.
