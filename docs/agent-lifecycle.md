@@ -69,16 +69,22 @@ Do not hide failures behind retries.
 
 The Improver proposes changes from evidence.
 
-It may draft:
+It may propose:
 
-- prompt changes
-- tool changes
-- permission changes
-- tests
-- documentation updates
-- code patches
+- bounded code changes;
+- a new reusable skill;
+- an update to an existing skill;
+- `AGENTS.md` or other instruction changes;
+- prompt, tool, permission, test, or documentation changes.
 
-It must not silently apply risky changes.
+Each proposal must identify the evidence, problem, trigger condition, exact target,
+bounded scope, risks, expected reusable benefit, validation, and rollback approach.
+
+It must not silently apply or activate any self-change. Human approval is required
+before implementation. Approved code changes use the normal coding workflow and
+tests. Approved skills are registered in the relevant skill index and validated
+before reuse. Agent Factory owns the canonical templates and upgrade path; Agent
+Hub may route proposals but cannot bypass Factory governance.
 
 ## 7. Test
 

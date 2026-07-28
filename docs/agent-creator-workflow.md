@@ -39,6 +39,11 @@ The staged package should include the standard agent-local instruction file
 (`AGENTS.md`) and a `skills/INDEX.md` scaffold when applicable, so every new
 agent starts with the same operating rules and a place for reusable skills.
 
+The generated `AGENTS.md` must also include the Factory-governed improvement
+contract: the agent may propose bounded code, skill, or instruction changes from
+evidence, but it may not silently self-modify. Human approval and validation are
+required before any reusable behaviour is activated.
+
 A staged package is not enabled automatically.
 
 Validation, approval, and promotion live in `agent-lifecycle.md`.

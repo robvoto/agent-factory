@@ -65,6 +65,19 @@ Enable `runtime.progress` only when the agent is a subprocess agent and is eithe
 
 The generated adapter must preserve the final output JSON contract, reserve stdout for progress JSONL, keep logs on stderr, and exclude prompts, hidden reasoning, raw provider payloads, secrets, and unbounded logs. Heartbeats are deterministic and must not make additional LLM calls.
 
+## Governed improvement standard
+
+Every generated agent package must include a professional, minimal `AGENTS.md` that:
+
+- defines purpose, boundaries, instruction precedence, skill usage, approval requirements, and stop conditions;
+- permits the agent to propose bounded code, skill, or instruction improvements when supported by evidence;
+- forbids silent self-modification;
+- requires human approval before code, manifest, permission, memory, `AGENTS.md`, or reusable skill changes;
+- requires approved code changes to use the normal bounded coding workflow and tests;
+- requires approved skills to be concise, registered in the skill index, and validated before reuse.
+
+The Factory must preserve existing project-specific instructions during upgrades unless an approved migration explicitly changes them.
+
 ## Prompt standards (SYSTEM.md)
 
 The system prompt must:

@@ -48,9 +48,16 @@
       "project_root",
       "references",
       "human_approved",
-      "approval_token"
+      "approval_token",
+      "project_context"
     ],
-    "accepted_context": ["project_root"]
+    "accepted_context": ["project_root"],
+    "project_context_contract": {
+      "supported_schema_versions": [1],
+      "required": false,
+      "capabilities": ["read", "write"],
+      "enforced_filesystem_permission": "write"
+    }
   },
   "interaction_contract": {
     "progress": true,

@@ -46,6 +46,28 @@ Every project must have one documentation entry point: `docs/INDEX.md`.
 - Root `AGENTS.md` must point agents to `docs/INDEX.md`, not list multiple documentation files manually.
 - Detailed commands, architecture, diagrams, standards, and operational notes live in specific documents linked from `docs/INDEX.md`.
 - As documentation grows, update `docs/INDEX.md`; do not expand README or AGENTS navigation into another index.
+## Governed Agent Improvement
+
+Every Factory-created agent may identify opportunities to improve reusable behaviour, but may not silently alter itself.
+
+Permitted proposal types:
+
+- bounded code change;
+- new reusable skill;
+- update to an existing skill;
+- `AGENTS.md` or other instruction change.
+
+Each proposal must include:
+
+- evidence from failures, rework, user corrections, repeated procedures, or measurable inefficiency;
+- the problem and trigger condition;
+- the exact target and bounded scope;
+- expected reusable benefit;
+- risks and approval implications;
+- validation and rollback approach.
+
+Human approval is required before implementation or activation. Approved code changes use the normal coding workflow and tests. Approved skills must be concise, registered in the relevant skill index, and validated before reuse. Agent Factory owns the canonical templates, validation rules, publication rules, and upgrade path for this capability across new and existing agents. Agent Hub may route improvement proposals but does not bypass Factory governance.
+
 ## Practical Rule
 
 When a task touches `AGENTS.md` or skills, the finish report must say which files were used and which files were changed.
