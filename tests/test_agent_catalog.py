@@ -64,6 +64,45 @@ def _spec() -> AgentPackageSpec:
     )
 
 
+def test_build_agent_catalog_accepts_configured_tools_by_default(tmp_path, monkeypatch):
+    """A real enabled agent (e.g. ai-tech-lead) declares tools it's actually
+    configured to use. build_agent_catalog must check those against the real
+    config/tools.json allowlist, not silently treat the allowlist as empty —
+    which would reject every enabled agent with any declared tool at all, as
+    happened live when list_known_agents/request_agent_promotion inspected
+    the inventory."""
+    enabled = tmp_path / "config" / "agents"
+    enabled.mkdir(parents=True)
+    manifest = _manifest()
+    manifest["tools"] = ["run_agent_task"]
+    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    tools_file = tmp_path / "tools.json"
+    tools_file.write_text(json.dumps({"tools": ["run_agent_task"]}), encoding="utf-8")
+
+    import agent_factory.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "DEFAULT_TOOLS_FILE", tools_file)
+    catalog = build_agent_catalog(enabled_dir=enabled, staging_dir=tmp_path / "staging")
+
+    assert list(catalog["alpha-agent"].manifest.tools) == ["run_agent_task"]
+
+
+def test_build_agent_catalog_rejects_tool_outside_configured_allowlist(tmp_path):
+    enabled = tmp_path / "config" / "agents"
+    enabled.mkdir(parents=True)
+    manifest = _manifest()
+    manifest["tools"] = ["not_a_real_tool"]
+    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(Exception, match="unknown tools: not_a_real_tool"):
+        build_agent_catalog(
+            enabled_dir=enabled,
+            staging_dir=tmp_path / "staging",
+            allowed_tool_ids=["run_agent_task"],
+        )
+
+
 def test_build_agent_catalog_merges_staged_and_enabled(tmp_path):
     staging = tmp_path / "staging" / "agents" / "alpha-agent"
     enabled = tmp_path / "config" / "agents"

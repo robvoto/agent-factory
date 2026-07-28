@@ -58,11 +58,26 @@ def build_agent_catalog(
     enabled_dir: Path | None = None,
     staging_dir: Path | None = None,
     db_path: Path | None = None,
+    allowed_tool_ids: Iterable[str] | None = None,
 ) -> dict[str, AgentCatalogEntry]:
-    """Return a merged inventory of all known agents."""
+    """Return a merged inventory of all known agents.
+
+    `allowed_tool_ids` defaults to the real configured set (`config/tools.json`,
+    the same source `cli.py`'s registry loading uses) rather than an empty
+    allowlist — every already-enabled agent that declares any tool at all
+    would otherwise be rejected as requesting "unknown tools" the moment this
+    inventory is inspected (as `list_known_agents`/`request_agent_promotion` do).
+    """
     catalog: dict[str, AgentCatalogEntry] = {}
 
-    for manifest in load_agent_manifests(enabled_dir or _ENABLED_AGENTS_DIR):
+    if allowed_tool_ids is None:
+        from .cli import DEFAULT_TOOLS_FILE, load_allowed_tools
+
+        allowed_tool_ids = load_allowed_tools(DEFAULT_TOOLS_FILE)
+
+    for manifest in load_agent_manifests(
+        enabled_dir or _ENABLED_AGENTS_DIR, allowed_tool_ids=allowed_tool_ids
+    ):
         _merge_entry(
             catalog,
             manifest,
