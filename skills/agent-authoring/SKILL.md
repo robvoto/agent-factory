@@ -106,8 +106,8 @@ The system prompt must:
 Good:
 
 ```text
-Primary responsibility: Lead and execute changes to existing software.
-Select for: Implementing backlog items or modifying code, tests, configuration, architecture, or documentation in an existing repository, including Agent Factory, Agent Hub, AI Tech Lead, or another existing software project.
+Primary responsibility: Lead and execute work on new or existing technical solutions.
+Select for: Implementing backlog items, building new technical solutions, or changing code, tests, configuration, architecture, infrastructure, or documentation for a new or existing technical solution, regardless of technology stack or hosting location, subject only to available authorised access.
 Do not select for: Designing, staging, approving, rejecting, or promoting a new specialist agent package as the requested deliverable.
 ```
 
