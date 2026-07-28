@@ -36,7 +36,7 @@ Required fields: `id`, `name`, `aliases`, `tools`, `permissions`, `memory`, `run
 Required routing field:
 - `purpose`: the single routing contract used by Hub. It must contain exactly `Primary responsibility:`, `Select for:`, and `Do not select for:` sections
 
-Universal dispatch fields (`input_contract`, `interaction_contract`) default automatically — see `docs/agent-contract.md`. A backlog pointer or other specialist-owned metadata goes under `extensions`, not a dedicated field.
+Universal dispatch fields (`input_contract`, `interaction_contract`), bounded `task_contract`, and generic `target_project_access` defaults are defined in `docs/agent-contract.md`. A backlog pointer or other specialist-owned metadata goes under `extensions`, not a dedicated field.
 
 Rules:
 - `tools`: list of approved tool IDs; may be empty

@@ -6,8 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .agent_spec import normalize_output_contract, normalize_runtime_config
+from .agent_spec import (
+    AgentTargetProjectAccess,
+    AgentTaskContract,
+    normalize_output_contract,
+    normalize_runtime_config,
+)
 from .specialist_contract import SpecialistInputContract, SpecialistInteractionContract
+from .project_context import ProjectContextContract
 from .errors import ManifestValidationError
 from .routing_purpose import validate_routing_purpose
 
@@ -29,6 +35,9 @@ class AgentManifest:
     runtime: dict[str, Any] = None  # type: ignore[assignment]
     input_contract: dict[str, Any] | None = None
     interaction_contract: dict[str, Any] | None = None
+    task_contract: dict[str, Any] | None = None
+    project_context_contract: dict[str, Any] | None = None
+    target_project_access: dict[str, Any] | None = None
     output_contract: dict[str, Any] | None = None
     source: str | None = None
 
@@ -68,11 +77,20 @@ class AgentManifest:
             raise ManifestValidationError("runtime must be an object.")
         input_contract = data.get("input_contract")
         interaction_contract = data.get("interaction_contract")
+        task_contract = data.get("task_contract")
+        project_context_contract = data.get("project_context_contract")
+        target_project_access = data.get("target_project_access")
         output_contract = data.get("output_contract")
         if input_contract is not None and not isinstance(input_contract, dict):
             raise ManifestValidationError("input_contract must be an object when present.")
         if interaction_contract is not None and not isinstance(interaction_contract, dict):
             raise ManifestValidationError("interaction_contract must be an object when present.")
+        if task_contract is not None and not isinstance(task_contract, dict):
+            raise ManifestValidationError("task_contract must be an object when present.")
+        if project_context_contract is not None and not isinstance(project_context_contract, dict):
+            raise ManifestValidationError("project_context_contract must be an object when present.")
+        if target_project_access is not None and not isinstance(target_project_access, dict):
+            raise ManifestValidationError("target_project_access must be an object when present.")
         if output_contract is not None and not isinstance(output_contract, dict):
             raise ManifestValidationError("output_contract must be an object when present.")
 
@@ -86,6 +104,23 @@ class AgentManifest:
             normalized_interaction_contract = (
                 SpecialistInteractionContract.model_validate(interaction_contract).model_dump()
                 if interaction_contract is not None
+                else None
+            )
+            normalized_task_contract = (
+                AgentTaskContract.model_validate(task_contract).model_dump(exclude_none=True)
+                if task_contract is not None
+                else None
+            )
+            normalized_project_context_contract = (
+                ProjectContextContract.model_validate(project_context_contract).model_dump()
+                if project_context_contract is not None
+                else None
+            )
+            normalized_target_project_access = (
+                AgentTargetProjectAccess.model_validate(target_project_access).model_dump(
+                    exclude_none=True
+                )
+                if target_project_access is not None
                 else None
             )
             normalized_output_contract = normalize_output_contract(
@@ -107,6 +142,9 @@ class AgentManifest:
             runtime=normalized_runtime,
             input_contract=normalized_input_contract,
             interaction_contract=normalized_interaction_contract,
+            task_contract=normalized_task_contract,
+            project_context_contract=normalized_project_context_contract,
+            target_project_access=normalized_target_project_access,
             output_contract=normalized_output_contract,
             source=str(source) if source is not None else None,
         )

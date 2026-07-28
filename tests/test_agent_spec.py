@@ -216,6 +216,107 @@ def test_agent_package_spec_defaults_project_context_contract() -> None:
 
     assert spec.project_context_contract.required is False
     assert spec.project_context_contract.supported_schema_versions == [1]
+    assert spec.task_contract.task_kinds == []
+    assert spec.target_project_access.authorization_modes == []
+
+
+def test_agent_package_spec_accepts_task_contract() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "task-agent",
+            "name": "Task Agent",
+            "purpose": "Primary responsibility: Perform task-oriented work.\nSelect for: Requests that require multiple bounded task kinds.\nDo not select for: Requests unrelated to task-oriented work.",
+            "aliases": ["task"],
+            "task_contract": {
+                "task_kinds": ["coding_task", "project_creation"],
+                "default_task_kind": "coding_task",
+            },
+        }
+    )
+
+    assert spec.task_contract.task_kinds == ["coding_task", "project_creation"]
+    assert spec.task_contract.default_task_kind == "coding_task"
+
+
+def test_agent_package_spec_rejects_task_contract_default_not_in_task_kinds() -> None:
+    with pytest.raises(ValidationError, match="default_task_kind must be included"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "task-agent",
+                "name": "Task Agent",
+                "purpose": "Primary responsibility: Perform task-oriented work.\nSelect for: Requests that require multiple bounded task kinds.\nDo not select for: Requests unrelated to task-oriented work.",
+                "aliases": ["task"],
+                "task_contract": {
+                    "task_kinds": ["coding_task"],
+                    "default_task_kind": "project_creation",
+                },
+            }
+        )
+
+
+def test_agent_package_spec_accepts_target_project_access_contract() -> None:
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "project-agent",
+            "name": "Project Agent",
+            "purpose": "Primary responsibility: Perform authorised project work.\nSelect for: Requests that require an explicit target project contract.\nDo not select for: Requests unrelated to authorised project work.",
+            "aliases": ["project"],
+            "input_contract": {"accepted_context": ["project_root"]},
+            "target_project_access": {
+                "requires_explicit_project_root": True,
+                "authorization_modes": [
+                    "registered_target",
+                    "unregistered_with_approval",
+                ],
+                "registry_source": "settings.project_registry",
+                "allows_target_creation": True,
+                "creation_scope": "registered_parent",
+                "fail_closed_when": [
+                    "platform_unavailable",
+                    "credentials_unavailable",
+                    "location_unavailable",
+                ],
+            },
+        }
+    )
+
+    assert spec.target_project_access.requires_explicit_project_root is True
+    assert spec.target_project_access.creation_scope == "registered_parent"
+
+
+def test_agent_package_spec_rejects_target_project_access_without_project_root_context() -> None:
+    with pytest.raises(ValidationError, match="requires 'project_root' in input_contract.accepted_context"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "project-agent",
+                "name": "Project Agent",
+                "purpose": "Primary responsibility: Perform authorised project work.\nSelect for: Requests that require an explicit target project contract.\nDo not select for: Requests unrelated to authorised project work.",
+                "aliases": ["project"],
+                "input_contract": {"accepted_context": ["references"]},
+                "target_project_access": {
+                    "requires_explicit_project_root": True,
+                    "authorization_modes": ["registered_target"],
+                    "registry_source": "settings.project_registry",
+                },
+            }
+        )
+
+
+def test_agent_package_spec_rejects_target_creation_without_scope() -> None:
+    with pytest.raises(ValidationError, match="requires a non-'none' creation_scope"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "project-agent",
+                "name": "Project Agent",
+                "purpose": "Primary responsibility: Perform authorised project work.\nSelect for: Requests that require an explicit target project contract.\nDo not select for: Requests unrelated to authorised project work.",
+                "aliases": ["project"],
+                "input_contract": {"accepted_context": ["project_root"]},
+                "target_project_access": {
+                    "requires_explicit_project_root": True,
+                    "allows_target_creation": True,
+                },
+            }
+        )
 
 
 def test_agent_package_spec_requires_project_root_in_required_context_when_project_context_required() -> None:

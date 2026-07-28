@@ -57,10 +57,33 @@
       "enforced_filesystem_permission": "write"
     }
   },
+  "project_context_contract": {
+    "supported_schema_versions": [
+      1
+    ],
+    "required": false,
+    "capabilities": [
+      "read",
+      "write"
+    ],
+    "enforced_filesystem_permission": "write"
+  },
+  "task_contract": {
+    "task_kinds": [
+      "coding_task",
+      "backlog_refinement"
+    ],
+    "default_task_kind": "coding_task"
+  },
   "target_project_access": {
-    "registry_source": "ai-tech-lead settings.project_registry",
     "requires_explicit_project_root": true,
-    "unregistered_requires_explicit_approval": true,
+    "authorization_modes": [
+      "registered_target",
+      "unregistered_with_approval"
+    ],
+    "registry_source": "settings.project_registry",
+    "allows_target_creation": false,
+    "creation_scope": "none",
     "fail_closed_when": [
       "platform_unavailable",
       "credentials_unavailable",

@@ -45,7 +45,9 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts, including which context fields it reads (`accepted_context`) and cannot function without (`required_context`) — see "Universal Agent Hub task boundary" below |
 | `interaction_contract` | No | Declares lifecycle support: `progress`, `clarification`, `approval`, `resume`, `cancellation` |
+| `task_contract` | No | Declares bounded task kinds the specialist accepts, plus an optional default task kind |
 | `project_context_contract` | No | Declares this specialist's project-context participation: `supported_schema_versions`, `required`, `capabilities` (`read`/`write`), `enforced_filesystem_permission` — see "Project-context contract" below |
+| `target_project_access` | No | Declares how a specialist authorizes explicit `project_root` targets and whether it may create new target roots — see "Target-project access contract" below |
 
 ## Manifest schema version
 
@@ -130,6 +132,26 @@ The protocol requires only `task`. Request/run identity, source, execution mode,
 
 Existing agents without these declarations remain readable during migration. New staged packages include the declarations and `specialist_contract.py` by default.
 
+## Task contract
+
+`task_contract` is for bounded, specialist-declared task kinds. It is how a specialist says "I accept `coding_task` and `backlog_refinement`" or "I also support `project_creation`" without Agent Hub branching on agent ID.
+
+```json
+{
+  "task_contract": {
+    "task_kinds": ["coding_task", "project_creation"],
+    "default_task_kind": "coding_task"
+  }
+}
+```
+
+Rules:
+
+- `task_kinds` entries must be unique lowercase snake_case identifiers
+- `default_task_kind`, when present, must also appear in `task_kinds`
+- An omitted or empty `task_contract` means the specialist has not declared bounded task kinds in the manifest
+- Agent Hub may read this contract generically, but the specialist still owns validating the incoming task at runtime
+
 ### True clarification resume (`interaction_contract.resume`)
 
 A specialist that declares `interaction_contract.resume = true` may return an
@@ -204,6 +226,41 @@ Every generated specialist's boundary adapter fails closed on drift rather than 
 After writing a staged package's files, Factory independently re-reads `agent.json` and `specialist_contract.py` from disk (`verify_project_context_consistency`) and fails staging if the generated adapter's `PROJECT_ROOT_REQUIRED` constant disagrees with the manifest's `project_context_contract.required` — catching a template-rendering bug instead of trusting that writing the files correctly is the same as generating them correctly.
 
 `permissions.allowed_roots` (seen today as a hand-added field on `ai-tech-lead`'s enabled manifest, predating this contract) is the kind of ungoverned, per-specialist field this contract is meant to replace. Migrating it is out of scope here: it is a live enabled agent, and any cutover is downstream of whatever Agent Hub and AI Tech Lead decide under `AGENT-HUB-039`/`ATL-072`, not something Factory does unilaterally.
+
+## Target-project access contract
+
+`project_context_contract` says whether a specialist can read or write a target project. `target_project_access` says how that target is authorized, and whether creating a new target root is part of the specialist's declared contract.
+
+```json
+{
+  "target_project_access": {
+    "requires_explicit_project_root": true,
+    "authorization_modes": [
+      "registered_target",
+      "unregistered_with_approval"
+    ],
+    "registry_source": "settings.project_registry",
+    "allows_target_creation": true,
+    "creation_scope": "registered_parent",
+    "fail_closed_when": [
+      "platform_unavailable",
+      "credentials_unavailable",
+      "location_unavailable"
+    ]
+  }
+}
+```
+
+Rules:
+
+- `requires_explicit_project_root=true` means the specialist expects the caller to supply the target root explicitly rather than silently choosing one
+- `authorization_modes` declares how a supplied root becomes authorized; Factory currently standardizes `registered_target` and `unregistered_with_approval`
+- `registry_source` is required when `authorization_modes` includes `registered_target`
+- `allows_target_creation=true` means this specialist may create a new target root; `creation_scope` must then be non-`none`
+- `creation_scope` currently standardizes `registered_parent` for specialists that may create new roots only under an authorized parent location
+- `fail_closed_when` lists the conditions under which the specialist must stop rather than guess or silently continue
+
+This contract is generic. It is not AI Tech Lead-specific, and future Factory-created specialists may declare different task kinds, authorization modes, and creation scopes as long as they stay within the validated schema.
 
 ### Generic paused decisions (`pending_decision` / `decision`)
 

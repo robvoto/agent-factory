@@ -38,8 +38,9 @@ Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fie
 | `id`, `name`, `purpose` | Factory | Agent Hub routing |
 | `aliases` | Factory | Human-facing command shortcuts (not Agent Hub routing) |
 | `runtime` | Factory | Agent Hub invocation |
-| `input_contract`, `interaction_contract` | Factory | Agent Hub universal dispatch/capability discovery |
+| `input_contract`, `interaction_contract`, `task_contract` | Factory | Agent Hub universal dispatch/capability discovery |
 | `extensions` (e.g. a backlog pointer) | Factory | Specialist's own tooling — Agent Hub does not interpret it |
+| `target_project_access` | Factory | Generic explicit-target authorization and creation contract for project-root specialists |
 
 ## Current boundary
 

@@ -130,8 +130,16 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None
     assert manifest["manifest_schema_version"] == 1
+    assert manifest["task_contract"] == {"task_kinds": []}
     assert manifest["project_context_contract"]["required"] is False
     assert manifest["project_context_contract"]["supported_schema_versions"] == [1]
+    assert manifest["target_project_access"] == {
+        "requires_explicit_project_root": False,
+        "authorization_modes": [],
+        "allows_target_creation": False,
+        "creation_scope": "none",
+        "fail_closed_when": [],
+    }
 
     specialist_contract = (pkg / "specialist_contract.py").read_text(encoding="utf-8")
     assert "PROJECT_ROOT_REQUIRED = False" in specialist_contract
@@ -206,6 +214,51 @@ def test_create_staged_agent_package_writes_extensions_verbatim(tmp_path, monkey
         (staging / "test-agent" / "agent.json").read_text(encoding="utf-8")
     )
     assert manifest["backlog_sheet_id"] == "some-sheet-id"
+
+
+def test_create_staged_agent_package_writes_task_and_target_contracts(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "test.sqlite3"
+
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    import agent_factory.storage as storage_mod
+    monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {
+            "spec_json": _spec_json(
+                input_contract={"accepted_context": ["project_root"]},
+                task_contract={
+                    "task_kinds": ["coding_task", "project_creation"],
+                    "default_task_kind": "coding_task",
+                },
+                target_project_access={
+                    "requires_explicit_project_root": True,
+                    "authorization_modes": ["registered_target"],
+                    "registry_source": "settings.project_registry",
+                    "allows_target_creation": True,
+                    "creation_scope": "registered_parent",
+                    "fail_closed_when": [
+                        "platform_unavailable",
+                        "credentials_unavailable",
+                        "location_unavailable",
+                    ],
+                },
+            )
+        }
+    )
+
+    assert "test-agent" in result
+    manifest = json.loads(
+        (staging / "test-agent" / "agent.json").read_text(encoding="utf-8")
+    )
+    assert manifest["task_contract"]["task_kinds"] == ["coding_task", "project_creation"]
+    assert manifest["target_project_access"]["creation_scope"] == "registered_parent"
 
 
 def test_create_staged_agent_package_invalid_json(tmp_path, monkeypatch):

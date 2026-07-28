@@ -64,6 +64,8 @@ def test_build_factory_manifest_enabled_agent_fields() -> None:
         assert "name" in agent
         assert "purpose" in agent
         assert "aliases" in agent
+        assert "task_contract" in agent
+        assert "target_project_access" in agent
 
 
 def test_manifest_hash_excludes_live_registry() -> None:

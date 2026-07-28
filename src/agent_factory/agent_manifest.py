@@ -52,6 +52,9 @@ def _load_enabled_agents() -> list[dict[str, Any]]:
                 "backlog_sheet_id": spec.get("backlog_sheet_id"),
                 "input_contract": spec.get("input_contract"),
                 "interaction_contract": spec.get("interaction_contract"),
+                "task_contract": spec.get("task_contract"),
+                "project_context_contract": spec.get("project_context_contract"),
+                "target_project_access": spec.get("target_project_access"),
             })
         except Exception:
             logger.warning("Could not read agent spec: %s", spec_file)

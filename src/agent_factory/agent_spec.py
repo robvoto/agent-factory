@@ -19,6 +19,7 @@ from .specialist_contract import (
 )
 
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+TASK_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
 AGENT_MANIFEST_SCHEMA_VERSION = 1
 SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS = {1}
@@ -195,6 +196,123 @@ class AgentOutputContract(BaseModel):
         return self
 
 
+class AgentTaskContract(BaseModel):
+    task_kinds: list[str] = Field(default_factory=list)
+    default_task_kind: str | None = None
+
+    @field_validator("task_kinds")
+    @classmethod
+    def validate_task_kinds(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("task_contract.task_kinds must contain non-empty strings.")
+            normalized_value = value.strip()
+            if not TASK_KIND_PATTERN.match(normalized_value):
+                raise ValueError(
+                    "task_contract.task_kinds must use lowercase snake_case identifiers."
+                )
+            normalized.append(normalized_value)
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("task_contract.task_kinds must not contain duplicates.")
+        return normalized
+
+    @field_validator("default_task_kind")
+    @classmethod
+    def validate_default_task_kind(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized_value = value.strip()
+        if not normalized_value:
+            raise ValueError("task_contract.default_task_kind must be a non-empty string.")
+        if not TASK_KIND_PATTERN.match(normalized_value):
+            raise ValueError(
+                "task_contract.default_task_kind must use a lowercase snake_case identifier."
+            )
+        return normalized_value
+
+    @model_validator(mode="after")
+    def validate_default_in_task_kinds(self) -> "AgentTaskContract":
+        if self.default_task_kind is not None and self.default_task_kind not in self.task_kinds:
+            raise ValueError(
+                "task_contract.default_task_kind must be included in task_contract.task_kinds."
+            )
+        return self
+
+
+class AgentTargetProjectAccess(BaseModel):
+    requires_explicit_project_root: bool = False
+    authorization_modes: list[Literal["registered_target", "unregistered_with_approval"]] = (
+        Field(default_factory=list)
+    )
+    registry_source: str | None = None
+    allows_target_creation: bool = False
+    creation_scope: Literal["none", "registered_parent"] = "none"
+    fail_closed_when: list[str] = Field(default_factory=list)
+
+    @field_validator("authorization_modes")
+    @classmethod
+    def validate_authorization_modes(
+        cls,
+        values: list[Literal["registered_target", "unregistered_with_approval"]],
+    ) -> list[Literal["registered_target", "unregistered_with_approval"]]:
+        if len(set(values)) != len(values):
+            raise ValueError("target_project_access.authorization_modes must not contain duplicates.")
+        return values
+
+    @field_validator("registry_source")
+    @classmethod
+    def validate_registry_source(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized_value = value.strip()
+        if not normalized_value:
+            raise ValueError("target_project_access.registry_source must be a non-empty string.")
+        return normalized_value
+
+    @field_validator("fail_closed_when")
+    @classmethod
+    def validate_fail_closed_when(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    "target_project_access.fail_closed_when must contain non-empty strings."
+                )
+            normalized.append(value.strip())
+        if len(set(normalized)) != len(normalized):
+            raise ValueError(
+                "target_project_access.fail_closed_when must not contain duplicates."
+            )
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_consistency(self) -> "AgentTargetProjectAccess":
+        if (
+            "registered_target" in self.authorization_modes
+            and self.registry_source is None
+        ):
+            raise ValueError(
+                "target_project_access.registry_source is required when "
+                "authorization_modes includes 'registered_target'."
+            )
+        if self.creation_scope != "none" and not self.allows_target_creation:
+            raise ValueError(
+                "target_project_access.creation_scope requires allows_target_creation=true."
+            )
+        if self.allows_target_creation and self.creation_scope == "none":
+            raise ValueError(
+                "target_project_access.allows_target_creation=true requires a non-'none' "
+                "creation_scope."
+            )
+        if self.authorization_modes and not self.requires_explicit_project_root:
+            raise ValueError(
+                "target_project_access.authorization_modes require "
+                "requires_explicit_project_root=true."
+            )
+        return self
+
+
 class McpServer(BaseModel):
     name: str
     description: str = ""
@@ -217,8 +335,12 @@ class AgentPackageSpec(BaseModel):
     interaction_contract: SpecialistInteractionContract = Field(
         default_factory=SpecialistInteractionContract
     )
+    task_contract: AgentTaskContract = Field(default_factory=AgentTaskContract)
     project_context_contract: ProjectContextContract = Field(
         default_factory=ProjectContextContract
+    )
+    target_project_access: AgentTargetProjectAccess = Field(
+        default_factory=AgentTargetProjectAccess
     )
     output_contract: AgentOutputContract | None = None
     risks: list[str] = []
@@ -242,7 +364,9 @@ class AgentPackageSpec(BaseModel):
             "runtime",
             "input_contract",
             "interaction_contract",
+            "task_contract",
             "project_context_contract",
+            "target_project_access",
             "output_contract",
         }
     )
@@ -332,6 +456,14 @@ class AgentPackageSpec(BaseModel):
                 "input_contract.required_context, so Hub's dispatch-side check "
                 "(accepted_context/required_context) and Factory's project-context "
                 "contract stay a single source of truth instead of drifting apart."
+            )
+        if (
+            self.target_project_access.requires_explicit_project_root
+            and "project_root" not in self.input_contract.accepted_context
+        ):
+            raise ValueError(
+                "target_project_access.requires_explicit_project_root=true requires "
+                "'project_root' in input_contract.accepted_context."
             )
         return self
 

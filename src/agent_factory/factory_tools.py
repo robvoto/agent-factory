@@ -99,6 +99,7 @@ def create_staged_agent_package(spec_json: str) -> str:
       runtime    - object: mode plus mode-specific invocation details
       input_contract - universal Hub task-envelope declaration
       interaction_contract - advertised progress/clarification/approval/resume/cancellation support
+      task_contract - optional declared task kinds and default task kind
       project_context_contract - Factory-side project-context participation: supported
                    schema versions, whether a target project is required,
                    consumed capabilities (read/write), and the enforced
@@ -106,6 +107,10 @@ def create_staged_agent_package(spec_json: str) -> str:
                    writing files, Factory independently re-reads agent.json
                    and specialist_contract.py from disk and fails staging if
                    they disagree.
+      target_project_access - optional target-project authorization and
+                   creation contract: explicit project_root requirement,
+                   authorization modes, registry source, whether creating new
+                   targets is allowed, creation scope, and fail-closed reasons
       output_contract - required for subprocess agents: staged status contract
       runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
@@ -183,7 +188,9 @@ def create_staged_agent_package(spec_json: str) -> str:
         "runtime": spec.runtime.model_dump(exclude_none=True),
         "input_contract": spec.input_contract.model_dump(),
         "interaction_contract": spec.interaction_contract.model_dump(),
+        "task_contract": spec.task_contract.model_dump(exclude_none=True),
         "project_context_contract": spec.project_context_contract.model_dump(),
+        "target_project_access": spec.target_project_access.model_dump(exclude_none=True),
         "output_contract": (
             spec.output_contract.model_dump(exclude_none=True)
             if spec.output_contract is not None

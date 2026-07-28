@@ -33,6 +33,72 @@
     "default_execution_mode": "execute",
     "notes": "ai-tech-lead's internal risk reviewer decides if human approval is needed. Agent Hub passes human_approved=true only after the human explicitly says yes via Telegram."
   },
+  "input_contract": {
+    "protocol": "agent-hub.task",
+    "protocol_version": 1,
+    "required_fields": [
+      "task"
+    ],
+    "optional_fields": [
+      "request_id",
+      "run_id",
+      "source",
+      "execution_mode",
+      "progress_jsonl",
+      "project_root",
+      "references",
+      "human_approved",
+      "approval_token",
+      "project_context"
+    ],
+    "accepted_context": [
+      "project_root"
+    ],
+    "project_context_contract": {
+      "supported_schema_versions": [
+        1
+      ],
+      "required": false,
+      "capabilities": [
+        "read",
+        "write"
+      ],
+      "enforced_filesystem_permission": "write"
+    }
+  },
+  "project_context_contract": {
+    "supported_schema_versions": [
+      1
+    ],
+    "required": false,
+    "capabilities": [
+      "read",
+      "write"
+    ],
+    "enforced_filesystem_permission": "write"
+  },
+  "task_contract": {
+    "task_kinds": [
+      "coding_task",
+      "backlog_refinement"
+    ],
+    "default_task_kind": "coding_task"
+  },
+  "target_project_access": {
+    "requires_explicit_project_root": true,
+    "authorization_modes": [
+      "registered_target",
+      "unregistered_with_approval"
+    ],
+    "registry_source": "settings.project_registry",
+    "allows_target_creation": false,
+    "creation_scope": "none",
+    "fail_closed_when": [
+      "platform_unavailable",
+      "credentials_unavailable",
+      "location_unavailable"
+    ]
+  },
   "output_contract": {
     "status_values": [
       "success",

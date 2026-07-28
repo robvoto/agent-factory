@@ -275,6 +275,9 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
     memory = spec.memory_policy.model_dump()
     input_contract = spec.input_contract.model_dump()
     interaction_contract = spec.interaction_contract.model_dump()
+    task_contract = spec.task_contract.model_dump(exclude_none=True)
+    project_context_contract = spec.project_context_contract.model_dump()
+    target_project_access = spec.target_project_access.model_dump(exclude_none=True)
     output_contract = (
         spec.output_contract.model_dump(exclude_none=True)
         if spec.output_contract is not None
@@ -292,6 +295,9 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
             "runtime": spec.runtime.model_dump(exclude_none=True),
             "input_contract": input_contract,
             "interaction_contract": interaction_contract,
+            "task_contract": task_contract,
+            "project_context_contract": project_context_contract,
+            "target_project_access": target_project_access,
             "output_contract": output_contract,
         }
     )
@@ -309,6 +315,13 @@ def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
         and lhs.runtime == rhs.runtime
         and _compatible_optional_contract(lhs.input_contract, rhs.input_contract)
         and _compatible_optional_contract(lhs.interaction_contract, rhs.interaction_contract)
+        and _compatible_optional_contract(lhs.task_contract, rhs.task_contract)
+        and _compatible_optional_contract(
+            lhs.project_context_contract, rhs.project_context_contract
+        )
+        and _compatible_optional_contract(
+            lhs.target_project_access, rhs.target_project_access
+        )
         and lhs.output_contract == rhs.output_contract
     )
 

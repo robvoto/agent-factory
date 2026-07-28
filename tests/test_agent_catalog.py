@@ -33,6 +33,22 @@ def _manifest() -> dict:
         "runtime": {
             "mode": "manual",
         },
+        "task_contract": {
+            "task_kinds": [],
+        },
+        "project_context_contract": {
+            "supported_schema_versions": [1],
+            "required": False,
+            "capabilities": [],
+            "enforced_filesystem_permission": "none",
+        },
+        "target_project_access": {
+            "requires_explicit_project_root": False,
+            "authorization_modes": [],
+            "allows_target_creation": False,
+            "creation_scope": "none",
+            "fail_closed_when": [],
+        },
         "output_contract": None,
     }
 
@@ -138,6 +154,54 @@ def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):
                 "default_execution_mode": "instruction_only",
             },
             "output_contract": manifest["output_contract"],
+        }
+    )
+
+    with pytest.raises(AgentCatalogConflictError):
+        plan_package_reuse(spec, enabled_dir=enabled, staging_dir=tmp_path / "staging")
+
+
+def test_plan_package_reuse_detects_target_project_access_mismatch(tmp_path):
+    enabled = tmp_path / "config" / "agents"
+    enabled.mkdir(parents=True)
+    manifest = _manifest()
+    manifest["input_contract"] = {
+        "accepted_context": ["project_root"],
+        "required_context": [],
+    }
+    manifest["task_contract"] = {
+        "task_kinds": ["coding_task"],
+        "default_task_kind": "coding_task",
+    }
+    manifest["target_project_access"] = {
+        "requires_explicit_project_root": True,
+        "authorization_modes": ["registered_target"],
+        "registry_source": "settings.project_registry",
+        "allows_target_creation": False,
+        "creation_scope": "none",
+        "fail_closed_when": ["location_unavailable"],
+    }
+    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    spec = AgentPackageSpec.model_validate(
+        {
+            "id": "alpha-agent",
+            "name": "Alpha Agent",
+            "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
+            "aliases": ["alpha"],
+            "input_contract": {"accepted_context": ["project_root"]},
+            "task_contract": {
+                "task_kinds": ["coding_task"],
+                "default_task_kind": "coding_task",
+            },
+            "target_project_access": {
+                "requires_explicit_project_root": True,
+                "authorization_modes": ["registered_target", "unregistered_with_approval"],
+                "registry_source": "settings.project_registry",
+                "allows_target_creation": False,
+                "creation_scope": "none",
+                "fail_closed_when": ["location_unavailable"],
+            },
         }
     )
 
