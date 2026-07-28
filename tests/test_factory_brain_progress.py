@@ -19,8 +19,10 @@ class _FakeAgent:
     def __init__(self, *, interrupted: bool = False, error: BaseException | None = None) -> None:
         self._interrupted = interrupted
         self._error = error
+        self.received_inputs: list[Any] = []
 
     def stream(self, _input_value: Any, *, config: dict[str, Any], stream_mode: list[str]):
+        self.received_inputs.append(_input_value)
         assert config["configurable"]["thread_id"] == "thread-1"
         assert stream_mode == ["updates", "values"]
         if self._error is not None:
@@ -35,6 +37,11 @@ class _FakeAgent:
         return SimpleNamespace(
             next=("approval",) if self._interrupted else (),
             values={"messages": [SimpleNamespace(content="Factory response")]},
+            interrupts=(
+                SimpleNamespace(
+                    value={"action_requests": [{"name": "request_approval", "args": {}}]}
+                ),
+            ),
         )
 
     def update_state(self, _config: dict[str, Any], _values: dict[str, Any]) -> None:
@@ -145,6 +152,60 @@ def test_factory_brain_emits_cancellation(monkeypatch) -> None:
         )
 
     assert _events(stream)[-1]["phase"] == "cancelled"
+
+
+def test_factory_brain_resume_and_reject_verify_api_key_before_running(monkeypatch) -> None:
+    """resume/reject spawn as a fresh subprocess per dispatch (see AGENT-HUB-007's
+    live smoke test) with no guarantee OPENAI_API_KEY is already in the environment —
+    they must check for it (and load .env if needed) exactly like invoke does, not
+    just assume _get_agent will somehow have credentials."""
+    stream = io.StringIO()
+    calls: list[str] = []
+    monkeypatch.setattr(
+        factory_brain, "_check_api_key", lambda: calls.append("checked")
+    )
+    monkeypatch.setattr(factory_brain, "_get_agent", lambda _model: _FakeAgent())
+    monkeypatch.setattr(factory_brain, "_record_llm_run", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.resolve_model", lambda *_a, **_k: "test:model"
+    )
+
+    factory_brain.resume_factory_brain("thread-1", progress_reporter=_reporter(stream))
+    assert calls == ["checked"]
+
+    calls.clear()
+    factory_brain.reject_factory_brain(
+        "thread-1", reason="no", progress_reporter=_reporter(stream)
+    )
+    assert calls == ["checked"]
+
+
+def test_factory_brain_resume_and_reject_send_a_real_hitl_decision(monkeypatch) -> None:
+    """The pending interrupt() call in langchain's HumanInTheLoopMiddleware only
+    unblocks on Command(resume={"decisions": [...]}) — resuming with plain None
+    (the previous behavior) never actually communicates approve/reject, so the
+    agent just re-hits the same interrupt. This proves the real payload shape,
+    with one decision per pending action_request, reaches agent.stream()."""
+    from langgraph.types import Command
+
+    stream = io.StringIO()
+    resume_agent = _FakeAgent()
+    _prepare(monkeypatch, resume_agent)
+    factory_brain.resume_factory_brain("thread-1", progress_reporter=_reporter(stream))
+
+    sent = resume_agent.received_inputs[-1]
+    assert isinstance(sent, Command)
+    assert sent.resume == {"decisions": [{"type": "approve"}]}
+
+    reject_agent = _FakeAgent()
+    _prepare(monkeypatch, reject_agent)
+    factory_brain.reject_factory_brain(
+        "thread-1", reason="Do not create it", progress_reporter=_reporter(stream)
+    )
+
+    sent = reject_agent.received_inputs[-1]
+    assert isinstance(sent, Command)
+    assert sent.resume == {"decisions": [{"type": "reject", "message": "Do not create it"}]}
 
 
 def test_factory_brain_resume_emits_approval_and_completion(monkeypatch) -> None:

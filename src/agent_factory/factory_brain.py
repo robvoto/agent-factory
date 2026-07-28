@@ -14,6 +14,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from langgraph.types import Command
+
 from .progress_events import ProgressReporter, run_agent_with_progress
 
 _PROJECT_ROOT = Path(__file__).parents[2]
@@ -154,9 +156,7 @@ def invoke_factory_brain(
     started_at = time.perf_counter()
 
     try:
-        if not os.environ.get("OPENAI_API_KEY"):
-            _try_load_dotenv()
-        _check_api_key()
+        _ensure_openai_credentials()
 
         import uuid
         from langchain_core.callbacks import UsageMetadataCallbackHandler
@@ -249,6 +249,8 @@ def resume_factory_brain(
     started_at = time.perf_counter()
 
     try:
+        _ensure_openai_credentials()
+
         from langchain_core.callbacks import UsageMetadataCallbackHandler
         from .factory_settings import resolve_model
 
@@ -269,9 +271,10 @@ def resume_factory_brain(
     reporter.phase("approval", "Factory Brain is applying the approved action.")
     try:
         with reporter.heartbeat_scope():
+            decision_count = _pending_decision_count(agent, config)
             result = run_agent_with_progress(
                 agent,
-                None,
+                Command(resume={"decisions": [{"type": "approve"}] * decision_count}),
                 config=run_config,
                 reporter=reporter,
             )
@@ -333,8 +336,9 @@ def reject_factory_brain(
     started_at = time.perf_counter()
 
     try:
+        _ensure_openai_credentials()
+
         from langchain_core.callbacks import UsageMetadataCallbackHandler
-        from langchain_core.messages import HumanMessage
         from .factory_settings import resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
@@ -342,10 +346,6 @@ def reject_factory_brain(
         config = {"configurable": {"thread_id": thread_id}}
         usage_cb = UsageMetadataCallbackHandler()
         run_config = {**config, "callbacks": [usage_cb]}
-        agent.update_state(
-            config,
-            {"messages": [HumanMessage(content=f"Rejected: {reason}")]},
-        )
     except (KeyboardInterrupt, SystemExit):
         reporter.cancelled()
         raise
@@ -358,9 +358,14 @@ def reject_factory_brain(
     reporter.phase("approval", "Factory Brain is applying the rejection safely.")
     try:
         with reporter.heartbeat_scope():
+            decision_count = _pending_decision_count(agent, config)
             result = run_agent_with_progress(
                 agent,
-                None,
+                Command(
+                    resume={
+                        "decisions": [{"type": "reject", "message": reason}] * decision_count
+                    }
+                ),
                 config=run_config,
                 reporter=reporter,
             )
@@ -447,6 +452,25 @@ def _is_interrupted(agent: Any, config: dict) -> bool:
         raise RuntimeError("Unable to inspect Factory Brain interrupt state.") from exc
 
 
+def _pending_decision_count(agent: Any, config: dict) -> int:
+    """Count how many approval decisions HumanInTheLoopMiddleware is waiting for.
+
+    `interrupt(hitl_request)["decisions"]` (see langchain's human_in_the_loop
+    middleware) requires exactly one decision per pending `action_requests`
+    entry, or it raises a mismatch error. Factory Brain only ever gates one
+    tool (`request_approval`), so this is normally 1, but it's read from the
+    actual pending interrupt rather than assumed.
+    """
+    state = agent.get_state(config)
+    total = sum(
+        len(pending.value["action_requests"])
+        for pending in state.interrupts
+        if isinstance(pending.value, dict)
+        and isinstance(pending.value.get("action_requests"), list)
+    )
+    return total or 1
+
+
 def _extract_response(result: Any) -> str:
     if result is None:
         return "Factory Brain returned no response."
@@ -481,6 +505,19 @@ def _ensure_dependencies() -> None:
             "Factory Brain dependencies are not installed. "
             "Run: uv sync --extra langchain"
         ) from exc
+
+
+def _ensure_openai_credentials() -> None:
+    """Load .env if needed and fail clearly if OPENAI_API_KEY is still missing.
+
+    Each invoke/resume/reject call runs as its own fresh subprocess (see
+    AGENT-HUB-007's live smoke test), so none of them can assume the parent
+    process's environment already has the key — every entry point that
+    creates the agent must check this itself.
+    """
+    if not os.environ.get("OPENAI_API_KEY"):
+        _try_load_dotenv()
+    _check_api_key()
 
 
 def _check_api_key() -> None:
