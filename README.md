@@ -97,7 +97,7 @@ uv run agent-factory doctor
 uv run pytest
 ```
 
-Common operational commands are documented with the relevant lifecycle and runtime guidance rather than duplicated here.
+Use [`docs/COMMANDS.md`](docs/COMMANDS.md) for the canonical operational command reference.
 
 ## Architecture principles
 
@@ -110,17 +110,13 @@ Common operational commands are documented with the relevant lifecycle and runti
 
 ## Documentation
 
-- [`docs/platform-architecture.md`](docs/platform-architecture.md)
-- [`docs/agent-lifecycle.md`](docs/agent-lifecycle.md)
-- [`docs/agent-creator-workflow.md`](docs/agent-creator-workflow.md)
-- [`docs/agent-contract.md`](docs/agent-contract.md)
-- [`docs/permission-model.md`](docs/permission-model.md)
+Start with [`docs/INDEX.md`](docs/INDEX.md), the single documentation entry point.
 
 The active backlog is maintained outside the repository as an operational source of truth. Repository documentation should describe stable behaviour and architecture rather than duplicate mutable backlog rows.
 
 ## Security
 
-See [`SECURITY.md`](SECURITY.md) for generated-package, credential, permission, approval, and promotion boundaries.
+Security guidance is indexed through [`docs/INDEX.md`](docs/INDEX.md) and maintained in [`SECURITY.md`](SECURITY.md).
 
 ## Licence
 
