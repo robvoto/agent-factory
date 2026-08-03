@@ -1,98 +1,127 @@
 # Agent Factory
 
-Creates, configures, and stages AI agent packages. Does **not** orchestrate or dispatch tasks.
+Agent Factory is the lifecycle service for creating, validating, staging, approving, and promoting specialist agent packages in a local multi-agent platform.
 
-## Role
+It prepares agents for use. It does **not** orchestrate user work or dispatch tasks to specialists.
 
-Agent Factory is a **specialist agent** in the platform. Its job is:
+## Platform role
 
-- Design and stage agent packages on request
-- Validate manifests, tools, permissions, and memory policy
-- Enable agents only after human approval
-- Track the agent lifecycle (staged → approved → enabled)
+```text
+Human request
+      │
+      ▼
+  Agent Hub
+      │
+      ▼
+Agent Factory
+      │
+      ├── validate specification, tools, permissions, and memory policy
+      ├── stage an agent package
+      └── request human approval
+              │
+              ▼
+       Enabled agent registry
+```
 
-**Agent Hub (`agent-hub`) is the orchestrator and entry point for users.**
-Factory is called by Agent Hub when an agent-creation task is requested.
+## Responsibilities
 
-## Related repos
+- create deterministic agent-package drafts;
+- optionally use the Factory Brain to prepare an LLM-assisted draft;
+- validate manifests, tools, permissions, contracts, and memory policy;
+- keep unapproved packages in staging;
+- record approval and rejection decisions;
+- promote approved packages into the enabled registry;
+- expose a machine-readable catalogue and handshake for Agent Hub;
+- preserve an inspectable agent lifecycle.
 
-| Repo | Role |
-|------|------|
-| `agent-hub` | Orchestrator / runtime / control plane — **main entry point** |
-| `agent-factory` (this repo) | Creates, configures, and stages agents only |
-| `ai-tech-lead` | Specialist coding agent |
+## Repository boundaries
 
-## Agent registry
+| Repository | Responsibility |
+|---|---|
+| `agent-hub` | Orchestration, routing, task state, approvals, and operator interaction |
+| `agent-factory` | Agent creation, validation, staging, approval, and promotion |
+| `ai-tech-lead-agent` | Technical planning and bounded coding-agent coordination |
 
-Enabled agents live in `config/agents/<id>/agent.json`. Agent Hub reads from here.
+Agent Factory must not become a second orchestrator. Enabled specialists are discovered and invoked by Agent Hub.
 
-Staged (unapproved) drafts live in `staging/agents/`.
+## Agent lifecycle
 
-## Quick start
+```text
+Draft
+  ▼
+Validated
+  ▼
+Staged
+  ▼
+Pending approval
+  ├── Rejected
+  └── Approved
+         ▼
+      Promoted
+         ▼
+      Enabled
+```
+
+An LLM-generated draft is not trusted merely because it was generated successfully. Validation and explicit approval remain mandatory.
+
+## Current capabilities
+
+- deterministic package creation;
+- LLM-assisted Factory Brain workflow;
+- Pydantic specification validation;
+- staged and enabled agent catalogues;
+- approval, rejection, promotion, and deletion flows;
+- bounded factory tools;
+- SQLite lifecycle persistence;
+- CLI and Telegram administration interfaces;
+- setup, health, manifest, and test commands.
+
+## Repository structure
+
+```text
+.
+├── src/agent_factory/          # Factory services, validation, tools, and interfaces
+├── templates/agent-package/    # Canonical package template
+├── staging/agents/             # Unapproved agent drafts
+├── config/agents/              # Enabled agent registry
+├── docs/                       # Contracts, lifecycle, permissions, and architecture
+└── tests/                      # Automated validation and behaviour tests
+```
+
+## Local development
 
 ```bash
-cd ~/projects/agent-factory
 uv sync --all-extras
 uv run agent-factory setup
 uv run agent-factory doctor
 uv run pytest
-uv run agent-factory list
 ```
 
-## Factory Brain
+Common operational commands are documented with the relevant lifecycle and runtime guidance rather than duplicated here.
 
-The Factory Brain is a LangGraph deep agent that designs and stages agent packages.
-It requires `OPENAI_API_KEY` in `.env` and the `langchain` optional dependency set, which includes SQLite checkpoint support. `uv run agent-factory doctor` verifies that runtime before Factory Brain is invoked.
+## Architecture principles
 
-```bash
-uv run agent-factory factory "Create an agent that researches LangChain docs safely"
-```
+- **Stage before enablement** — generated packages cannot enter the active registry directly.
+- **Human approval** — promotion requires an explicit decision.
+- **Bounded tools** — factory actions operate only within defined staging and registry scopes.
+- **Explicit permissions** — agent access is declared and validated rather than inferred.
+- **Inspectable contracts** — manifests and interaction boundaries remain machine-readable and reviewable.
+- **Separation of concerns** — creation belongs here; orchestration belongs to Agent Hub.
 
-## Telegram (factory admin bot)
+## Documentation
 
-```bash
-uv run agent-factory telegram
-```
+- [`docs/platform-architecture.md`](docs/platform-architecture.md)
+- [`docs/agent-lifecycle.md`](docs/agent-lifecycle.md)
+- [`docs/agent-creator-workflow.md`](docs/agent-creator-workflow.md)
+- [`docs/agent-contract.md`](docs/agent-contract.md)
+- [`docs/permission-model.md`](docs/permission-model.md)
 
-Factory's Telegram bot handles factory admin commands only:
-`/staged`, `/pending`, `/approve`, `/reject`, `/create`, `/promote`, `/delete`.
+The active backlog is maintained outside the repository as an operational source of truth. Repository documentation should describe stable behaviour and architecture rather than duplicate mutable backlog rows.
 
-This is **not** the main user bot — that is Agent Hub's Telegram gateway.
+## Security
 
-## Key commands
+See [`SECURITY.md`](SECURITY.md) for generated-package, credential, permission, approval, and promotion boundaries.
 
-```bash
-uv run agent-factory list          # list enabled agents
-uv run agent-factory manifest      # print compact machine-readable factory handshake
-uv run agent-factory staged        # list staged drafts
-uv run agent-factory pending       # list pending approvals
-uv run agent-factory create "..."  # create staged draft (deterministic, no LLM)
-uv run agent-factory factory "..." # invoke Factory Brain (LLM)
-uv run agent-factory approve <id>  # approve a pending action
-uv run agent-factory reject <id>   # reject a pending action
-uv run agent-factory promote <id>  # request promotion to config/agents
-```
+## Licence
 
-## Key files
-
-- `src/agent_factory/factory_brain.py` — Factory Brain agent
-- `src/agent_factory/factory_tools.py` — bounded tools (create, promote, approve)
-- `src/agent_factory/agent_spec.py` — Pydantic spec validation
-- `src/agent_factory/agent_catalog.py` — staged + enabled inventory
-- `src/agent_factory/telegram_gateway.py` — factory admin Telegram bot
-- `src/agent_factory/storage.py` — SQLite persistence
-- `templates/agent-package/` — agent package template
-- `staging/agents/` — staged (unapproved) drafts
-- `config/agents/` — enabled agents (read by Agent Hub)
-
-## Backlog
-
-https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit
-
-## Key docs
-
-- `docs/agent-lifecycle.md`
-- `docs/agent-creator-workflow.md`
-- `docs/agent-contract.md`
-- `docs/permission-model.md`
-- `docs/platform-architecture.md`
+This private repository does not grant an open-source licence. A licence should be selected deliberately before any public source release.
