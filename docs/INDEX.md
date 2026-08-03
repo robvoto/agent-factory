@@ -4,7 +4,12 @@ Read only the smallest authoritative document needed.
 
 Working execution:
 
-- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) â€” live backlog (Google Sheet, AF-002 through AF-024)
+- [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) — live backlog
+
+Operations and security:
+
+- `COMMANDS.md` — canonical setup, validation, lifecycle, approval, promotion, deletion, routing, and Telegram commands
+- `../SECURITY.md` — generated-package, credential, permission, approval, and promotion security boundaries
 
 Diagrams:
 
