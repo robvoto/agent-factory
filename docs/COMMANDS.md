@@ -26,7 +26,7 @@ uv run agent-factory langchain-check
 
 - `list` shows enabled agents.
 - `manifest` prints the machine-readable factory handshake.
-- `staged` shows unapproved drafts.
+- `staged` lists all staged-agent records and their current statuses, including records retained after promotion with status `enabled`.
 - `pending` shows approval requests and their numeric IDs.
 - `models` shows configured model defaults and aliases.
 - `langchain-check` verifies the LangChain runtime import path.
