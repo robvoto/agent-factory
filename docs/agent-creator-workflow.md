@@ -2,42 +2,72 @@
 
 ## Purpose
 
-The Agent Creator is a bounded workflow for turning a user request into a staged agent package.
+The Agent Creator turns a new-agent idea into a reviewed design and then into a staged agent package.
 
-It is not a free-running autonomous agent.
+It is not a free-running autonomous agent and it must not jump from a vague request directly to scaffolding.
 
 ## Workflow
 
 ```text
 User request
   ↓
-Clarify missing purpose, tools, memory, risks
+Agent design interview
   ↓
-Draft staged agent package
+Clarify the next material gap with the operator
+  ↓
+Design summary
+  ↓
+Human review / correction
+  ↓
+Approved design
+  ↓
+Draft + validate AgentPackageSpec
+  ↓
+Stage agent package
+  ↓
+If substantive implementation is required:
+Agent Hub → AI Tech Lead
 ```
 
-## Inputs
+The Factory owns agent definition, design, lifecycle governance, staging, validation, and promotion decisions. AI Tech Lead owns substantive technical implementation after the design boundary is approved.
 
-The workflow should ask for or infer only what is needed:
+## Design interview
 
-- agent purpose
-- expected user interaction style
-- required tools
-- data access needs
-- memory needs
-- runtime mode
-- approval needs
-- cost limits
+Use `skills/agent-design-interview/SKILL.md` before drafting `AgentPackageSpec` when the design is not already complete.
 
-If the request is ambiguous, stop and ask.
+The interview must establish, or explicitly mark not applicable:
+
+- goal and primary user
+- inputs and outputs
+- responsibilities and non-responsibilities
+- human clarification / approval points
+- tools and integrations
+- canonical artefact / source of truth when applicable
+- manual edit/update semantics when applicable
+- persistence / memory needs
+- runtime pattern and reason
+- permissions and risks
+- acceptance evidence
+
+Ask only the next highest-value unresolved question. Do not make the operator repeat information already supplied. If a material decision remains unresolved, stop and ask instead of guessing.
+
+Before staging, present a concise design summary for human approval or correction. Design approval is not approval to promote or enable the agent.
+
+## Runtime pattern selection
+
+Choose the smallest pattern that fits the approved design:
+
+- deterministic LangGraph workflow — known inspectable lifecycle / decision path, even when selected nodes use an LLM
+- simple tool-calling agent — bounded dynamic tool choice without complex planning or persistent context needs
+- Deep Agent — only when multi-step planning, context offloading, reusable skills, isolated subagents, or persistent memory are genuinely required
+
+Do not select Deep Agent merely because the deliverable is called an agent.
 
 ## Outputs
 
-The workflow should create a staged package from `templates/agent-package/`.
+The workflow creates a staged package from `templates/agent-package/` after the design is approved and the `AgentPackageSpec` validates.
 
-The staged package should include the standard agent-local instruction file
-(`AGENTS.md`) and a `skills/INDEX.md` scaffold when applicable, so every new
-agent starts with the same operating rules and a place for reusable skills.
+The staged package should include the standard agent-local instruction file (`AGENTS.md`) and a `skills/INDEX.md` scaffold when applicable, so every new agent starts with the same operating rules and a place for reusable skills.
 
 A staged package is not enabled automatically.
 
@@ -48,6 +78,8 @@ Use the terminal command:
 ```bash
 PYTHONPATH=src python -m agent_factory create "Create an agent that researches docs safely"
 ```
+
+The direct `create` command remains a bounded developer staging action. The Factory Brain design conversation is the preferred path when requirements are incomplete or architecture decisions are still open.
 
 ## Risk review
 
@@ -63,6 +95,12 @@ Flag risks before approval:
 - ability to modify files
 - ability to contact people or services
 
+## Technical implementation handoff
+
+When an approved agent design requires substantive code, architecture, tests, configuration, infrastructure, integrations, or technical documentation, Factory prepares a bounded implementation task for Agent Hub to route to AI Tech Lead.
+
+The handoff must preserve the approved purpose, responsibilities, non-responsibilities, runtime choice, permissions, acceptance evidence, budgets, permitted paths, and stop conditions. AI Tech Lead may improve implementation details but must not silently change the agent's approved purpose or lifecycle decisions.
+
 ## Promotion rule
 
 Only approved agents can be added to `config/agents`.
@@ -73,6 +111,8 @@ Only approved agents can be added to `config/agents`.
 
 The web UI should show:
 
+- design summary
+- open design questions
 - draft manifest
 - prompt
 - permissions
