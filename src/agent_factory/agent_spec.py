@@ -198,6 +198,7 @@ class AgentOutputContract(BaseModel):
 
 class AgentTaskContract(BaseModel):
     task_kinds: list[str] = Field(default_factory=list)
+    task_kind_descriptions: dict[str, str] = Field(default_factory=dict)
     default_task_kind: str | None = None
 
     @field_validator("task_kinds")
@@ -217,6 +218,18 @@ class AgentTaskContract(BaseModel):
             raise ValueError("task_contract.task_kinds must not contain duplicates.")
         return normalized
 
+    @field_validator("task_kind_descriptions")
+    @classmethod
+    def validate_task_kind_descriptions(cls, values: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for key, value in values.items():
+            if not isinstance(key, str) or not TASK_KIND_PATTERN.match(key.strip()):
+                raise ValueError("task_contract.task_kind_descriptions keys must use lowercase snake_case identifiers.")
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("task_contract.task_kind_descriptions values must be non-empty strings.")
+            normalized[key.strip()] = value.strip()
+        return normalized
+
     @field_validator("default_task_kind")
     @classmethod
     def validate_default_task_kind(cls, value: str | None) -> str | None:
@@ -232,10 +245,16 @@ class AgentTaskContract(BaseModel):
         return normalized_value
 
     @model_validator(mode="after")
-    def validate_default_in_task_kinds(self) -> "AgentTaskContract":
+    def validate_contract_consistency(self) -> "AgentTaskContract":
         if self.default_task_kind is not None and self.default_task_kind not in self.task_kinds:
             raise ValueError(
                 "task_contract.default_task_kind must be included in task_contract.task_kinds."
+            )
+        unknown = sorted(set(self.task_kind_descriptions) - set(self.task_kinds))
+        if unknown:
+            raise ValueError(
+                "task_contract.task_kind_descriptions may only describe declared task_kinds: "
+                + ", ".join(unknown)
             )
         return self
 

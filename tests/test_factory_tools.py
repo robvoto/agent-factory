@@ -130,7 +130,7 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None
     assert manifest["manifest_schema_version"] == 1
-    assert manifest["task_contract"] == {"task_kinds": []}
+    assert manifest["task_contract"] == {"task_kinds": [], "task_kind_descriptions": {}}
     assert manifest["project_context_contract"]["required"] is False
     assert manifest["project_context_contract"]["supported_schema_versions"] == [1]
     assert manifest["target_project_access"] == {
