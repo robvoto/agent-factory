@@ -458,8 +458,17 @@ class AgentPackageSpec(BaseModel):
 
     @model_validator(mode="after")
     def validate_runtime_contract(self) -> "AgentPackageSpec":
-        if self.runtime.progress is not None and self.runtime.progress.enabled:
+        runtime_progress_enabled = bool(
+            self.runtime.progress is not None and self.runtime.progress.enabled
+        )
+        if runtime_progress_enabled:
             self.interaction_contract.progress = True
+        elif self.interaction_contract.progress:
+            raise ValueError(
+                "interaction_contract.progress=true requires runtime.progress.enabled=true "
+                "so advertised progress support is backed by the canonical subprocess "
+                "progress transport and adapter contract."
+            )
         if self.permissions.requires_approval:
             self.interaction_contract.approval = True
         if self.runtime.mode == "subprocess" and self.output_contract is None:

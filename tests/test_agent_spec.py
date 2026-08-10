@@ -389,3 +389,32 @@ def test_agent_package_spec_rejects_extensions_that_shadow_core_fields() -> None
                 "extensions": {"runtime": {"mode": "manual"}},
             }
         )
+
+
+
+def test_agent_package_spec_rejects_advertised_progress_without_runtime_contract() -> None:
+    with pytest.raises(ValidationError, match="interaction_contract.progress=true requires runtime.progress.enabled=true"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "progress-agent",
+                "name": "Progress Agent",
+                "purpose": "Primary responsibility: Perform progress-aware work.\nSelect for: Requests that require progress-aware work.\nDo not select for: Requests unrelated to progress-aware work.",
+                "aliases": ["progress"],
+                "runtime": {
+                    "mode": "subprocess",
+                    "entrypoint": "python run.py",
+                    "working_directory": "/tmp/agent",
+                    "input_arg": "--input-json",
+                    "output_arg": "--output-json",
+                    "default_execution_mode": "execute",
+                },
+                "interaction_contract": {
+                    "progress": True,
+                    "clarification": True,
+                    "approval": True,
+                    "resume": True,
+                    "cancellation": True,
+                },
+                "output_contract": _subprocess_output_contract(),
+            }
+        )
