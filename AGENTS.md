@@ -113,3 +113,8 @@ Before ending a session:
 - Documentation impact check done (see Documentation impact (AF-049) above)
 - Validation command/result, or why not run
 - Remaining risk or follow-up
+
+## Repository text format
+
+- All tracked text files use LF line endings. `.gitattributes` and `.editorconfig` are authoritative; do not introduce or preserve CRLF.
+- Before finishing edits, run `git diff --check`. If a touched tracked text file is CRLF or mixed, normalize that touched file to LF without rewriting unrelated dirty work.
