@@ -1,6 +1,7 @@
 ﻿# Skills Index
 
 - code-change/SKILL.md: code, tests, validation, or runtime changes.
+- git-lifecycle/SKILL.md: branch/worktree, commit, push, PR, merge, and verified `main` integration.
 
 Platform skills (pick one when the task touches agents, docs, data, or Agent Hub integration):
 

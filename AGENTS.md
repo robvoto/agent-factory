@@ -33,8 +33,9 @@ Do not create duplicate local backlog files unless explicitly requested.
 2. Use `.skills/INDEX.md` to choose one relevant task skill.
 3. Inspect current files before editing.
 4. For code, tests, runtime, or integration changes, use `code-change/SKILL.md`.
-5. Do not load the whole repo unless the task requires a broad audit.
-6. If a nested `AGENTS.md` exists, treat it as additive and area-specific.
+5. For any branch/worktree, commit, push, PR, merge, or `main`-integration decision, use `.skills/git-lifecycle/SKILL.md`.
+6. Do not load the whole repo unless the task requires a broad audit.
+7. If a nested `AGENTS.md` exists, treat it as additive and area-specific.
 
 ## Coding workflow
 
