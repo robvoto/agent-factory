@@ -34,17 +34,19 @@ Before making a material architecture, framework, library, protocol, integration
 Use the same bounded pattern already proven in AI Tech Lead:
 
 1. **Name one precise knowledge gap.** Do not research a broad topic because the overall task is large or unfamiliar.
-2. **Check existing evidence first.** Search Factory memory, indexed project documentation, and trusted-source knowledge before requesting new research.
+2. **Check existing evidence first.** Use `search_memory` and `search_trusted_sources` before requesting live research.
 3. **Skip research when the decision is already supported.** More context is not automatically better context.
 4. **If evidence is insufficient, state exactly what fact is missing and why it changes the design.**
-5. **Online research requires explicit approval.** If an approved bounded online-research capability is available, ask before using it. If it is not available, stop and tell the operator that the design cannot responsibly make that decision yet.
-6. **Prefer official or primary sources.** Framework documentation, standards owners, official API references, changelogs, release notes, and original repositories take precedence over blogs, forums, aggregators, or generated summaries.
-7. **Return a compact evidence brief.** Keep only source, date/freshness where relevant, conclusion, assumptions/uncertainty, and impact on the current design decision.
-8. **Stop when the question is answered or the bounded research limit is reached.** Never crawl indefinitely or expand into adjacent questions automatically.
-9. **Conflicting or insufficient evidence is a stop condition.** Ask the operator or defer the decision rather than guessing.
-10. **Research informs Factory; it does not own product decisions.** The operator still owns consequential behavioural choices.
+5. **Prepare one bounded live-research request.** Select only relevant official or primary documentation domains, with at most five domains. Do not use a general web search or broaden the question.
+6. **Request approval before network access.** Call `request_design_research` with the exact question and allowed domains. This records the immutable research request but performs no network access. Wait for human approval; do not call `run_design_research` while the request is pending or rejected.
+7. **Run the approved request once.** After approval, call `run_design_research` with that approval ID. The tool uses OpenAI Responses API web search with enforced domain filters and low search context, then marks that approval consumed so the same approval cannot be reused for repeated paid searches.
+8. **Prefer official or primary sources.** Framework documentation, standards owners, official API references, changelogs, release notes, and original repositories take precedence over blogs, forums, aggregators, or generated summaries.
+9. **Return a compact evidence brief.** Keep only source, date/freshness where relevant, conclusion, assumptions/uncertainty, and impact on the current design decision.
+10. **Stop when the question is answered or the bounded research limit is reached.** Never crawl indefinitely or expand into adjacent questions automatically.
+11. **Conflicting or insufficient evidence is a stop condition.** Ask the operator or defer the decision rather than guessing.
+12. **Research informs Factory; it does not own product decisions.** The operator still owns consequential behavioural choices.
 
-Research can occur more than once during an interview, but only at a material decision boundary and only for one unresolved knowledge gap at a time.
+Research can occur more than once during an interview, but only at a material decision boundary and only for one unresolved knowledge gap at a time. Each live question requires its own approval.
 
 Example for a BPMN specialist:
 
@@ -139,6 +141,8 @@ Do not:
 - choose Deep Agent automatically;
 - research broad topics without one decision-relevant knowledge gap;
 - treat absence of evidence as permission to guess;
+- use unrestricted live web search for design research;
+- reuse a consumed research approval for another paid search;
 - duplicate AI Tech Lead's coding workflow inside Factory;
 - grant tools or permissions 'just in case';
 - treat a generated diagram, document, or file preview as the source of truth when an editable canonical format exists;
