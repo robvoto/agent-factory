@@ -16,6 +16,7 @@ from typing import Any
 from langchain_core.tools import tool
 
 from .agent_catalog import build_agent_catalog, describe_agent_catalog, plan_package_reuse
+from .design_research import request_design_research, run_design_research
 from .errors import AgentFactoryError
 from .agent_spec import AgentPackageSpec
 from .project_context import ProjectContextConsistencyError, verify_project_context_consistency
@@ -26,6 +27,7 @@ _MEMORY_DIR = _PROJECT_ROOT / "memory" / "factory"
 _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 _PROGRESS_TEMPLATE_DIR = _TEMPLATES_DIR / "progress-adapter"
 logger = logging.getLogger(__name__)
+
 
 @tool
 def list_templates() -> str:
@@ -164,11 +166,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         )
 
     progress = spec.runtime.progress
-    if (
-        progress is not None
-        and progress.enabled
-        and not _PROGRESS_TEMPLATE_DIR.is_dir()
-    ):
+    if progress is not None and progress.enabled and not _PROGRESS_TEMPLATE_DIR.is_dir():
         logger.error("Progress adapter template is missing: %s", _PROGRESS_TEMPLATE_DIR)
         return f"Progress adapter template is missing: {_PROGRESS_TEMPLATE_DIR}"
 
@@ -197,8 +195,6 @@ def create_staged_agent_package(spec_json: str) -> str:
             else None
         ),
     }
-    # Specialist-owned metadata (e.g. a backlog pointer) — written through
-    # verbatim, never interpreted by Factory or Hub.
     agent_manifest_data.update(spec.extensions)
 
     (package_dir / "agent.json").write_text(
@@ -428,6 +424,8 @@ def get_factory_tools() -> list:
         read_staged_review,
         create_staged_agent_package,
         record_decision,
+        request_design_research,
+        run_design_research,
         request_agent_promotion,
         request_approval,
     ]
