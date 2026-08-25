@@ -28,7 +28,7 @@ def test_design_interview_is_local_first_and_stops_when_evidence_is_weak() -> No
     text = _read(SKILL)
 
     assert "Check existing evidence first" in text
-    assert "Online research requires explicit approval" in text
+    assert "Request approval before network access" in text
     assert "Conflicting or insufficient evidence is a stop condition" in text
     assert "rather than guessing" in text
 
@@ -41,9 +41,12 @@ def test_design_review_surfaces_evidence_and_open_gaps() -> None:
     assert "unresolved evidence gap" in text
 
 
-def test_workflow_docs_do_not_claim_live_online_research_before_it_exists() -> None:
+def test_workflow_docs_describe_bounded_live_research_controls() -> None:
     text = _read(WORKFLOW_DOC)
 
-    assert "The current Factory Brain can search its indexed local/trusted knowledge" in text
-    assert "A live online-research capability must itself be bounded and approval-gated" in text
-    assert "Factory must report the evidence gap rather than pretending the research happened" in text
+    assert "use `search_memory` and `search_trusted_sources` first" in text
+    assert "`request_design_research`" in text
+    assert "`run_design_research`" in text
+    assert "performs no network access" in text
+    assert "enforced `allowed_domains` filter" in text
+    assert "approval is marked `consumed`" in text
