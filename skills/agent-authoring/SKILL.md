@@ -7,6 +7,12 @@ description: How to design staged agent packages for the Agent Factory Platform
 
 How to design staged agent packages for the Agent Factory Platform.
 
+## Before authoring
+
+If the operator has supplied only an idea, outcome, or partially defined agent, use `skills/agent-design-interview/SKILL.md` first.
+
+Do not draft `AgentPackageSpec` or stage files until material design questions and evidence gaps are resolved and the operator has reviewed the design summary. If the operator already provides a complete approved design with sufficient evidence for its material technical choices, do not repeat the interview unnecessarily.
+
 ## Required files
 
 Every staged package under `staging/agents/<agent-id>/` must include:
