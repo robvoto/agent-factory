@@ -2,7 +2,7 @@
 
 Platform skills for agent authoring, review, hygiene, and Agent Hub integration.
 
-- [agent-design-interview/SKILL.md](agent-design-interview/SKILL.md) — turn a new-agent idea into a bounded human-approved design before spec drafting or implementation handoff
+- [agent-design-interview/SKILL.md](agent-design-interview/SKILL.md) — turn a new-agent idea into a bounded human-approved design; use one-gap-at-a-time evidence checks before material technical decisions
 - [agent-authoring/SKILL.md](agent-authoring/SKILL.md) — design and stage agent packages; agent.json fields; Agent Hub discovery fields
 - [hub-handshake/SKILL.md](hub-handshake/SKILL.md) — how Agent Hub discovers Factory; manifest update rules; registry protocol
 - [data-policy/SKILL.md](data-policy/SKILL.md) — what belongs in Git vs runtime; settings file pair; gitignore rules; CI enforcement
