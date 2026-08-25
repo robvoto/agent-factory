@@ -23,7 +23,11 @@ Is current evidence sufficient?
              ↓
           sufficient?
           ├─ yes → compact evidence brief
-          └─ no  → request approval for bounded online research
+          └─ no  → request approval for one bounded live research question
+                     ↓
+                  human approves exact question + domains
+                     ↓
+                  one domain-filtered web-search call
                      ↓
                   evidence brief or explicit uncertainty
              ↓
@@ -74,18 +78,19 @@ Factory must not turn an unsupported technical assumption into an agent design d
 At each material technical decision boundary, decide whether the existing evidence is enough. If not:
 
 1. state one precise decision-relevant knowledge gap;
-2. search existing Factory memory, indexed project documentation, and trusted-source knowledge first;
+2. use `search_memory` and `search_trusted_sources` first;
 3. if that answers the question, keep only a compact evidence brief and continue;
-4. if new online evidence is required, ask for explicit approval before retrieval;
-5. prefer official or primary sources and keep research bounded to the current knowledge gap;
-6. stop when the question is answered, the configured limit is reached, or evidence remains conflicting/insufficient;
-7. never broaden automatically into adjacent research questions.
+4. if live evidence is required, call `request_design_research` with the exact question and at most five relevant official/primary domains;
+5. the request only creates an approval record and performs no network access;
+6. after human approval, call `run_design_research` with that approval ID;
+7. the live tool performs one OpenAI Responses API call using the built-in `web_search` tool, an enforced `allowed_domains` filter, low search context, one retry maximum, and a maximum of five citations returned to Factory;
+8. after successful execution the approval is marked `consumed`, preventing repeated paid searches from the same approval;
+9. stop when the question is answered or evidence remains conflicting/insufficient;
+10. never broaden automatically into adjacent research questions.
 
-This deliberately mirrors the proven AI Tech Lead research principles: repo/local evidence first, one explicit knowledge gap, primary sources, approval before online retrieval, bounded source/query limits, and a clear stop condition.
+This mirrors the proven AI Tech Lead research principles: local/trusted evidence first, one explicit knowledge gap, primary sources, approval before online retrieval, bounded retrieval, and a clear stop condition.
 
 Research is subordinate to the design interview. It supplies evidence; it does not make operator-owned product decisions.
-
-The current Factory Brain can search its indexed local/trusted knowledge. A live online-research capability must itself be bounded and approval-gated before the workflow treats online retrieval as available. Until that capability exists, Factory must report the evidence gap rather than pretending the research happened.
 
 Before staging, present a concise design summary for human approval or correction. Include the evidence basis for material technical choices. Design approval is not approval to promote or enable the agent.
 
