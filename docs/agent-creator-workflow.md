@@ -84,7 +84,7 @@ At each material technical decision boundary, decide whether the existing eviden
 5. the request only creates an approval record and performs no network access;
 6. after human approval, call `run_design_research` with that approval ID;
 7. the live tool performs one OpenAI Responses API call using the built-in `web_search` tool, an enforced `allowed_domains` filter, low search context, one retry maximum, and a maximum of five citations returned to Factory;
-8. after successful execution the approval is marked `consumed`, preventing repeated paid searches from the same approval;
+8. immediately before network access, the tool atomically marks the approval `claimed`, so only one worker can execute it; it then records `consumed` on success or `failed` on an error, and neither terminal state can be reused for another paid search;
 9. stop when the question is answered or evidence remains conflicting/insufficient;
 10. never broaden automatically into adjacent research questions.
 

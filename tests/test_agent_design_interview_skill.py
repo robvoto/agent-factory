@@ -49,4 +49,5 @@ def test_workflow_docs_describe_bounded_live_research_controls() -> None:
     assert "`run_design_research`" in text
     assert "performs no network access" in text
     assert "enforced `allowed_domains` filter" in text
-    assert "approval is marked `consumed`" in text
+    assert "atomically marks the approval `claimed`" in text
+    assert "records `consumed` on success or `failed` on an error" in text

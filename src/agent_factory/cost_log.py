@@ -70,6 +70,7 @@ def record_llm_run(
     thread_id: str | None = None,
     request_kind: str | None = None,
     result_preview: str | None = None,
+    stop_reason: str | None = None,
     usage_log_path: Path | None = None,
     cost_catalog_path: Path | None = None,
 ) -> dict[str, Any]:
@@ -100,6 +101,7 @@ def record_llm_run(
             "total_tokens": total_tokens,
         },
         "cost": cost_breakdown["cost"],
+        "stop_reason": stop_reason,
     }
     if error:
         run_record["error"] = error

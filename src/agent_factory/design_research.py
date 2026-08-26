@@ -7,6 +7,10 @@ only for one material design knowledge gap that remains unresolved.
 from __future__ import annotations
 
 import json
+import logging
+from collections.abc import Mapping
+from time import perf_counter
+from typing import Any
 from urllib.parse import urlparse
 
 from langchain_core.tools import tool
@@ -14,6 +18,8 @@ from langchain_core.tools import tool
 _MAX_QUESTION_CHARS = 1200
 _MAX_DOMAINS = 5
 _MAX_CITATIONS = 5
+_RESULT_PREVIEW_CHARS = 500
+logger = logging.getLogger(__name__)
 
 
 def _normalise_domains(raw_domains: list[str]) -> list[str]:
@@ -86,7 +92,7 @@ def run_design_research(approval_id: int) -> str:
     unapproved, rejected, already-consumed, malformed, or mismatched approval is
     refused rather than inferred or widened.
     """
-    from .storage import decide_approval, get_approval
+    from .storage import claim_approved_approval, finalise_claimed_approval, get_approval
 
     approval = get_approval(int(approval_id))
     if not approval:
@@ -104,8 +110,23 @@ def run_design_research(approval_id: int) -> str:
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         return f"Design research approval #{approval_id} is malformed; research was not run: {exc}"
 
-    result = _invoke_web_search(question, allowed_domains)
-    decide_approval(
+    if not claim_approved_approval(int(approval_id), "design-research"):
+        current = get_approval(int(approval_id))
+        current_status = str((current or {}).get("status", "not available")).strip().lower()
+        return f"Design research approval #{approval_id} is {current_status}; research was not run."
+
+    try:
+        result = _invoke_web_search(question, allowed_domains)
+    except Exception as exc:
+        logger.exception("Design research approval %s failed after being claimed.", approval_id)
+        finalise_claimed_approval(
+            int(approval_id),
+            "failed",
+            f"Approved bounded design research failed after its single claimed attempt: {exc}",
+        )
+        return f"Design research approval #{approval_id} failed; research was not rerun: {exc}"
+
+    finalise_claimed_approval(
         int(approval_id),
         "consumed",
         "Approved bounded design research executed once.",
@@ -140,7 +161,24 @@ def _invoke_web_search(question: str, allowed_domains: list[str]) -> str:
         "or conflicting, say so explicitly and stop.\n\n"
         f"Question: {question}"
     )
-    response = llm.invoke(prompt, tools=[web_tool])
+    started_at = perf_counter()
+    try:
+        response = llm.invoke(prompt, tools=[web_tool])
+    except Exception as exc:
+        _record_research_llm_run(
+            resolved_model=resolved,
+            duration_seconds=perf_counter() - started_at,
+            status="error",
+            error=str(exc),
+        )
+        raise
+
+    _record_research_llm_run(
+        resolved_model=resolved,
+        duration_seconds=perf_counter() - started_at,
+        status="ok",
+        response=response,
+    )
     citations = _extract_citations(response.content_blocks, allowed_domains)
     evidence = {
         "question": question,
@@ -150,6 +188,51 @@ def _invoke_web_search(question: str, allowed_domains: list[str]) -> str:
         "source_count": len(citations),
     }
     return json.dumps(evidence, ensure_ascii=False, indent=2)
+
+
+def _record_research_llm_run(
+    *,
+    resolved_model: str,
+    duration_seconds: float,
+    status: str,
+    response: Any | None = None,
+    error: str | None = None,
+) -> None:
+    """Write the required audit record for the bounded research model call."""
+    from .cost_log import extract_usage_metadata, record_llm_run
+
+    usage_metadata = getattr(response, "usage_metadata", None)
+    usage_by_model = (
+        extract_usage_metadata({resolved_model: usage_metadata})
+        if isinstance(usage_metadata, Mapping)
+        else {}
+    )
+    response_metadata = getattr(response, "response_metadata", None)
+    stop_reason = _stop_reason(response_metadata)
+    response_text = str(getattr(response, "text", "")).strip()
+
+    record_llm_run(
+        operation="live_design_research",
+        request_kind="approved-design-research",
+        requested_model=resolved_model,
+        effective_model=resolved_model,
+        status=status,
+        duration_seconds=duration_seconds,
+        usage_by_model=usage_by_model,
+        error=error,
+        result_preview=response_text[:_RESULT_PREVIEW_CHARS] or None,
+        stop_reason=stop_reason,
+    )
+
+
+def _stop_reason(response_metadata: Any) -> str:
+    if not isinstance(response_metadata, Mapping):
+        return "unknown"
+    for key in ("finish_reason", "stop_reason"):
+        value = response_metadata.get(key)
+        if value:
+            return str(value)
+    return "unknown"
 
 
 def _extract_citations(content_blocks: list[dict], allowed_domains: list[str]) -> list[dict[str, str]]:

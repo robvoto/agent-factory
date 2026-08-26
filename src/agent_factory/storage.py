@@ -226,6 +226,42 @@ def decide_approval(
         conn.commit()
 
 
+def claim_approved_approval(
+    approval_id: int,
+    approval_type: str,
+    *,
+    db_path: Path | None = None,
+) -> bool:
+    """Atomically claim one approved approval record for a single execution."""
+    logger.info("Claiming approved %s approval %s.", approval_type, approval_id)
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE approvals SET status = 'claimed'"
+            " WHERE id = ? AND approval_type = ? AND status = 'approved'",
+            (approval_id, approval_type),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def finalise_claimed_approval(
+    approval_id: int,
+    status: str,
+    reason: str,
+    *,
+    db_path: Path | None = None,
+) -> None:
+    """Record the terminal outcome of a previously claimed approval."""
+    logger.info("Finalising claimed approval %s as %s.", approval_id, status)
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        conn.execute(
+            "UPDATE approvals SET status = ?, decision_reason = ?"
+            " WHERE id = ? AND status = 'claimed'",
+            (status, reason, approval_id),
+        )
+        conn.commit()
+
+
 # ---------------------------------------------------------------------------
 # factory_threads  (Telegram chat → LangGraph thread mapping)
 # ---------------------------------------------------------------------------

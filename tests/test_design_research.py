@@ -4,6 +4,7 @@ import pytest
 
 from agent_factory import design_research
 from agent_factory.factory_tools import get_factory_tools
+from agent_factory.storage import claim_approved_approval, create_approval, decide_approval, get_approval
 
 
 def test_factory_exposes_design_research_tools():
@@ -82,15 +83,49 @@ def test_run_design_research_consumes_approval_after_one_success(monkeypatch):
     )
     consumed = {}
 
-    def fake_decide(approval_id, decision, reason=""):
-        consumed.update(id=approval_id, decision=decision, reason=reason)
+    monkeypatch.setattr(
+        "agent_factory.storage.claim_approved_approval",
+        lambda approval_id, approval_type: approval_id == 9 and approval_type == "design-research",
+    )
 
-    monkeypatch.setattr("agent_factory.storage.decide_approval", fake_decide)
+    def fake_finalise(approval_id, status, reason):
+        consumed.update(id=approval_id, status=status, reason=reason)
+
+    monkeypatch.setattr("agent_factory.storage.finalise_claimed_approval", fake_finalise)
 
     result = design_research.run_design_research.invoke({"approval_id": 9})
     assert result == '{"answer": "supported"}'
     assert consumed["id"] == 9
-    assert consumed["decision"] == "consumed"
+    assert consumed["status"] == "consumed"
+
+
+def test_claim_approved_approval_allows_only_one_research_execution():
+    approval_id = create_approval("design-research", "factory-design", "{}")
+    decide_approval(approval_id, "approved", "Approved for test")
+
+    assert claim_approved_approval(approval_id, "design-research") is True
+    assert claim_approved_approval(approval_id, "design-research") is False
+    assert get_approval(approval_id)["status"] == "claimed"
+
+
+def test_run_design_research_refuses_a_claim_lost_to_another_worker(monkeypatch):
+    payload = json.dumps(
+        {"question": "Does bpmn-js support BPMN 2.0 editing?", "allowed_domains": ["bpmn.io"]}
+    )
+    monkeypatch.setattr(
+        "agent_factory.storage.get_approval",
+        lambda approval_id: {"approval_type": "design-research", "status": "approved", "summary": payload},
+    )
+    monkeypatch.setattr("agent_factory.storage.claim_approved_approval", lambda *_args: False)
+    monkeypatch.setattr(
+        design_research,
+        "_invoke_web_search",
+        lambda *_args: pytest.fail("paid research must not run after losing the claim"),
+    )
+
+    result = design_research.run_design_research.invoke({"approval_id": 9})
+    assert "approved" in result
+    assert "research was not run" in result
 
 
 def test_domain_limits_fail_closed():
@@ -127,6 +162,8 @@ def test_web_search_tool_is_domain_filtered_and_low_context(monkeypatch):
 
     class FakeResponse:
         text = "Evidence"
+        usage_metadata = {"input_tokens": 17, "output_tokens": 9, "total_tokens": 26}
+        response_metadata = {"finish_reason": "stop"}
         content_blocks = [
             {
                 "type": "text",
@@ -154,6 +191,10 @@ def test_web_search_tool_is_domain_filtered_and_low_context(monkeypatch):
         "agent_factory.factory_settings.resolve_model",
         lambda purpose="general": "openai:gpt-4.1-mini",
     )
+    recorded = {}
+    monkeypatch.setattr(
+        "agent_factory.cost_log.record_llm_run", lambda **kwargs: recorded.update(kwargs)
+    )
 
     result = json.loads(
         design_research._invoke_web_search(
@@ -173,3 +214,33 @@ def test_web_search_tool_is_domain_filtered_and_low_context(monkeypatch):
     ]
     assert result["source_count"] == 1
     assert result["citations"][0]["url"].startswith("https://bpmn.io/")
+    assert recorded["operation"] == "live_design_research"
+    assert recorded["request_kind"] == "approved-design-research"
+    assert recorded["usage_by_model"]["openai:gpt-4.1-mini"].total_tokens == 26
+    assert recorded["stop_reason"] == "stop"
+
+
+def test_web_search_records_a_failed_model_call(monkeypatch):
+    class FailingChatOpenAI:
+        def __init__(self, **_kwargs):
+            pass
+
+        def invoke(self, *_args, **_kwargs):
+            raise RuntimeError("provider timeout")
+
+    recorded = {}
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", FailingChatOpenAI)
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.resolve_model",
+        lambda purpose="general": "openai:gpt-4.1-mini",
+    )
+    monkeypatch.setattr(
+        "agent_factory.cost_log.record_llm_run", lambda **kwargs: recorded.update(kwargs)
+    )
+
+    with pytest.raises(RuntimeError, match="provider timeout"):
+        design_research._invoke_web_search("Does bpmn-js support BPMN editing?", ["bpmn.io"])
+
+    assert recorded["status"] == "error"
+    assert recorded["error"] == "provider timeout"
+    assert recorded["stop_reason"] == "unknown"
