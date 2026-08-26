@@ -17,6 +17,7 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 
 - Keep context bounded and read the smallest relevant docs first.
 - Preserve unknown project/resource references as unknown; ask for clarification instead of guessing.
+- Before introducing or relying on heuristic or approximate inference, apply the platform heuristic-review guardrail: assistive heuristics may narrow/rank candidates when they cannot determine the final result; a heuristic that decides semantic meaning, business outcome, target, permission, or action requires explicit human approval.
 - Change only files required for the task.
 - If you are writing code, make the smallest change that solves the task.
 - Update tests and docs when behavior changes.

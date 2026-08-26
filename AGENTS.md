@@ -68,6 +68,7 @@ Do not create duplicate local backlog files unless explicitly requested.
 ## Universal rules
 
 - Never guess or invent.
+- Before introducing or relying on heuristic/approximate inference, use the global `heuristic-review` guardrail. Assistive heuristics may help an LLM or reduce search cost when they cannot determine the final outcome; heuristics that decide semantic meaning, business outcome, target, permission, or action require explicit human approval.
 - Keep context bounded — load the smallest file set that answers the task.
 - Keep work bounded — touch only files required for the task.
 - Do not hardcode what config, schema, or knowledge should own.
