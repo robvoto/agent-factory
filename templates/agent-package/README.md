@@ -10,7 +10,7 @@ Read `AGENTS.md` for the operating rules for this package.
 
 ## Skills
 
-See `skills/INDEX.md` for reusable procedures if this agent needs them.
+See `skills/INDEX.md` for runtime agent skills if this agent needs them. Repository coding-agent instructions, if the package later becomes a code repo, belong separately under `.agents/skills/`.
 
 ## Purpose
 

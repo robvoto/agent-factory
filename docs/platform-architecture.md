@@ -50,7 +50,7 @@ agent-factory/
   staging/agents/             # staged (unapproved) drafts
   templates/agent-package/    # scaffold template
   docs/
-  .skills/
+  .agents/skills/
 ```
 
 ## Key rule

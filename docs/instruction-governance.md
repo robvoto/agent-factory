@@ -16,7 +16,7 @@ This document defines how `AGENTS.md` files and reusable skills are scoped in Ag
 
 Skills hold repeatable procedures and checklists.
 
-- Put reusable procedures in [`.skills/INDEX.md`](../.skills/INDEX.md).
+- Put reusable procedures in [`.agents/skills/INDEX.md`](../.agents/skills/INDEX.md).
 - Use skills for bounded workflows, not for shared policy that belongs in `AGENTS.md` or docs.
 - Keep skills short enough that a future agent can find the right one quickly.
 

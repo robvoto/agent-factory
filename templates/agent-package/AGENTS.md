@@ -32,7 +32,7 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 - When the evidence points beyond skills or `AGENTS.md`, propose one of: a bounded code change, a new skill, an update to an existing skill, or an `AGENTS.md` change.
 - Keep every improvement bounded to the demonstrated problem. Do not broaden purpose, permissions, memory access, tool access, runtime authority, repository scope, or promotion status.
 - Before editing, record the evidence, target file, expected reusable benefit, risk, and validation method in the task trace or final report.
-- Approved skills live in `.skills/<name>/SKILL.md` or the package's configured skill directory and must be registered in the relevant skill index.
+- Approved runtime agent skills live in `skills/<name>/SKILL.md` or the package's configured skill directory and must be registered in the package skill index. If the generated package later becomes a code repository, repository coding-agent instructions belong separately under `.agents/skills/`.
 - Keep skills concise, procedural, and task-specific. Do not duplicate policy that belongs in `AGENTS.md` or architecture rationale that belongs in docs.
 - Validate every skill or `AGENTS.md` improvement with the smallest relevant test or deterministic check.
 - Code or runtime self-modification still requires the normal approved bounded coding workflow and relevant validation.
