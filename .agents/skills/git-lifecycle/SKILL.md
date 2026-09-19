@@ -11,7 +11,8 @@ Use this whenever code work is started or finished, or whenever the user asks ab
 
 The human should not need to remember Git mechanics.
 
-- Implementation work may be committed to the task branch and that branch may be pushed after validation unless the human explicitly says not to push.
+- Completed intended work is committed and pushed automatically after validation unless the human explicitly says not to push.
+- Stop and ask only for a genuine safety gate: unrelated changes, destructive actions, force-pushes, deployment/restart, credentials/external messages, or unresolved conflicting work.
 - A pushed task branch is **not** the same as integration to `main`.
 - `commit` or `push` alone never means "merge to main".
 - `approved`, `merge it`, `put it in main`, `ship it`, or equivalent approval referring to the current completed task authorizes integration to `main`.

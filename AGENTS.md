@@ -37,6 +37,9 @@ Use `.agents/skills/instruction-maintenance/SKILL.md` for AGENTS, skills, adapte
 - Runtime safety, permissions, budgets, and promotion boundaries must be enforced in code/config, not only prose.
 - Do not claim completion without validation evidence.
 - Preserve unrelated work when other agents or sessions may be active.
+- Before editing, inspect the exact current target file and apply a narrow, context-checked patch.
+- If a patch hunk or `old_text` does not match, stop and reread the file before creating a new patch; never retry stale patch text.
+- After editing, inspect the diff and run the required validation before reporting completion.
 
 ## Finish report
 
