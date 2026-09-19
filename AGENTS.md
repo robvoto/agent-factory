@@ -15,6 +15,7 @@ Minimal shared routing instructions for Agent Factory. This file is not the proj
 
 - Canonical shared standards are linked from `docs/STANDARDS_INDEX.md`; check them before changing project/instruction structure or reusable standards.
 - The live Agent Factory backlog is the Google Sheet linked from project docs. Do not create a competing local backlog.
+- Shared backlog access identity: `agent-backlog-access@robvoto-agent-platform-iam.gserviceaccount.com`; it should have access to all relevant project backlog spreadsheets. Do not infer that other configured service accounts are prohibited.
 
 ## Durable rule placement
 
