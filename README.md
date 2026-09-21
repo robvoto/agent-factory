@@ -1,5 +1,7 @@
 # Agent Factory
 
+[![CI](https://github.com/robvoto/agent-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/robvoto/agent-factory/actions/workflows/ci.yml)
+
 Agent Factory is the lifecycle service for creating, validating, staging, approving, and promoting specialist agent packages in a local multi-agent platform.
 
 It prepares agents for use. It does **not** orchestrate user work or dispatch tasks to specialists.
@@ -33,6 +35,14 @@ Agent Factory
 - promote approved packages into the enabled registry;
 - expose a machine-readable catalogue and handshake for Agent Hub;
 - preserve an inspectable agent lifecycle.
+
+## Engineering highlights
+
+- **Governed agent lifecycle** — generated agents move through validation, staging, approval, promotion, and enablement rather than becoming active immediately.
+- **Deterministic validation** — manifests, permissions, tools, contracts, and memory policy are checked before promotion.
+- **Human approval** — LLM-generated packages are treated as untrusted drafts until explicitly approved.
+- **Bounded capabilities** — factory tools operate only within defined staging and registry scopes.
+- **Machine-readable integration** — Agent Hub discovers enabled specialists through explicit catalogue and handshake contracts.
 
 ## Repository boundaries
 
@@ -120,4 +130,4 @@ Security guidance is indexed through [`docs/INDEX.md`](docs/INDEX.md) and mainta
 
 ## Licence
 
-This private repository does not grant an open-source licence. A licence should be selected deliberately before any public source release.
+Licensed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE).
