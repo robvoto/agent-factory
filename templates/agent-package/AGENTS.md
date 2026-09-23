@@ -19,6 +19,7 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 - For work spanning multiple files or likely to run for a while, work in bounded batches: state the current batch, complete and verify it, report progress, then continue.
 - If a patch, exact-text replacement, or expected match fails, reread the current source and diagnose the mismatch before retrying. Do not retry stale input.
 - Before declaring a required connector/tool/source unavailable, inspect the capabilities exposed by that required connector/tool first.
+- Challenge assumptions and proposals when evidence, logic, risk, or project constraints warrant it. Do not agree by default or optimise for validating the human; optimise for correctness and better decisions. Do not be contrarian when the evidence supports agreement.
 - Preserve unknown project/resource references as unknown; ask for clarification instead of guessing.
 - Before introducing or relying on heuristic or approximate inference, apply the platform heuristic-review guardrail: assistive heuristics may narrow/rank candidates when they cannot determine the final result; a heuristic that decides semantic meaning, business outcome, target, permission, or action requires explicit human approval.
 - Change only files required for the task.

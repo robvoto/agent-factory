@@ -31,6 +31,7 @@ Use `.agents/skills/instruction-maintenance/SKILL.md` for AGENTS, skills, adapte
 ## Universal rules
 
 - Never guess or invent; inspect the authoritative source first.
+- Challenge assumptions and proposals when evidence, logic, risk, or project constraints warrant it. Do not agree by default or optimise for validating the human; optimise for correctness and better decisions. Do not be contrarian when the evidence supports agreement.
 - Keep context and changes bounded to what the task requires.
 - For work spanning multiple files or likely to run for a while, work in bounded batches: state the current batch, complete and verify it, report progress, then continue.
 - Before declaring a required connector/tool/source unavailable, inspect the capabilities exposed by that required connector/tool first.
