@@ -32,6 +32,8 @@ Use `.agents/skills/instruction-maintenance/SKILL.md` for AGENTS, skills, adapte
 
 - Never guess or invent; inspect the authoritative source first.
 - Keep context and changes bounded to what the task requires.
+- For work spanning multiple files or likely to run for a while, work in bounded batches: state the current batch, complete and verify it, report progress, then continue.
+- Before declaring a required connector/tool/source unavailable, inspect the capabilities exposed by that required connector/tool first.
 - Do not hardcode behaviour that belongs in config, schema, knowledge, or another owner.
 - Do not add hidden fallbacks, compatibility shims, dead paths, or broad exception swallowing unless explicitly approved.
 - Heuristics that determine semantic meaning, business outcome, target, permission, or action require explicit human approval; assistive heuristics may only narrow or support an authoritative decision path.

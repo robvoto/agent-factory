@@ -16,6 +16,9 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 ## Working rules
 
 - Keep context bounded and read the smallest relevant docs first.
+- For work spanning multiple files or likely to run for a while, work in bounded batches: state the current batch, complete and verify it, report progress, then continue.
+- If a patch, exact-text replacement, or expected match fails, reread the current source and diagnose the mismatch before retrying. Do not retry stale input.
+- Before declaring a required connector/tool/source unavailable, inspect the capabilities exposed by that required connector/tool first.
 - Preserve unknown project/resource references as unknown; ask for clarification instead of guessing.
 - Before introducing or relying on heuristic or approximate inference, apply the platform heuristic-review guardrail: assistive heuristics may narrow/rank candidates when they cannot determine the final result; a heuristic that decides semantic meaning, business outcome, target, permission, or action requires explicit human approval.
 - Change only files required for the task.
@@ -28,6 +31,7 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 
 ## Governed self-improvement
 
+- Record reusable, verified operational lessons in `LESSONS.md`; do not use it for one-off incidents or chat history.
 - This agent may improve its own reusable skills or `AGENTS.md` without separate approval when evidence from completed work shows a repeatable problem, recurring correction, avoidable rework, or stable procedure.
 - When the evidence points beyond skills or `AGENTS.md`, propose one of: a bounded code change, a new skill, an update to an existing skill, or an `AGENTS.md` change.
 - Keep every improvement bounded to the demonstrated problem. Do not broaden purpose, permissions, memory access, tool access, runtime authority, repository scope, or promotion status.
