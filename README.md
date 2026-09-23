@@ -36,14 +36,6 @@ Agent Factory
 - expose a machine-readable catalogue and handshake for Agent Hub;
 - preserve an inspectable agent lifecycle.
 
-## Engineering highlights
-
-- **Governed agent lifecycle** — generated agents move through validation, staging, approval, promotion, and enablement rather than becoming active immediately.
-- **Deterministic validation** — manifests, permissions, tools, contracts, and memory policy are checked before promotion.
-- **Human approval** — LLM-generated packages are treated as untrusted drafts until explicitly approved.
-- **Bounded capabilities** — factory tools operate only within defined staging and registry scopes.
-- **Machine-readable integration** — Agent Hub discovers enabled specialists through explicit catalogue and handshake contracts.
-
 ## Repository boundaries
 
 | Repository | Responsibility |
@@ -111,11 +103,14 @@ Use [`docs/COMMANDS.md`](docs/COMMANDS.md) for the canonical operational command
 
 ## Architecture principles
 
+- **Governed lifecycle** — generated agents move through validation, staging, approval, promotion, and enablement rather than becoming active immediately.
+- **Deterministic validation** — manifests, permissions, tools, contracts, and memory policy are checked before promotion.
 - **Stage before enablement** — generated packages cannot enter the active registry directly.
 - **Human approval** — promotion requires an explicit decision.
 - **Bounded tools** — factory actions operate only within defined staging and registry scopes.
 - **Explicit permissions** — agent access is declared and validated rather than inferred.
 - **Inspectable contracts** — manifests and interaction boundaries remain machine-readable and reviewable.
+- **Machine-readable integration** — Agent Hub discovers enabled specialists through explicit catalogue and handshake contracts.
 - **Separation of concerns** — creation belongs here; orchestration belongs to Agent Hub.
 
 ## Documentation

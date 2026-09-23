@@ -1,15 +1,19 @@
-# Documentation Index
+# Agent Factory Documentation
 
-Read only the smallest authoritative document needed.
+This is the canonical technical documentation entry point for Agent Factory. It is intended for developers, reviewers and coding agents; read only the smallest authoritative document needed.
+
+Project overview and boundaries:
+
+- `../README.md` — concise project overview, lifecycle, repository role and local development
+- `../SECURITY.md` — generated-package, credential, permission, approval and promotion security boundaries
 
 Working execution:
 
 - [Agent Factory Backlog](https://docs.google.com/spreadsheets/d/1outLuOWhd-A7uvzsl9C2Jc-tKpsyci9HPZalxcmFiOg/edit) — live backlog
 
-Operations and security:
+Operations:
 
 - `COMMANDS.md` — canonical setup, validation, lifecycle, approval, promotion, deletion, routing, and Telegram commands
-- `../SECURITY.md` — generated-package, credential, permission, approval, and promotion security boundaries
 
 Diagrams:
 
