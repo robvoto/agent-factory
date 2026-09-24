@@ -27,6 +27,8 @@ Do not turn `README.md` or `AGENTS.md` into a documentation index.
 - Update tests and docs when behavior changes.
 - Remove replaced code; do not leave dead code or unused shims behind.
 - Validate before claiming completion.
+- Before any semantic/product/UX/business-rule/default/workflow/data-interpretation/classification/heuristic/fallback/persistent-data behaviour change: investigate, explain the current finding and exact proposed effect, then wait for Rob's explicit approval. Treat uncertain changes as semantic; mechanical no-behaviour changes may proceed.
+- Never claim a preference, rule, memory, or instruction is persisted unless the authoritative persistent source was actually updated and verified.
 - Use `apply_patch` for manual edits.
 - Do not use destructive commands unless explicitly requested.
 
