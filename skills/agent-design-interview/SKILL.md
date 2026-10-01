@@ -18,6 +18,7 @@ The operator owns business intent and important behavioural decisions. Factory m
 ## Interview behaviour
 
 - Start from information the operator already supplied; never make them repeat answered questions.
+- Separate **stable agent design** from **per-run inputs**. Values that naturally change from request to request (for example product size, budget, postcode, date range, search terms, or delivery speed) belong in the agent's input contract unless the operator explicitly says they are permanent agent restrictions. Do not ask the operator to choose fixed values for dynamic runtime constraints.
 - Ask only the next highest-value unresolved question.
 - Prefer one focused question per turn when an answer affects later architecture.
 - Group questions only when they are tightly related and low-risk.
@@ -67,6 +68,7 @@ Before drafting `AgentPackageSpec`, establish these facts or explicitly mark the
 1. **Goal** — what outcome the agent exists to produce.
 2. **Primary user** — who directs or consumes the agent's work.
 3. **Inputs** — what the agent receives: chat instructions, files, records, events, APIs, or another agent's task envelope.
+   - Identify which constraints are supplied per run and must be preserved exactly through the workflow.
 4. **Outputs** — the concrete deliverables or structured result.
 5. **Responsibilities** — what the agent owns.
 6. **Non-responsibilities** — what it must not decide or do.

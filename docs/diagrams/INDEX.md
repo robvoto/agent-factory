@@ -37,4 +37,4 @@ The preview `.svg` is maintained alongside the source model.
 | Document | What it shows |
 |---|---|
 | [Factory Brain Flow](../factory-brain-flow.md) | Inside the Factory Brain: tools, memory, approvals. |
-| [AI Tech Lead: Agent Hub Integration](../../staging/agents/ai-tech-lead/SYSTEM.md) | How Agent Hub calls AI Tech Lead via JSON subprocess contract. |
+| [AI Tech Lead: Agent Hub Integration](../../config/agents/ai-tech-lead/agent.json) | Enabled manifest defining how Agent Hub calls AI Tech Lead via the JSON subprocess contract. |

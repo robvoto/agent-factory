@@ -29,6 +29,7 @@ Your job is to help design and stage AI agent packages for the Agent Factory Pla
 
 Core rules:
 - Clarify ambiguous requests before acting.
+- Distinguish stable agent behaviour from per-run inputs; do not turn request-specific values into permanent agent settings unless the operator explicitly asks for that.
 - Produce a validated AgentPackageSpec JSON before staging a package.
 - Write agent.json purpose as the single routing contract with exactly three sections: Primary responsibility, Select for, and Do not select for.
 - Make each purpose specific enough to distinguish the agent from other registered agents; never submit a vague one-sentence purpose.
@@ -79,31 +80,18 @@ def _get_agent(resolved_model: str) -> Any:
     logger.info("Creating Factory Brain agent for %s.", resolved_model)
     _ensure_dependencies()
 
-    import deepagents
-    from deepagents import FilesystemPermission, create_deep_agent
-    from deepagents.backends import FilesystemBackend
-    from langgraph.checkpoint.sqlite import SqliteSaver
+    from deepagents import create_deep_agent
 
     from langmem import create_manage_memory_tool, create_search_memory_tool
 
     from .factory_tools import get_factory_tools
     from .knowledge_store import get_knowledge_store
 
-    _CHECKPOINT_DB.parent.mkdir(parents=True, exist_ok=True)
-    if _checkpointer_conn is None:
-        _checkpointer_conn = sqlite3.connect(str(_CHECKPOINT_DB), check_same_thread=False)
-    checkpointer = SqliteSaver(_checkpointer_conn)
-
-    backend = FilesystemBackend(root_dir=str(_PROJECT_ROOT), virtual_mode=False)
-
-    r = str(_PROJECT_ROOT)
-    permissions = [
-        FilesystemPermission(
-            operations=["read"],
-            paths=[f"{r}/docs/", f"{r}/skills/", f"{r}/memory/factory/", f"{r}/templates/"],
-        ),
-        FilesystemPermission(operations=["write"], paths=[f"{r}/staging/agents/", f"{r}/memory/factory/LEARNINGS.md"]),
-    ]
+    checkpointer = _build_checkpointer()
+    backend = _build_filesystem_backend()
+    permissions = _build_filesystem_permissions()
+    filesystem_middleware = _build_filesystem_middleware(backend, permissions)
+    _register_factory_harness_profile(resolved_model)
 
     store = get_knowledge_store()
     memory_tools = [
@@ -122,6 +110,7 @@ def _get_agent(resolved_model: str) -> Any:
         system_prompt=_SYSTEM_PROMPT,
         backend=backend,
         permissions=permissions,
+        middleware=[filesystem_middleware],
         skills=["skills/"],
         memory=["memory/factory/AGENTS.md"],
         checkpointer=checkpointer,
@@ -129,11 +118,93 @@ def _get_agent(resolved_model: str) -> Any:
         interrupt_on={
             "request_agent_promotion": True,
             "request_approval": True,
+            "manage_memory": True,
         },
+        subagents=[],
     )
     _agents_by_model[resolved_model] = agent
     logger.debug("Factory Brain agent compiled successfully for %s.", resolved_model)
     return agent
+
+
+def _build_checkpointer() -> Any:
+    """Create the SQLite checkpointer with strict MessagePack deserialization."""
+    global _checkpointer_conn
+
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+    from langgraph.checkpoint.sqlite import SqliteSaver
+
+    _CHECKPOINT_DB.parent.mkdir(parents=True, exist_ok=True)
+    if _checkpointer_conn is None:
+        _checkpointer_conn = sqlite3.connect(str(_CHECKPOINT_DB), check_same_thread=False)
+
+    # Explicit strict serializer: safe built-in types only unless deliberately allowlisted later.
+    serde = JsonPlusSerializer(allowed_msgpack_modules=None)
+    return SqliteSaver(_checkpointer_conn, serde=serde)
+
+
+def _build_filesystem_backend() -> Any:
+    """Return a virtualised project filesystem backend."""
+    from deepagents.backends import FilesystemBackend
+
+    return FilesystemBackend(root_dir=str(_PROJECT_ROOT), virtual_mode=True)
+
+
+def _build_filesystem_permissions() -> list[Any]:
+    """Allow only approved read paths and deny every built-in filesystem write."""
+    from deepagents import FilesystemPermission
+
+    return [
+        # Secret-like paths are denied before broader read allows (first match wins).
+        FilesystemPermission(
+            operations=["read", "write"],
+            paths=["/**/.env", "/**/.env.*", "/**/secrets/**"],
+            mode="deny",
+        ),
+        FilesystemPermission(
+            operations=["read"],
+            paths=["/docs/**", "/skills/**", "/memory/factory/**", "/templates/**"],
+            mode="allow",
+        ),
+        FilesystemPermission(
+            operations=["read"],
+            paths=["/**"],
+            mode="deny",
+        ),
+        FilesystemPermission(
+            operations=["write"],
+            paths=["/**"],
+            mode="deny",
+        ),
+    ]
+
+
+def _build_filesystem_middleware(backend: Any, permissions: list[Any]) -> Any:
+    """Expose only read/search filesystem tools; no shell or file mutation tools."""
+    from deepagents.middleware.filesystem import FilesystemMiddleware
+
+    return FilesystemMiddleware(
+        backend=backend,
+        tools=["ls", "read_file", "glob", "grep"],
+        _permissions=permissions,
+    )
+
+
+def _register_factory_harness_profile(resolved_model: str) -> None:
+    """Remove shell execution and the default general-purpose subagent for Factory Brain."""
+    from deepagents import (
+        GeneralPurposeSubagentProfile,
+        HarnessProfile,
+        register_harness_profile,
+    )
+
+    register_harness_profile(
+        resolved_model,
+        HarnessProfile(
+            excluded_tools=frozenset({"execute"}),
+            general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
+        ),
+    )
 
 
 def invoke_factory_brain(

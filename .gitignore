@@ -20,6 +20,8 @@ node_modules/
 *.log
 *.sqlite3
 *.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 *.cover
 *.py.cover
 htmlcov/

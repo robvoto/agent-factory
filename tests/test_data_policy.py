@@ -56,6 +56,17 @@ def test_sqlite_files_are_gitignored() -> None:
     )
 
 
+def test_sqlite_wal_and_shm_files_are_gitignored() -> None:
+    runtime_sidecars = [
+        "data/factory_checkpoints.sqlite3-wal",
+        "data/factory_checkpoints.sqlite3-shm",
+    ]
+    not_ignored = [rel for rel in runtime_sidecars if not _is_ignored(rel)]
+    assert not not_ignored, (
+        f"These SQLite runtime sidecars are NOT gitignored: {not_ignored}"
+    )
+
+
 def test_env_file_is_gitignored() -> None:
     assert _is_ignored(".env"), ".env must be gitignored — it may contain API keys"
 

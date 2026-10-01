@@ -199,6 +199,12 @@ def _merge_staged_packages(
         seen_paths.add(path)
         manifest = _load_manifest_from_path(path)
         status = staged_records.get(manifest.id, {}).get("status", "staged")
+        # Once a staged package has been promoted, config/agents is the live
+        # source of truth.  Keeping the old staging directory is useful for
+        # audit/review, but it must not later conflict with a legitimately
+        # evolved enabled manifest.
+        if status == "enabled" and manifest.id in catalog:
+            continue
         _merge_entry(
             catalog,
             manifest,
@@ -207,6 +213,8 @@ def _merge_staged_packages(
         )
 
     for record in staged_records.values():
+        if record.get("status") == "enabled" and record["agent_id"] in catalog:
+            continue
         package_dir = Path(record["path"])
         manifest_path = package_dir / "agent.json"
         if not manifest_path.exists():

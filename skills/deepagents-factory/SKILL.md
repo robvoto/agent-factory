@@ -14,29 +14,58 @@ Use `create_deep_agent` from `deepagents`:
 ```python
 from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend
+from deepagents.middleware.filesystem import FilesystemMiddleware
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+backend = FilesystemBackend(root_dir=str(PROJECT_ROOT), virtual_mode=True)
+permissions = [
+    FilesystemPermission(
+        operations=["read"],
+        paths=["/docs/**", "/skills/**", "/memory/factory/**", "/templates/**"],
+        mode="allow",
+    ),
+    FilesystemPermission(operations=["read"], paths=["/**"], mode="deny"),
+    FilesystemPermission(operations=["write"], paths=["/**"], mode="deny"),
+]
+filesystem = FilesystemMiddleware(
+    backend=backend,
+    tools=["ls", "read_file", "glob", "grep"],
+    _permissions=permissions,
+)
+checkpointer = SqliteSaver(
+    conn,
+    serde=JsonPlusSerializer(allowed_msgpack_modules=None),
+)
+
 agent = create_deep_agent(
-    model="openai:gpt-4.1-mini",
+    model="openai:gpt-5.6-luna",
     tools=get_factory_tools(),
     system_prompt=_SYSTEM_PROMPT,
-    backend=FilesystemBackend(root_dir=str(PROJECT_ROOT), virtual_mode=False),
-    permissions=[
-        FilesystemPermission(operations=["read"], paths=["/abs/path/to/docs/"]),
-        FilesystemPermission(operations=["write"], paths=["/abs/path/to/staging/"]),
-    ],
+    backend=backend,
+    permissions=permissions,
+    middleware=[filesystem],
     skills=["skills/"],
     memory=["memory/factory/AGENTS.md"],
-    checkpointer=SqliteSaver(conn),
-    interrupt_on={"request_agent_promotion": True, "request_approval": True},
+    checkpointer=checkpointer,
+    subagents=[],
+    interrupt_on={
+        "request_agent_promotion": True,
+        "request_approval": True,
+        "manage_memory": True,
+    },
 )
 ```
 
 Key rules:
-- Paths in `FilesystemPermission` must be **absolute strings**
-- `skills=` and `memory=` paths are relative to `root_dir`
-- `SqliteSaver` requires `check_same_thread=False` on the connection
-- Do not use `create_react_agent` — it has no skills, memory, or interrupt_on support
+- Use `FilesystemBackend(..., virtual_mode=True)` whenever host filesystem paths are exposed.
+- Permission paths are virtual root-relative paths such as `/docs/**`; end with an explicit deny-all rule because unmatched paths are otherwise allowed.
+- Prefer a custom `FilesystemMiddleware(tools=[...])` when a built-in tool must be removed entirely, not merely hidden from the model.
+- Keep built-in filesystem access read-only; use bounded custom tools for intentional writes.
+- `skills=` and `memory=` paths are relative to `root_dir`.
+- `SqliteSaver` requires `check_same_thread=False` on the connection and a strict serializer such as `JsonPlusSerializer(allowed_msgpack_modules=None)`.
+- Disable the default general-purpose subagent when the agent does not need delegation; passing `subagents=[]` alone is not sufficient unless the active harness profile also disables it.
+- Do not use `create_react_agent` — it has no skills, memory, or interrupt_on support.
 
 ## Tool design
 
@@ -48,11 +77,12 @@ Key rules:
 
 ## Human-in-the-loop
 
-- `interrupt_on={"tool_name": True}` pauses the graph before that tool runs
-- A `checkpointer` is required — without it, state cannot be resumed
-- Resume with `agent.invoke(None, config=config)` after human approves
-- Inject rejection with `agent.update_state(config, {"messages": [HumanMessage(...)]})` then resume
-- Check if paused: `len(agent.get_state(config).next) > 0`
+- `interrupt_on={"tool_name": True}` pauses the graph before that tool runs.
+- A `checkpointer` is required — without it, state cannot be resumed.
+- Resume with `Command(resume={"decisions": [{"type": "approve"}]})`, providing one decision per pending action request.
+- Reject with `Command(resume={"decisions": [{"type": "reject", "message": reason}]})`.
+- Gate durable memory mutation (`manage_memory`) as well as promotion/approval actions.
+- Check if paused with `len(agent.get_state(config).next) > 0`.
 
 ## Skills vs memory vs prompts
 
@@ -68,7 +98,7 @@ Key rules:
 
 ## Cost discipline
 
-- Default model: `openai:gpt-4.1-mini` (set in `config/factory_settings.json`)
+- Default model: `openai:gpt-5.6-luna` via the `luna` alias (set in `config/factory_settings.json`)
 - Use model aliases from settings: `codex` → `openai:o4-mini`, `claude` → `anthropic:claude-sonnet-4-6`
 - Do not use large models without a clear reason
 - Do not run online research unless explicitly approved

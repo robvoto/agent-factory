@@ -9,7 +9,8 @@ usage() {
 Agent Factory Platform runner
 
 Usage:
-  bash run.sh                      Start the Agent Factory Telegram app
+  ./run.sh [--debug]               Start the Agent Factory Telegram app
+  bash run.sh [--debug]            Start the Agent Factory Telegram app
   bash run.sh telegram             Start the Agent Factory Telegram app
   bash run.sh dev                  Start with hot reload (auto-restart on code changes)
   bash run.sh setup                Install/sync dependencies with uv
@@ -142,8 +143,18 @@ run_delete() {
 main() {
   require_wsl
 
+  local debug=0
+  if [ "${1:-}" = "--debug" ]; then
+    debug=1
+    shift
+  fi
+
   local command="${1:-telegram}"
   if [ "$#" -gt 0 ]; then shift; fi
+
+  if [ "$debug" -eq 1 ]; then
+    export FACTORY_LOG_LEVEL=DEBUG
+  fi
 
   case "$command" in
     telegram|start|run) run_telegram "$@" ;;

@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from agent_factory.cost_log import UsageSnapshot, get_usage_summary, record_llm_run
+from agent_factory.cost_log import (
+    DEFAULT_COST_CATALOG_FILE,
+    UsageSnapshot,
+    get_usage_summary,
+    load_cost_catalog,
+    record_llm_run,
+)
 
 
 def _write_catalog(path: Path, models: dict) -> None:
@@ -69,6 +75,15 @@ def test_record_llm_run_estimates_cost_and_updates_summary(tmp_path):
     assert summary["totals"]["known_cost_usd"] == pytest.approx(0.005663, abs=1e-6)
     assert summary["by_model"]["gpt-5.4-mini"]["calls"] == 1
     assert summary["recent_runs"][-1]["operation"] == "invoke_factory_brain"
+
+
+def test_live_cost_catalog_contains_verified_luna_rates() -> None:
+    catalog = load_cost_catalog(DEFAULT_COST_CATALOG_FILE)
+    luna = catalog["models"]["gpt-5.6-luna"]
+
+    assert luna["input_per_1m"] == 0.2
+    assert luna["cached_input_per_1m"] == 0.02
+    assert luna["output_per_1m"] == 1.2
 
 
 def test_record_llm_run_keeps_unknown_costs_obvious(tmp_path):

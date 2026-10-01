@@ -33,6 +33,15 @@ def test_design_interview_is_local_first_and_stops_when_evidence_is_weak() -> No
     assert "rather than guessing" in text
 
 
+def test_design_interview_keeps_dynamic_constraints_as_runtime_inputs() -> None:
+    text = _read(SKILL)
+
+    assert "stable agent design" in text
+    assert "per-run inputs" in text
+    assert "Do not ask the operator to choose fixed values for dynamic runtime constraints" in text
+    assert "must be preserved exactly through the workflow" in text
+
+
 def test_design_review_surfaces_evidence_and_open_gaps() -> None:
     text = _read(SKILL)
 

@@ -122,6 +122,40 @@ def test_build_agent_catalog_merges_staged_and_enabled(tmp_path):
     assert any(location.endswith("config/agents/alpha-agent.json") for location in entry.locations)
 
 
+def test_build_agent_catalog_ignores_promoted_staging_snapshot_when_enabled_manifest_evolves(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    enabled = tmp_path / "config" / "agents"
+    staging.mkdir(parents=True)
+    enabled.mkdir(parents=True)
+
+    old_manifest = _manifest()
+    new_manifest = _manifest()
+    new_manifest["purpose"] = (
+        "Primary responsibility: Perform evolved alpha work.\n"
+        "Select for: Requests that require the evolved alpha workflow.\n"
+        "Do not select for: Requests unrelated to evolved alpha work."
+    )
+    (staging / "agent.json").write_text(json.dumps(old_manifest), encoding="utf-8")
+    (enabled / "alpha-agent.json").write_text(json.dumps(new_manifest), encoding="utf-8")
+
+    from agent_factory.storage import record_staged_agent, update_staged_agent_status
+
+    db_path = tmp_path / "factory.sqlite3"
+    record_staged_agent("alpha-agent", staging, db_path=db_path)
+    update_staged_agent_status("alpha-agent", "enabled", db_path=db_path)
+
+    catalog = build_agent_catalog(
+        enabled_dir=enabled,
+        staging_dir=tmp_path / "staging",
+        db_path=db_path,
+    )
+
+    entry = catalog["alpha-agent"]
+    assert entry.manifest.purpose == new_manifest["purpose"]
+    assert entry.statuses == ("enabled",)
+    assert all("staging/agents/alpha-agent" not in location for location in entry.locations)
+
+
 def test_plan_package_reuse_reuses_existing_enabled_agent(tmp_path):
     enabled = tmp_path / "config" / "agents"
     enabled.mkdir(parents=True)

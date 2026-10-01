@@ -12,10 +12,11 @@ def _write_settings(path: Path) -> None:
     path.write_text(
         json.dumps(
             {
-                "default_model": "mini",
+                "default_model": "luna",
                 "default_coding_model": "codex",
                 "models": {
                     "codex": "openai:o4-mini",
+                    "luna": "openai:gpt-5.6-luna",
                     "mini": "openai:gpt-4.1-mini",
                     "claude": "anthropic:claude-sonnet-4-6",
                 },
@@ -33,7 +34,7 @@ def test_resolve_model_uses_general_and_coding_defaults(tmp_path, monkeypatch):
     monkeypatch.setattr(factory_settings, "_SETTINGS_FILE", settings_file)
     monkeypatch.delenv("FACTORY_MODEL", raising=False)
 
-    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-4.1-mini"
+    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-5.6-luna"
     assert factory_settings.resolve_model(purpose="coding") == "openai:o4-mini"
 
 
@@ -70,7 +71,7 @@ def test_get_model_defaults_and_aliases(tmp_path, monkeypatch):
     aliases = factory_settings.list_model_aliases()
 
     assert defaults == {
-        "general": "mini",
+        "general": "luna",
         "coding": "codex",
     }
     assert aliases["codex"] == "openai:o4-mini"
