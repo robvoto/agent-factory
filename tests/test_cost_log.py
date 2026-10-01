@@ -124,3 +124,70 @@ def test_record_llm_run_keeps_unknown_costs_obvious(tmp_path):
     summary = get_usage_summary(usage_log)
     assert summary["totals"]["unknown_cost_runs"] == 1
     assert summary["by_model"]["gpt-4.1-mini"]["unknown_cost_runs"] == 1
+
+
+def test_usage_log_never_persists_raw_error_or_result_text(tmp_path):
+    catalog = tmp_path / "llm_costs.json"
+    usage_log = tmp_path / "llm_usage.json"
+    _write_catalog(catalog, {})
+
+    record = record_llm_run(
+        operation="invoke_factory_brain",
+        requested_model="openai:gpt-test",
+        effective_model="openai:gpt-test",
+        status="error",
+        duration_seconds=0.1,
+        usage_by_model={},
+        error="SECRET provider payload TOPSECRET",
+        result_preview="TOPSECRET unrestricted model response",
+        usage_log_path=usage_log,
+        cost_catalog_path=catalog,
+    )
+
+    persisted = usage_log.read_text(encoding="utf-8")
+    assert "SECRET provider payload" not in persisted
+    assert "TOPSECRET" not in persisted
+    assert "result_preview" not in record
+    assert "error" not in record
+    assert record["error_present"] is True
+    assert record["result_present"] is True
+
+
+def test_next_write_scrubs_legacy_raw_text_from_existing_usage_log(tmp_path):
+    catalog = tmp_path / "llm_costs.json"
+    usage_log = tmp_path / "llm_usage.json"
+    _write_catalog(catalog, {})
+    usage_log.write_text(
+        json.dumps(
+            {
+                "recent_runs": [
+                    {
+                        "operation": "old-run",
+                        "error": "SECRET provider payload",
+                        "result_preview": "TOPSECRET model response",
+                    }
+                ],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    record_llm_run(
+        operation="new-run",
+        requested_model="openai:gpt-test",
+        effective_model="openai:gpt-test",
+        status="ok",
+        duration_seconds=0.1,
+        usage_by_model={},
+        usage_log_path=usage_log,
+        cost_catalog_path=catalog,
+    )
+
+    persisted = usage_log.read_text(encoding="utf-8")
+    assert "SECRET provider payload" not in persisted
+    assert "TOPSECRET" not in persisted
+    parsed = json.loads(persisted)
+    legacy = parsed["recent_runs"][0]
+    assert legacy["error_present"] is True
+    assert legacy["result_present"] is True

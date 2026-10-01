@@ -16,9 +16,16 @@ def _events(stream: io.StringIO) -> list[dict[str, Any]]:
 
 
 class _FakeAgent:
-    def __init__(self, *, interrupted: bool = False, error: BaseException | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        interrupted: bool = False,
+        error: BaseException | None = None,
+        response: str = "Factory response",
+    ) -> None:
         self._interrupted = interrupted
         self._error = error
+        self._response = response
         self.received_inputs: list[Any] = []
 
     def stream(self, _input_value: Any, *, config: dict[str, Any], stream_mode: list[str]):
@@ -30,13 +37,13 @@ class _FakeAgent:
         yield ("updates", {"tools": {"name": "list_known_agents"}})
         yield (
             "values",
-            {"messages": [SimpleNamespace(content="Factory response")]},
+            {"messages": [SimpleNamespace(content=self._response)]},
         )
 
     def get_state(self, _config: dict[str, Any]):
         return SimpleNamespace(
             next=("approval",) if self._interrupted else (),
-            values={"messages": [SimpleNamespace(content="Factory response")]},
+            values={"messages": [SimpleNamespace(content=self._response)]},
             interrupts=(
                 SimpleNamespace(
                     value={"action_requests": [{"name": "request_approval", "args": {}}]}
@@ -112,6 +119,53 @@ def test_factory_brain_emits_generic_failure(monkeypatch) -> None:
 
     assert _events(stream)[-1]["event_type"] == "failure"
     assert "SECRET provider payload" not in stream.getvalue()
+
+
+def test_factory_brain_usage_log_does_not_persist_raw_provider_or_result_text(
+    tmp_path, monkeypatch
+) -> None:
+    from agent_factory import cost_log
+
+    usage_log = tmp_path / "llm_usage.json"
+    cost_catalog = tmp_path / "llm_costs.json"
+    cost_catalog.write_text('{"models": {}}\n', encoding="utf-8")
+    monkeypatch.setattr(cost_log, "DEFAULT_USAGE_LOG_FILE", usage_log)
+    monkeypatch.setattr(cost_log, "DEFAULT_COST_CATALOG_FILE", cost_catalog)
+    monkeypatch.setattr(factory_brain, "_check_api_key", lambda: None)
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.resolve_model", lambda *_a, **_k: "test:model"
+    )
+
+    monkeypatch.setattr(
+        factory_brain,
+        "_get_agent",
+        lambda _model: _FakeAgent(response="TOPSECRET model response"),
+    )
+    response, interrupted = factory_brain.invoke_factory_brain(
+        "Create an agent",
+        thread_id="thread-1",
+        progress_reporter=_reporter(io.StringIO()),
+    )
+    assert response == "TOPSECRET model response"
+    assert interrupted is False
+
+    monkeypatch.setattr(
+        factory_brain,
+        "_get_agent",
+        lambda _model: _FakeAgent(error=RuntimeError("SECRET provider payload")),
+    )
+    with pytest.raises(RuntimeError, match="SECRET provider payload"):
+        factory_brain.invoke_factory_brain(
+            "Create an agent",
+            thread_id="thread-1",
+            progress_reporter=_reporter(io.StringIO()),
+        )
+
+    persisted = usage_log.read_text(encoding="utf-8")
+    assert "TOPSECRET" not in persisted
+    assert "SECRET provider payload" not in persisted
+    assert '"result_present": true' in persisted
+    assert '"error_present": true' in persisted
 
 
 def test_factory_brain_emits_failure_when_runtime_construction_fails(monkeypatch) -> None:

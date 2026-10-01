@@ -55,7 +55,22 @@ def load_usage_log(path: Path | None = None) -> dict[str, Any]:
     data.setdefault("totals", _empty_usage_totals())
     data.setdefault("by_model", {})
     data.setdefault("recent_runs", [])
+    _strip_legacy_sensitive_fields(data)
     return data
+
+
+def _strip_legacy_sensitive_fields(data: dict[str, Any]) -> None:
+    """Remove raw free-form text persisted by older logger versions."""
+    recent_runs = data.get("recent_runs")
+    if not isinstance(recent_runs, list):
+        return
+    for run in recent_runs:
+        if not isinstance(run, dict):
+            continue
+        if run.pop("error", None) is not None:
+            run["error_present"] = True
+        if run.pop("result_preview", None) is not None:
+            run["result_present"] = True
 
 
 def record_llm_run(
@@ -103,10 +118,13 @@ def record_llm_run(
         "cost": cost_breakdown["cost"],
         "stop_reason": stop_reason,
     }
+    # Never persist arbitrary provider/model text in the usage log. Raw
+    # exception strings and model responses can contain prompts, tool output,
+    # secrets, or provider payloads. Keep only safe structural metadata.
     if error:
-        run_record["error"] = error
+        run_record["error_present"] = True
     if result_preview:
-        run_record["result_preview"] = result_preview
+        run_record["result_present"] = True
 
     usage_log = load_usage_log(resolved_usage_log)
     _update_usage_log(usage_log, run_record)

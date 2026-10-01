@@ -135,6 +135,86 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
     }
 
 
+def test_manage_memory_durable_write_occurs_only_after_human_approval() -> None:
+    from collections.abc import Sequence
+    from typing import Any
+
+    from deepagents import create_deep_agent
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+    from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.store.memory import InMemoryStore
+    from langgraph.types import Command
+    from langmem import create_manage_memory_tool
+
+    class ScriptedModel(BaseChatModel):
+        responses: list[AIMessage]
+        index: int = 0
+
+        @property
+        def _llm_type(self) -> str:
+            return "scripted-memory-approval-test"
+
+        def bind_tools(
+            self,
+            tools: Sequence[Any],
+            *,
+            tool_choice: str | None = None,
+            **kwargs: Any,
+        ):
+            return self
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            message = self.responses[self.index]
+            self.index += 1
+            return ChatResult(generations=[ChatGeneration(message=message)])
+
+    store = InMemoryStore()
+    manage_memory = create_manage_memory_tool(("shared", "factory"), store=store)
+    model = ScriptedModel(
+        responses=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "manage_memory",
+                        "args": {"content": "remember alpha", "action": "create"},
+                        "id": "call-1",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            AIMessage(content="done"),
+        ]
+    )
+    agent = create_deep_agent(
+        model=model,
+        tools=[manage_memory],
+        store=store,
+        checkpointer=MemorySaver(),
+        interrupt_on={"manage_memory": True},
+        subagents=[],
+    )
+    config = {"configurable": {"thread_id": "memory-approval-test"}}
+
+    first = agent.invoke(
+        {"messages": [{"role": "user", "content": "remember alpha"}]},
+        config,
+    )
+    assert "__interrupt__" in first
+    assert store.search(("shared", "factory")) == []
+
+    resumed = agent.invoke(
+        Command(resume={"decisions": [{"type": "approve"}]}),
+        config,
+    )
+    stored = store.search(("shared", "factory"))
+    assert len(stored) == 1
+    assert stored[0].value == {"content": "remember alpha"}
+    assert resumed["messages"][-1].content == "done"
+
+
 def test_compiled_factory_filesystem_tool_surface_excludes_shell_subagents_and_writes(monkeypatch: pytest.MonkeyPatch) -> None:
     from deepagents import create_deep_agent
     from deepagents.backends import StateBackend
