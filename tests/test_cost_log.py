@@ -79,11 +79,11 @@ def test_record_llm_run_estimates_cost_and_updates_summary(tmp_path):
 
 def test_live_cost_catalog_contains_verified_luna_rates() -> None:
     catalog = load_cost_catalog(DEFAULT_COST_CATALOG_FILE)
-    luna = catalog["models"]["gpt-5.6-luna"]
+    luna = catalog["models"]["gpt-6-luna"]
 
-    assert luna["input_per_1m"] == 0.2
-    assert luna["cached_input_per_1m"] == 0.02
-    assert luna["output_per_1m"] == 1.2
+    assert luna["input_per_1m"] == 0.1
+    assert luna["cached_input_per_1m"] == 0.01
+    assert luna["output_per_1m"] == 0.5
 
 
 def test_record_llm_run_keeps_unknown_costs_obvious(tmp_path):

@@ -39,7 +39,7 @@ checkpointer = SqliteSaver(
 )
 
 agent = create_deep_agent(
-    model="openai:gpt-5.6-luna",
+    model="openai:gpt-6-luna",
     tools=get_factory_tools(),
     system_prompt=_SYSTEM_PROMPT,
     backend=backend,
@@ -98,7 +98,7 @@ Key rules:
 
 ## Cost discipline
 
-- Default model: `openai:gpt-5.6-luna` via the `luna` alias (set in `config/factory_settings.json`)
+- Default model: `openai:gpt-6-luna` via the `luna` alias (set in `config/factory_settings.json`)
 - Use model aliases from settings: `codex` → `openai:o4-mini`, `claude` → `anthropic:claude-sonnet-4-6`
 - Do not use large models without a clear reason
 - Do not run online research unless explicitly approved
