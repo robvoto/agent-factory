@@ -1,0 +1,184 @@
+{
+  "id": "shopping-agent",
+  "manifest_schema_version": 1,
+  "name": "Shopping Agent",
+  "purpose": "Primary responsibility: Find the best purchasable options for a user's shopping request by systematically discovering, verifying, filtering, and ranking products against explicit constraints and preferences.\nSelect for: Shopping requests where the user wants strong alternatives, cheaper options, best-value choices, exact variants, availability, delivery cost, or other buying constraints verified across multiple sources.\nDo not select for: Purchasing or checkout, account/order changes, general non-shopping research, or presenting unverified candidates as recommendations.",
+  "aliases": [
+    "shopping",
+    "shop"
+  ],
+  "tools": [],
+  "permissions": {
+    "network": true,
+    "filesystem": "none",
+    "shell": false,
+    "requires_approval": true
+  },
+  "memory": {
+    "scope": "none",
+    "retention": "none"
+  },
+  "runtime": {
+    "mode": "manual",
+    "notes": "Implementation pending. Approved target is a deterministic LangGraph shopping workflow. Agent Hub -> AI Tech Lead owns substantive implementation."
+  },
+  "input_contract": {
+    "protocol": "agent-hub.task",
+    "protocol_version": 1,
+    "required_fields": [
+      "task"
+    ],
+    "optional_fields": [
+      "request_id",
+      "run_id",
+      "source",
+      "execution_mode",
+      "progress_jsonl",
+      "project_root",
+      "references",
+      "human_approved",
+      "approval_token",
+      "resume"
+    ],
+    "accepted_context": [
+      "project_root",
+      "references"
+    ],
+    "required_context": []
+  },
+  "interaction_contract": {
+    "progress": false,
+    "clarification": true,
+    "approval": true,
+    "resume": false,
+    "cancellation": false
+  },
+  "task_contract": {
+    "task_kinds": [
+      "shopping"
+    ],
+    "task_kind_descriptions": {
+      "shopping": "Find and compare purchasable products against explicit shopping constraints and preferences."
+    },
+    "default_task_kind": "shopping"
+  },
+  "project_context_contract": {
+    "supported_schema_versions": [
+      1
+    ],
+    "required": false,
+    "capabilities": [],
+    "enforced_filesystem_permission": "none"
+  },
+  "target_project_access": {
+    "requires_explicit_project_root": false,
+    "authorization_modes": [],
+    "allows_target_creation": false,
+    "creation_scope": "none",
+    "fail_closed_when": []
+  },
+  "output_contract": null,
+  "approved_architecture": {
+    "workflow": "deterministic LangGraph workflow",
+    "gates": [
+      "constraint ledger",
+      "bounded discovery",
+      "separate verification",
+      "deterministic PASS/FAIL/UNVERIFIED",
+      "rank verified PASS options",
+      "simple shortlist"
+    ],
+    "acquisition_order": [
+      "search_or_api",
+      "direct_page_retrieval_and_extraction",
+      "bounded_browser_or_scraping_fallback"
+    ],
+    "source_policy": "Public sources by default; account-only sources require per-task approval.",
+    "browser_policy": "Browser automation/scraping is allowed as a bounded fallback when mandatory facts cannot otherwise be verified.",
+    "prohibited_actions": [
+      "purchase",
+      "checkout",
+      "account changes",
+      "order changes"
+    ],
+    "durable_memory": false
+  },
+  "implementation_handoff": {
+    "owner": "Agent Hub -> AI Tech Lead",
+    "factory_stop_rule": "Implementation-ready, not implementation-complete. AI Tech Lead selects implementation details that satisfy the approved contract.",
+    "required_capabilities": [
+      "deterministic LangGraph workflow",
+      "multi-source shopping discovery",
+      "direct page retrieval and structured extraction",
+      "bounded browser automation/scraping fallback",
+      "variant/availability/price/shipping verification",
+      "delivered-price calculation where possible",
+      "deterministic PASS/FAIL/UNVERIFIED classification",
+      "simple ranked shopper-facing shortlist",
+      "structured observability and cost accounting"
+    ],
+    "observability": {
+      "mandatory_run_fields": [
+        "request_id",
+        "run_id",
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "stop_reason",
+        "candidate_discovered_count",
+        "pass_count",
+        "fail_count",
+        "unverified_count",
+        "llm_call_count",
+        "input_tokens",
+        "output_tokens",
+        "cached_tokens_when_available",
+        "estimated_cost_usd",
+        "search_call_count",
+        "api_call_count",
+        "page_fetch_count",
+        "browser_page_count",
+        "browser_action_count",
+        "retry_count",
+        "error_count"
+      ],
+      "mandatory_call_fields": [
+        "run_id",
+        "phase_or_node",
+        "call_type",
+        "provider_or_tool",
+        "model_id_when_llm",
+        "input_tokens_when_available",
+        "output_tokens_when_available",
+        "cached_tokens_when_available",
+        "estimated_cost_usd_when_available",
+        "duration_ms",
+        "status",
+        "safe_domain_or_url_when_relevant"
+      ],
+      "redaction": "Never log credentials, cookies, auth tokens, payment details, secret headers, or raw private account data."
+    },
+    "budget_guardrails": {
+      "must_be_configurable": [
+        "max_llm_calls",
+        "max_total_tokens",
+        "max_estimated_cost_usd",
+        "max_search_calls",
+        "max_api_calls",
+        "max_page_fetches",
+        "max_browser_pages",
+        "max_browser_actions",
+        "max_retries"
+      ],
+      "warning_thresholds": "Configurable warning thresholds must surface before hard limits.",
+      "hard_stop": "On a hard budget limit, stop safely, record budget_exhausted with the triggering metric, and return partial verified results.",
+      "default_values": "AI Tech Lead must derive conservative defaults from measured dry runs and keep them configurable; Factory does not invent arbitrary numeric caps."
+    },
+    "implementation_acceptance": [
+      "No implementation-complete claim until telemetry and cost accounting are proven in tests.",
+      "No implementation-complete claim until each budget guardrail has a deterministic test.",
+      "No implementation-complete claim until browser fallback has bounded limits, logging, and stop conditions.",
+      "No promotion until end-to-end shopping tests prove exact-variant, unavailable-seller, unknown-shipping, over-budget benchmark, and simple-shortlist behavior."
+    ]
+  }
+}

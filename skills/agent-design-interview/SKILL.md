@@ -133,6 +133,15 @@ Once the design is approved:
 
 Factory remains the lifecycle owner after implementation evidence returns.
 
+Factory designs to **implementation-ready, not implementation-complete**.
+Stop once purpose, responsibilities, boundaries, runtime pattern, required
+capabilities/integrations, permissions, acceptance evidence, budgets,
+observability requirements, and stop conditions are sufficiently clear for a
+bounded implementation handoff. If multiple implementation choices satisfy
+that approved contract, record the constraints and delegate the choice to AI
+Tech Lead instead of continuing research or design merely to find a “perfect”
+implementation.
+
 ## Anti-patterns
 
 Do not:

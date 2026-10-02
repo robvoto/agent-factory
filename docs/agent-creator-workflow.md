@@ -144,6 +144,12 @@ When an approved agent design requires substantive code, architecture, tests, co
 
 The handoff must preserve the approved purpose, responsibilities, non-responsibilities, runtime choice, permissions, acceptance evidence, budgets, permitted paths, stop conditions, and the evidence brief behind material technical choices. AI Tech Lead may improve implementation details but must not silently change the agent's approved purpose or lifecycle decisions.
 
+Factory stops at **implementation-ready**. It does not need to settle every
+library, adapter, selector, provider, retry policy, or internal class before
+handoff when several choices can satisfy the approved contract. Those
+implementation details belong to AI Tech Lead unless they materially change
+purpose, permissions, budgets, lifecycle state, or acceptance criteria.
+
 If AI Tech Lead discovers implementation evidence that invalidates a Factory design assumption, the conflict returns to Factory/operator review rather than being silently replaced during coding.
 
 ## Promotion rule

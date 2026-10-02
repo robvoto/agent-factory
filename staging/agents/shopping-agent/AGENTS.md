@@ -1,4 +1,4 @@
-# Shopping Research Agent Agent Instructions
+# Shopping Agent Agent Instructions
 
 Status: staged draft only.
 
