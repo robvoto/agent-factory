@@ -17,14 +17,14 @@ def _write_settings(path: Path) -> None:
                     "coding": "FACTORY_CODING_MODEL",
                     "global": "FACTORY_MODEL",
                 },
-                "model_defaults": {"general": "luna", "coding": "codex"},
+                "model_defaults": {"general": "luna", "coding": "luna"},
                 "runtime_limits": {
                     "recursion_limit": 32,
                     "provider_timeout_seconds": 60,
                     "max_retries": 1,
                 },
                 "models": {
-                    "codex": "openai:o4-mini",
+                    "codex": "openai:gpt-6-luna",
                     "luna": "openai:gpt-6-luna",
                     "mini": "openai:gpt-4.1-mini",
                     "claude": "anthropic:claude-sonnet-4-6",
@@ -46,7 +46,7 @@ def test_resolve_model_prefers_specific_and_global_environment(tmp_path, monkeyp
     monkeypatch.setenv("FACTORY_MODEL", "codex")
 
     assert factory_settings.resolve_model(purpose="general") == "openai:gpt-4.1-mini"
-    assert factory_settings.resolve_model(purpose="coding") == "openai:o4-mini"
+    assert factory_settings.resolve_model(purpose="coding") == "openai:gpt-6-luna"
 
 
 def test_resolve_model_uses_config_defaults_without_environment(tmp_path, monkeypatch):
@@ -58,7 +58,7 @@ def test_resolve_model_uses_config_defaults_without_environment(tmp_path, monkey
     monkeypatch.delenv("FACTORY_MODEL", raising=False)
 
     assert factory_settings.resolve_model(purpose="general") == "openai:gpt-6-luna"
-    assert factory_settings.resolve_model(purpose="coding") == "openai:o4-mini"
+    assert factory_settings.resolve_model(purpose="coding") == "openai:gpt-6-luna"
 
 
 def test_resolve_model_honors_aliases_and_literals(tmp_path, monkeypatch):
@@ -96,8 +96,8 @@ def test_get_model_defaults_and_aliases(tmp_path, monkeypatch):
     defaults = factory_settings.get_model_defaults()
     aliases = factory_settings.list_model_aliases()
 
-    assert defaults == {"general": "luna", "coding": "codex"}
-    assert aliases["codex"] == "openai:o4-mini"
+    assert defaults == {"general": "luna", "coding": "luna"}
+    assert aliases["codex"] == "openai:gpt-6-luna"
 
 
 def test_get_runtime_limits_from_central_settings(tmp_path, monkeypatch):

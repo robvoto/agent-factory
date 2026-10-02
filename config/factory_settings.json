@@ -6,7 +6,7 @@
   },
   "model_defaults": {
     "general": "luna",
-    "coding": "codex"
+    "coding": "luna"
   },
   "runtime_limits": {
     "recursion_limit": 32,
@@ -14,7 +14,7 @@
     "max_retries": 1
   },
   "models": {
-    "codex": "openai:o4-mini",
+    "codex": "openai:gpt-6-luna",
     "claude": "anthropic:claude-sonnet-4-6",
     "luna": "openai:gpt-6-luna",
     "mini": "openai:gpt-4.1-mini",
