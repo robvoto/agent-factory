@@ -19,7 +19,7 @@ def _write_settings(path: Path) -> None:
                 },
                 "models": {
                     "codex": "openai:o4-mini",
-                    "luna": "openai:gpt-5.6-luna",
+                    "luna": "openai:gpt-6-luna",
                     "mini": "openai:gpt-4.1-mini",
                     "claude": "anthropic:claude-sonnet-4-6",
                 },
@@ -39,7 +39,7 @@ def test_resolve_model_uses_general_and_coding_defaults(tmp_path, monkeypatch):
     monkeypatch.setenv("FACTORY_CODING_MODEL", "codex")
     monkeypatch.delenv("FACTORY_MODEL", raising=False)
 
-    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-5.6-luna"
+    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-6-luna"
     assert factory_settings.resolve_model(purpose="coding") == "openai:o4-mini"
 
 
