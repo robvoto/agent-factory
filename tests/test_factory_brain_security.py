@@ -189,6 +189,11 @@ def test_factory_agent_non_openai_model_does_not_force_responses_api(
     }
 
 
+def test_factory_prompt_stops_spec_validation_after_first_valid_result() -> None:
+    assert "validation is complete for that unchanged draft" in factory_brain._SYSTEM_PROMPT
+    assert "Do not call the validator again unless the spec is changed afterward" in factory_brain._SYSTEM_PROMPT
+
+
 def test_manage_memory_durable_write_occurs_only_after_human_approval() -> None:
     from collections.abc import Sequence
     from typing import Any
