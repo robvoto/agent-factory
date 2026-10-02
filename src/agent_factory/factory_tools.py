@@ -172,6 +172,7 @@ def create_staged_agent_package(spec_json: str) -> str:
       runtime.progress - optional Hub progress config for Hub-callable or long-running agents
       risks      - list of risk labels (auto-populated from permissions)
       tests      - list of test descriptions
+      operating_rules - approved runtime rules rendered into SYSTEM.md
       extensions - specialist-owned metadata with no universal meaning (e.g. a
                    backlog pointer); written through verbatim, never interpreted
 
@@ -258,16 +259,36 @@ def create_staged_agent_package(spec_json: str) -> str:
         encoding="utf-8",
     )
 
-    (package_dir / "SYSTEM.md").write_text(
-        f"# {spec.name} System Prompt\n\n"
-        f"You are {spec.name}.\n\n"
-        f"Purpose:\n\n```text\n{spec.purpose}\n```\n\n"
-        "Operating rules:\n\n"
-        "- Stay within the approved tools and permissions.\n"
-        "- Ask for clarification when the task is ambiguous.\n"
-        "- Stop before risky or destructive actions.\n"
-        "- Report what you did and what remains uncertain.\n"
-        "- Do not modify your own files or permissions.\n",
+    system_text = (_TEMPLATES_DIR / "agent-package" / "SYSTEM.md").read_text(
+        encoding="utf-8"
+    )
+    system_text = system_text.replace("{{agent_name}}", spec.name).replace(
+        "{{agent_purpose}}", spec.purpose
+    )
+    if spec.operating_rules:
+        approved_rules = "\n".join(f"- {rule}" for rule in spec.operating_rules)
+        system_text += f"\nApproved operating rules:\n\n{approved_rules}\n"
+    (package_dir / "SYSTEM.md").write_text(system_text, encoding="utf-8")
+
+    agents_text = (_TEMPLATES_DIR / "agent-package" / "AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    agents_text = agents_text.replace("{{agent_name}}", spec.name).replace(
+        "{{agent_purpose}}", spec.purpose
+    )
+    (package_dir / "AGENTS.md").write_text(agents_text, encoding="utf-8")
+    (package_dir / "LESSONS.md").write_text(
+        (_TEMPLATES_DIR / "agent-package" / "LESSONS.md").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    skills_dir = package_dir / "skills"
+    skills_dir.mkdir(exist_ok=True)
+    (skills_dir / "INDEX.md").write_text(
+        (_TEMPLATES_DIR / "agent-package" / "skills" / "INDEX.md").read_text(
+            encoding="utf-8"
+        ),
         encoding="utf-8",
     )
 

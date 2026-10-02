@@ -52,6 +52,10 @@ tests/.gitkeep
 
 Required fields: `id`, `name`, `aliases`, `tools`, `permissions`, `memory`, `runtime`
 
+Use `operating_rules` for concise approved runtime behavior that must be
+rendered into `SYSTEM.md`. Do not hide runtime rules inside `extensions`;
+extensions remain uninterpreted specialist metadata.
+
 Required routing field:
 - `purpose`: the single routing contract used by Hub. It must contain exactly `Primary responsibility:`, `Select for:`, and `Do not select for:` sections
 

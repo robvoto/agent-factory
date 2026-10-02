@@ -234,7 +234,7 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     monkeypatch.setattr(storage_mod, "_DEFAULT_DB_PATH", db)
 
     result = factory_tools.create_staged_agent_package.invoke(
-        {"spec_json": _spec_json()}
+        {"spec_json": _spec_json(operating_rules=["Verify before recommending."])}
     )
 
     assert "test-agent" in result
@@ -243,12 +243,18 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     pkg = staging / "test-agent"
     assert (pkg / "agent.json").exists()
     assert (pkg / "SYSTEM.md").exists()
+    assert (pkg / "AGENTS.md").exists()
+    assert (pkg / "LESSONS.md").exists()
     assert (pkg / "REVIEW.md").exists()
     assert (pkg / "tools.json").exists()
     assert (pkg / "permissions.json").exists()
     assert (pkg / "memory.json").exists()
     assert (pkg / "README.md").exists()
+    assert (pkg / "skills" / "INDEX.md").exists()
     assert (pkg / "tests" / ".gitkeep").exists()
+    assert "Verify before recommending." in (pkg / "SYSTEM.md").read_text(
+        encoding="utf-8"
+    )
     manifest = json.loads((pkg / "agent.json").read_text(encoding="utf-8"))
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None

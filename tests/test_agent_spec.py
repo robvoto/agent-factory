@@ -374,6 +374,24 @@ def test_agent_package_spec_accepts_specialist_owned_extensions() -> None:
     assert spec.extensions == {"backlog_sheet_id": "some-sheet-id"}
 
 
+def test_agent_package_spec_validates_operating_rules() -> None:
+    base = {
+        "id": "alpha-agent",
+        "name": "Alpha Agent",
+        "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Alpha requests.\nDo not select for: Unrelated requests.",
+        "aliases": ["alpha"],
+    }
+    spec = AgentPackageSpec.model_validate(
+        {**base, "operating_rules": ["Verify evidence before recommending."]}
+    )
+    assert spec.operating_rules == ["Verify evidence before recommending."]
+
+    with pytest.raises(ValueError, match="must not contain duplicates"):
+        AgentPackageSpec.model_validate(
+            {**base, "operating_rules": ["same", "same"]}
+        )
+
+
 def test_agent_package_spec_rejects_extensions_that_shadow_core_fields() -> None:
     with pytest.raises(ValidationError):
         AgentPackageSpec.model_validate(

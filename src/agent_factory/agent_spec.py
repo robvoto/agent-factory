@@ -365,10 +365,21 @@ class AgentPackageSpec(BaseModel):
     output_contract: AgentOutputContract | None = None
     risks: list[str] = []
     tests: list[str] = []
+    operating_rules: list[str] = []
     # Specialist-owned manifest metadata with no universal meaning (e.g. a
     # specialist's own backlog pointer). Written verbatim into agent.json;
     # Factory and Hub never interpret its contents.
     extensions: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("operating_rules")
+    @classmethod
+    def validate_operating_rules(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values if isinstance(value, str) and value.strip()]
+        if len(normalized) != len(values):
+            raise ValueError("operating_rules must contain only non-empty strings.")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("operating_rules must not contain duplicates.")
+        return normalized
 
     _CORE_MANIFEST_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {
