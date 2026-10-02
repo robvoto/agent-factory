@@ -97,6 +97,67 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
 # create_staged_agent_package (end-to-end)
 # ---------------------------------------------------------------------------
 
+
+def test_validate_agent_package_spec_is_non_mutating(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+
+    result = factory_tools.validate_agent_package_spec.invoke(
+        {"spec_json": _spec_json()}
+    )
+
+    assert "Valid AgentPackageSpec" in result
+    assert "No files were written" in result
+    assert not staging.exists()
+
+
+def test_validate_agent_package_spec_rejects_unknown_nested_fields(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+
+    result = factory_tools.validate_agent_package_spec.invoke(
+        {
+            "spec_json": _spec_json(
+                runtime={
+                    "mode": "manual",
+                    "framework": "LangGraph",
+                }
+            )
+        }
+    )
+
+    assert "Invalid agent spec" in result
+    assert "runtime.framework" in result
+    assert not staging.exists()
+
+
+def test_create_staged_agent_package_rejects_unknown_nested_fields(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {
+            "spec_json": _spec_json(
+                runtime={
+                    "mode": "manual",
+                    "framework": "LangGraph",
+                }
+            )
+        }
+    )
+
+    assert "Invalid agent spec" in result
+    assert "runtime.framework" in result
+    assert list(staging.iterdir()) == []
+
+
 def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     from agent_factory import factory_tools
 

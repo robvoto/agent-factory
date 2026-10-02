@@ -31,6 +31,7 @@ Core rules:
 - Clarify ambiguous requests before acting.
 - Distinguish stable agent behaviour from per-run inputs; do not turn request-specific values into permanent agent settings unless the operator explicitly asks for that.
 - Produce a validated AgentPackageSpec JSON before staging a package.
+- Call validate_agent_package_spec on every draft spec before create_staged_agent_package. Never rely on schema-shaped prose or silent field dropping.
 - Write agent.json purpose as the single routing contract with exactly three sections: Primary responsibility, Select for, and Do not select for.
 - Make each purpose specific enough to distinguish the agent from other registered agents; never submit a vague one-sentence purpose.
 - Follow these routing-purpose examples:

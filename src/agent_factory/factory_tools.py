@@ -18,7 +18,7 @@ from langchain_core.tools import tool
 from .agent_catalog import build_agent_catalog, describe_agent_catalog, plan_package_reuse
 from .design_research import request_design_research, run_design_research
 from .errors import AgentFactoryError
-from .agent_spec import AgentPackageSpec
+from .agent_spec import AgentPackageSpec, validate_agent_package_spec_payload
 from .project_context import ProjectContextConsistencyError, verify_project_context_consistency
 
 _PROJECT_ROOT = Path(__file__).parents[2]
@@ -86,6 +86,36 @@ def list_known_agents() -> str:
 
 
 @tool
+def validate_agent_package_spec(spec_json: str) -> str:
+    """Validate an AgentPackageSpec JSON draft without writing or staging files.
+
+    Use this before create_staged_agent_package. Validation fails closed on
+    unknown fields, including nested contract/runtime fields, so intended
+    behavior cannot be silently discarded by schema defaults.
+
+    Returns the normalized validated spec JSON or a validation error.
+    """
+    from pydantic import ValidationError
+
+    try:
+        raw = json.loads(spec_json)
+    except json.JSONDecodeError as exc:
+        logger.warning("Invalid JSON supplied for agent spec validation: %s", exc)
+        return f"Invalid JSON in spec: {exc}"
+
+    try:
+        spec = validate_agent_package_spec_payload(raw)
+    except (ValidationError, ValueError) as exc:
+        logger.warning("Invalid agent spec draft: %s", exc)
+        return f"Invalid agent spec:\n{exc}"
+
+    return "Valid AgentPackageSpec. No files were written.\n" + spec.model_dump_json(
+        indent=2,
+        exclude_none=True,
+    )
+
+
+@tool
 def create_staged_agent_package(spec_json: str) -> str:
     """Create a staged agent package from a validated JSON spec.
 
@@ -131,8 +161,8 @@ def create_staged_agent_package(spec_json: str) -> str:
         return f"Invalid JSON in spec: {exc}"
 
     try:
-        spec = AgentPackageSpec.model_validate(raw)
-    except ValidationError as exc:
+        spec = validate_agent_package_spec_payload(raw)
+    except (ValidationError, ValueError) as exc:
         logger.warning("Invalid staged agent spec: %s", exc)
         return f"Invalid agent spec:\n{exc}"
 
@@ -422,6 +452,7 @@ def get_factory_tools() -> list:
         list_staged_agents,
         list_known_agents,
         read_staged_review,
+        validate_agent_package_spec,
         create_staged_agent_package,
         record_decision,
         request_design_research,

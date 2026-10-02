@@ -6,8 +6,9 @@ Stage 3: structured spec with Pydantic validation before any files are written.
 from __future__ import annotations
 
 import re
+import types
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Mapping
+from typing import Any, ClassVar, Literal, Mapping, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -494,6 +495,85 @@ class AgentPackageSpec(BaseModel):
                 "'project_root' in input_contract.accepted_context."
             )
         return self
+
+
+def validate_agent_package_spec_payload(raw: Any) -> AgentPackageSpec:
+    """Validate one AgentPackageSpec payload and fail closed on unknown fields.
+
+    Pydantic ignores extra fields by default. Agent package specs must not do
+    that because silently dropping an intended runtime or contract field can
+    materially change the generated agent. This strict boundary check runs
+    before normal Pydantic validation and recurses through nested core models.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("Agent package spec must be a JSON object.")
+    _reject_unknown_model_fields(raw, AgentPackageSpec, path="")
+    return AgentPackageSpec.model_validate(raw)
+
+
+def _reject_unknown_model_fields(
+    raw: dict[str, Any],
+    model_type: type[BaseModel],
+    *,
+    path: str,
+) -> None:
+    allowed = set(model_type.model_fields)
+    unknown = sorted(set(raw).difference(allowed))
+    if unknown:
+        rendered = ", ".join(f"{path}{name}" for name in unknown)
+        raise ValueError(f"Unknown agent spec field(s): {rendered}")
+
+    for field_name, value in raw.items():
+        field = model_type.model_fields[field_name]
+        field_path = f"{path}{field_name}"
+        _reject_unknown_for_annotation(value, field.annotation, path=field_path)
+
+
+def _reject_unknown_for_annotation(value: Any, annotation: Any, *, path: str) -> None:
+    nested_model = _nested_model_type(annotation)
+    if nested_model is not None:
+        if isinstance(value, dict):
+            _reject_unknown_model_fields(value, nested_model, path=f"{path}.")
+        return
+
+    origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    if origin in (list, tuple, set, frozenset) and args:
+        item_model = _nested_model_type(args[0])
+        if item_model is not None and isinstance(value, list):
+            for index, item in enumerate(value):
+                if isinstance(item, dict):
+                    _reject_unknown_model_fields(
+                        item,
+                        item_model,
+                        path=f"{path}[{index}].",
+                    )
+        return
+
+    if origin is dict and len(args) == 2:
+        value_model = _nested_model_type(args[1])
+        if value_model is not None and isinstance(value, dict):
+            for key, item in value.items():
+                if isinstance(item, dict):
+                    _reject_unknown_model_fields(
+                        item,
+                        value_model,
+                        path=f"{path}.{key}.",
+                    )
+
+
+def _nested_model_type(annotation: Any) -> type[BaseModel] | None:
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+
+    origin = get_origin(annotation)
+    if origin in (Union, types.UnionType):
+        for arg in get_args(annotation):
+            nested = _nested_model_type(arg)
+            if nested is not None:
+                return nested
+    return None
 
 
 class DuplicateStagedAgentError(ValueError):

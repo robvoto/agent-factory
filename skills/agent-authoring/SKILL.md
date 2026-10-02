@@ -13,6 +13,8 @@ If the operator has supplied only an idea, outcome, or partially defined agent, 
 
 Do not draft `AgentPackageSpec` or stage files until material design questions and evidence gaps are resolved and the operator has reviewed the design summary. If the operator already provides a complete approved design with sufficient evidence for its material technical choices, do not repeat the interview unnecessarily.
 
+Before staging, call `validate_agent_package_spec` with the complete draft JSON. This validation is non-mutating and fails closed on unknown fields, including nested runtime and contract fields. Correct every reported issue and validate again until the tool returns `Valid AgentPackageSpec`. Only then may `create_staged_agent_package` be called.
+
 ## Required files
 
 Every staged package under `staging/agents/<agent-id>/` must include:
