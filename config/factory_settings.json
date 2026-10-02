@@ -4,6 +4,10 @@
     "coding": "FACTORY_CODING_MODEL",
     "global": "FACTORY_MODEL"
   },
+  "model_defaults": {
+    "general": "luna",
+    "coding": "codex"
+  },
   "models": {
     "codex": "openai:o4-mini",
     "claude": "anthropic:claude-sonnet-4-6",

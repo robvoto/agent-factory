@@ -30,34 +30,42 @@ def _model_environment(settings: dict) -> dict[str, str]:
     return {key: value.strip() for key, value in configured.items()}
 
 
+def _configured_model_defaults(settings: dict) -> dict[str, str]:
+    configured = settings.get("model_defaults")
+    required = {"general", "coding"}
+    if not isinstance(configured, dict) or set(configured) != required or any(
+        not isinstance(value, str) or not value.strip() for value in configured.values()
+    ):
+        raise RuntimeError(
+            f"model_defaults in {_SETTINGS_FILE} must define non-empty general and coding models."
+        )
+    return {key: value.strip() for key, value in configured.items()}
+
+
 def _runtime_model_name(settings: dict, *, purpose: str) -> str:
     environment = _model_environment(settings)
+    defaults = _configured_model_defaults(settings)
     specific = os.environ.get(environment[purpose], "").strip()
     global_model = os.environ.get(environment["global"], "").strip()
-    raw = specific or global_model
-    if not raw:
-        raise RuntimeError(
-            f"No runtime model configured for purpose '{purpose}'. Set "
-            f"{environment[purpose]} or {environment['global']}."
-        )
-    return raw
+    return specific or global_model or defaults[purpose]
 
 
 def get_model_defaults() -> dict[str, str]:
     """Return the models currently selected by runtime configuration."""
     settings = _load()
     environment = _model_environment(settings)
+    defaults = _configured_model_defaults(settings)
     global_model = os.environ.get(environment["global"], "").strip()
     return {
-        "general": os.environ.get(environment["general"], "").strip() or global_model or "<not configured>",
-        "coding": os.environ.get(environment["coding"], "").strip() or global_model or "<not configured>",
+        "general": os.environ.get(environment["general"], "").strip() or global_model or defaults["general"],
+        "coding": os.environ.get(environment["coding"], "").strip() or global_model or defaults["coding"],
     }
 
 
 def resolve_model(name_or_string: str | None = None, *, purpose: str = "general") -> str:
     """Return the model string for a given alias or literal model string.
 
-    Priority: explicit argument > purpose-specific runtime env var > global runtime env var.
+    Priority: explicit argument > purpose-specific env var > global env var > config default.
     If name_or_string matches a key in config 'models', returns that model string.
     Otherwise treats it as a literal model string (e.g. 'openai:gpt-4.1-mini').
     """

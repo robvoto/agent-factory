@@ -29,7 +29,7 @@ uv run agent-factory langchain-check
 - `staged` lists all staged-agent records and their current statuses, including records retained after promotion with status `enabled`.
 - `pending` shows approval requests and their numeric IDs.
 - `models` shows configured model defaults and aliases.
-- Model selection is provided at runtime with `FACTORY_GENERAL_MODEL` and/or `FACTORY_CODING_MODEL`; `FACTORY_MODEL` is the global fallback. The command reports `<not configured>` when no runtime model is set.
+- Configured defaults are Luna (`general`) and Codex (`coding`). Precedence is purpose-specific environment variable, then `FACTORY_MODEL`, then the configured default. Environment values may be aliases or provider model strings.
 - `langchain-check` verifies the LangChain runtime import path.
 
 ## Create agent drafts

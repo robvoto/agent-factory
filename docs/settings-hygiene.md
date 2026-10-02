@@ -29,6 +29,7 @@ dated backups (`settings.local.2026-06-01.json`).
 ## What may be committed
 
 - Model alias definitions (no keys)
+- Non-secret model defaults; environment variables can override them
 - Bot name and `token_env` / `allowed_chat_ids_env` variable names (not values)
 - Default feature flags that are safe to share
 
@@ -42,8 +43,9 @@ If the real settings file is missing the app must:
 
 ## Environment variables
 
-Secrets must be injected via environment variables, not committed files.
-Use `.env` (gitignored) for local development and the OS environment for production.
+Secrets must be injected via environment variables, not committed files. Use `.env`
+(gitignored) for local secrets and optional model overrides; committed model defaults
+belong in `config/factory_settings.json`. Use OS environment variables for production overrides.
 
 Never read `.env` from code directly — use `python-dotenv` or a startup wrapper only.
 Never commit `.env`, even if it only contains non-secret defaults.
