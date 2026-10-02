@@ -7,7 +7,7 @@ Current technical shape of agent-factory. For product direction, read `platform-
 ## Implemented pieces
 
 1. **AgentManifest / AgentPackageSpec** — Pydantic models for agent spec validation (`agent_spec.py`)
-2. **Factory Brain** — LangGraph Deep Agent that designs and stages packages (`factory_brain.py`); Factory Brain was already implemented as a Deep Agent before AF-050. AF-050 hardens its packaging, permissions, persistence, and security boundaries rather than migrating it to Deep Agents. Its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use
+2. **Factory Brain** — LangGraph Deep Agent that designs and stages packages (`factory_brain.py`); Factory Brain was already implemented as a Deep Agent before AF-050. AF-050 hardens its packaging, permissions, persistence, and security boundaries rather than migrating it to Deep Agents. Its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use. Runtime safety limits are centrally configured in `config/factory_settings.json`: Deep Agent turns use an explicit graph recursion limit, while provider calls use explicit timeout and retry caps so permissive framework defaults cannot leave a bad design or research turn effectively unbounded.
 3. **Factory Tools** — bounded tools: create, promote, approve, delete (`factory_tools.py`)
 4. **Agent Catalog** — staged + enabled inventory (`agent_catalog.py`)
 5. **Creator Workflow** — deterministic scaffolding from spec (`creator_workflow.py`)

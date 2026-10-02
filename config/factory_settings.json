@@ -8,6 +8,11 @@
     "general": "luna",
     "coding": "codex"
   },
+  "runtime_limits": {
+    "recursion_limit": 32,
+    "provider_timeout_seconds": 60,
+    "max_retries": 1
+  },
   "models": {
     "codex": "openai:o4-mini",
     "claude": "anthropic:claude-sonnet-4-6",

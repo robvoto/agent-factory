@@ -18,6 +18,11 @@ def _write_settings(path: Path) -> None:
                     "global": "FACTORY_MODEL",
                 },
                 "model_defaults": {"general": "luna", "coding": "codex"},
+                "runtime_limits": {
+                    "recursion_limit": 32,
+                    "provider_timeout_seconds": 60,
+                    "max_retries": 1,
+                },
                 "models": {
                     "codex": "openai:o4-mini",
                     "luna": "openai:gpt-6-luna",
@@ -93,6 +98,34 @@ def test_get_model_defaults_and_aliases(tmp_path, monkeypatch):
 
     assert defaults == {"general": "luna", "coding": "codex"}
     assert aliases["codex"] == "openai:o4-mini"
+
+
+def test_get_runtime_limits_from_central_settings(tmp_path, monkeypatch):
+    settings_file = tmp_path / "factory_settings.json"
+    _write_settings(settings_file)
+    monkeypatch.setattr(factory_settings, "_SETTINGS_FILE", settings_file)
+
+    assert factory_settings.get_runtime_limits() == {
+        "recursion_limit": 32,
+        "provider_timeout_seconds": 60,
+        "max_retries": 1,
+    }
+
+
+def test_get_runtime_limits_fails_closed_on_invalid_values(tmp_path, monkeypatch):
+    settings_file = tmp_path / "factory_settings.json"
+    _write_settings(settings_file)
+    settings = json.loads(settings_file.read_text(encoding="utf-8"))
+    settings["runtime_limits"]["recursion_limit"] = 0
+    settings_file.write_text(json.dumps(settings) + "\n", encoding="utf-8")
+    monkeypatch.setattr(factory_settings, "_SETTINGS_FILE", settings_file)
+
+    try:
+        factory_settings.get_runtime_limits()
+    except RuntimeError as exc:
+        assert "recursion_limit" in str(exc)
+    else:
+        raise AssertionError("Expected invalid runtime limits to fail closed")
 
 
 def test_resolve_model_fails_closed_when_config_default_is_missing(tmp_path, monkeypatch):

@@ -62,6 +62,39 @@ def get_model_defaults() -> dict[str, str]:
     }
 
 
+def get_runtime_limits() -> dict[str, int | float]:
+    """Return validated runtime safety limits from central Factory settings."""
+    settings = _load()
+    limits = settings.get("runtime_limits")
+    required = {"recursion_limit", "provider_timeout_seconds", "max_retries"}
+    if not isinstance(limits, dict) or set(limits) != required:
+        raise RuntimeError(
+            f"runtime_limits in {_SETTINGS_FILE} must define exactly: "
+            "recursion_limit, provider_timeout_seconds, max_retries."
+        )
+
+    recursion_limit = limits["recursion_limit"]
+    timeout_seconds = limits["provider_timeout_seconds"]
+    max_retries = limits["max_retries"]
+
+    if not isinstance(recursion_limit, int) or isinstance(recursion_limit, bool) or recursion_limit < 1:
+        raise RuntimeError("runtime_limits.recursion_limit must be an integer >= 1.")
+    if (
+        not isinstance(timeout_seconds, (int, float))
+        or isinstance(timeout_seconds, bool)
+        or timeout_seconds <= 0
+    ):
+        raise RuntimeError("runtime_limits.provider_timeout_seconds must be > 0.")
+    if not isinstance(max_retries, int) or isinstance(max_retries, bool) or max_retries < 0:
+        raise RuntimeError("runtime_limits.max_retries must be an integer >= 0.")
+
+    return {
+        "recursion_limit": recursion_limit,
+        "provider_timeout_seconds": timeout_seconds,
+        "max_retries": max_retries,
+    }
+
+
 def resolve_model(name_or_string: str | None = None, *, purpose: str = "general") -> str:
     """Return the model string for a given alias or literal model string.
 

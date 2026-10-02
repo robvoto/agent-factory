@@ -72,7 +72,14 @@ def _get_agent(resolved_model: str) -> Any:
     """Return the compiled Factory Brain agent for a resolved model."""
     global _checkpointer_conn
 
-    cached = _agents_by_model.get(resolved_model)
+    from .factory_settings import get_runtime_limits
+
+    limits = get_runtime_limits()
+    cache_key = (
+        f"{resolved_model}|timeout={limits['provider_timeout_seconds']}|"
+        f"retries={limits['max_retries']}"
+    )
+    cached = _agents_by_model.get(cache_key)
     if cached is not None:
         logger.debug("Reusing cached Factory Brain agent for %s.", resolved_model)
         return cached
@@ -81,6 +88,7 @@ def _get_agent(resolved_model: str) -> Any:
     _ensure_dependencies()
 
     from deepagents import create_deep_agent
+    from langchain.chat_models import init_chat_model
 
     from langmem import create_manage_memory_tool, create_search_memory_tool
 
@@ -92,6 +100,11 @@ def _get_agent(resolved_model: str) -> Any:
     permissions = _build_filesystem_permissions()
     filesystem_middleware = _build_filesystem_middleware(backend, permissions)
     _register_factory_harness_profile(resolved_model)
+    runtime_model = init_chat_model(
+        resolved_model,
+        timeout=limits["provider_timeout_seconds"],
+        max_retries=limits["max_retries"],
+    )
 
     store = get_knowledge_store()
     memory_tools = [
@@ -105,7 +118,7 @@ def _get_agent(resolved_model: str) -> Any:
     ]
 
     agent = create_deep_agent(
-        model=resolved_model,
+        model=runtime_model,
         tools=[*get_factory_tools(), *memory_tools],
         system_prompt=_SYSTEM_PROMPT,
         backend=backend,
@@ -122,7 +135,7 @@ def _get_agent(resolved_model: str) -> Any:
         },
         subagents=[],
     )
-    _agents_by_model[resolved_model] = agent
+    _agents_by_model[cache_key] = agent
     logger.debug("Factory Brain agent compiled successfully for %s.", resolved_model)
     return agent
 
@@ -231,14 +244,19 @@ def invoke_factory_brain(
 
         import uuid
         from langchain_core.callbacks import UsageMetadataCallbackHandler
-        from .factory_settings import resolve_model
+        from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
+        limits = get_runtime_limits()
         agent = _get_agent(resolved_model)
         tid = thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": tid}}
         usage_cb = UsageMetadataCallbackHandler()
-        run_config = {**config, "callbacks": [usage_cb]}
+        run_config = {
+            **config,
+            "callbacks": [usage_cb],
+            "recursion_limit": limits["recursion_limit"],
+        }
     except (KeyboardInterrupt, SystemExit):
         reporter.cancelled()
         raise
@@ -323,13 +341,18 @@ def resume_factory_brain(
         _ensure_openai_credentials()
 
         from langchain_core.callbacks import UsageMetadataCallbackHandler
-        from .factory_settings import resolve_model
+        from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
+        limits = get_runtime_limits()
         agent = _get_agent(resolved_model)
         config = {"configurable": {"thread_id": thread_id}}
         usage_cb = UsageMetadataCallbackHandler()
-        run_config = {**config, "callbacks": [usage_cb]}
+        run_config = {
+            **config,
+            "callbacks": [usage_cb],
+            "recursion_limit": limits["recursion_limit"],
+        }
     except (KeyboardInterrupt, SystemExit):
         reporter.cancelled()
         raise
@@ -410,13 +433,18 @@ def reject_factory_brain(
         _ensure_openai_credentials()
 
         from langchain_core.callbacks import UsageMetadataCallbackHandler
-        from .factory_settings import resolve_model
+        from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
+        limits = get_runtime_limits()
         agent = _get_agent(resolved_model)
         config = {"configurable": {"thread_id": thread_id}}
         usage_cb = UsageMetadataCallbackHandler()
-        run_config = {**config, "callbacks": [usage_cb]}
+        run_config = {
+            **config,
+            "callbacks": [usage_cb],
+            "recursion_limit": limits["recursion_limit"],
+        }
     except (KeyboardInterrupt, SystemExit):
         reporter.cancelled()
         raise

@@ -115,6 +115,15 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
     monkeypatch.setattr("agent_factory.knowledge_store.get_knowledge_store", lambda: object())
     monkeypatch.setattr("langmem.create_manage_memory_tool", lambda *a, **k: "manage-memory")
     monkeypatch.setattr("langmem.create_search_memory_tool", lambda *a, **k: "search-memory")
+    runtime_model = object()
+    model_init: dict[str, object] = {}
+
+    def fake_init_chat_model(model_name, **kwargs):
+        model_init["model"] = model_name
+        model_init.update(kwargs)
+        return runtime_model
+
+    monkeypatch.setattr("langchain.chat_models.init_chat_model", fake_init_chat_model)
 
     def fake_create_deep_agent(*args, **kwargs):
         captured.update(kwargs)
@@ -125,6 +134,12 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
     agent = factory_brain._get_agent("openai:gpt-test")
 
     assert agent is sentinel_agent
+    assert captured["model"] is runtime_model
+    assert model_init == {
+        "model": "openai:gpt-test",
+        "timeout": 60,
+        "max_retries": 1,
+    }
     assert captured["subagents"] == []
     assert captured["skills"] == ["skills/"]
     assert captured["memory"] == ["memory/factory/AGENTS.md"]

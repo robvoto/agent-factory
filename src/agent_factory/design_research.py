@@ -138,16 +138,22 @@ def _invoke_web_search(question: str, allowed_domains: list[str]) -> str:
     """Execute one OpenAI Responses API web-search call and return compact evidence."""
     from langchain_openai import ChatOpenAI
 
-    from .factory_settings import resolve_model
+    from .factory_settings import get_runtime_limits, resolve_model
 
     resolved = resolve_model(purpose="general")
+    limits = get_runtime_limits()
     if not resolved.startswith("openai:"):
         raise RuntimeError(
             "Factory live design research currently requires an OpenAI model because "
             "the bounded implementation uses the OpenAI Responses API web-search tool."
         )
     model_name = resolved.removeprefix("openai:")
-    llm = ChatOpenAI(model=model_name, use_responses_api=True, max_retries=1)
+    llm = ChatOpenAI(
+        model=model_name,
+        use_responses_api=True,
+        timeout=limits["provider_timeout_seconds"],
+        max_retries=limits["max_retries"],
+    )
     web_tool = {
         "type": "web_search",
         "filters": {"allowed_domains": allowed_domains},

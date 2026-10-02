@@ -191,6 +191,14 @@ def test_web_search_tool_is_domain_filtered_and_low_context(monkeypatch):
         "agent_factory.factory_settings.resolve_model",
         lambda purpose="general": "openai:gpt-4.1-mini",
     )
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.get_runtime_limits",
+        lambda: {
+            "recursion_limit": 32,
+            "provider_timeout_seconds": 60,
+            "max_retries": 1,
+        },
+    )
     recorded = {}
     monkeypatch.setattr(
         "agent_factory.cost_log.record_llm_run", lambda **kwargs: recorded.update(kwargs)
@@ -204,6 +212,7 @@ def test_web_search_tool_is_domain_filtered_and_low_context(monkeypatch):
     )
 
     assert captured["init"]["use_responses_api"] is True
+    assert captured["init"]["timeout"] == 60
     assert captured["init"]["max_retries"] == 1
     assert captured["tools"] == [
         {

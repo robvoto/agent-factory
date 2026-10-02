@@ -28,9 +28,11 @@ class _FakeAgent:
         self._error = error
         self._response = response
         self.received_inputs: list[Any] = []
+        self.received_configs: list[dict[str, Any]] = []
 
     def stream(self, _input_value: Any, *, config: dict[str, Any], stream_mode: list[str]):
         self.received_inputs.append(_input_value)
+        self.received_configs.append(config)
         assert config["configurable"]["thread_id"] == "thread-1"
         assert stream_mode == ["updates", "values"]
         if self._error is not None:
@@ -61,6 +63,14 @@ def _prepare(monkeypatch: pytest.MonkeyPatch, agent: _FakeAgent) -> None:
     monkeypatch.setattr(factory_brain, "_get_agent", lambda _model: agent)
     monkeypatch.setattr(factory_brain, "_record_llm_run", lambda **_kwargs: None)
     monkeypatch.setattr("agent_factory.factory_settings.resolve_model", lambda *_a, **_k: "test:model")
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.get_runtime_limits",
+        lambda: {
+            "recursion_limit": 32,
+            "provider_timeout_seconds": 60,
+            "max_retries": 1,
+        },
+    )
 
 
 def _reporter(stream: io.StringIO) -> ProgressReporter:
@@ -103,7 +113,8 @@ def test_factory_brain_entrypoints_default_to_general_model_purpose(monkeypatch)
 
 def test_factory_brain_emits_design_tool_validation_and_completion(monkeypatch) -> None:
     stream = io.StringIO()
-    _prepare(monkeypatch, _FakeAgent())
+    agent = _FakeAgent()
+    _prepare(monkeypatch, agent)
 
     response, interrupted = factory_brain.invoke_factory_brain(
         "Create an agent",
@@ -113,6 +124,7 @@ def test_factory_brain_emits_design_tool_validation_and_completion(monkeypatch) 
 
     assert response == "Factory response"
     assert interrupted is False
+    assert agent.received_configs[0]["recursion_limit"] == 32
     phases = [event["phase"] for event in _events(stream)]
     assert phases == ["starting", "design", "tool", "validation", "completed"]
 
