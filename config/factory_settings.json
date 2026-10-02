@@ -1,10 +1,13 @@
 {
-  "default_model": "luna",
-  "default_coding_model": "codex",
+  "model_environment": {
+    "general": "FACTORY_GENERAL_MODEL",
+    "coding": "FACTORY_CODING_MODEL",
+    "global": "FACTORY_MODEL"
+  },
   "models": {
     "codex": "openai:o4-mini",
     "claude": "anthropic:claude-sonnet-4-6",
-    "luna": "openai:gpt-6-luna",
+    "luna": "openai:gpt-5.6-luna",
     "mini": "openai:gpt-4.1-mini",
     "opus": "anthropic:claude-opus-4-8"
   },

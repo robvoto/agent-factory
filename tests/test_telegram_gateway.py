@@ -6,6 +6,7 @@ from agent_factory import telegram_gateway
 
 
 def test_new_command_starts_fresh_session(monkeypatch):
+    monkeypatch.setenv("FACTORY_MODEL", "codex")
     calls: list[tuple[str, str]] = []
 
     monkeypatch.setattr(telegram_gateway, "reset_thread", lambda chat_id: calls.append(("reset", chat_id)) or "fresh-thread")

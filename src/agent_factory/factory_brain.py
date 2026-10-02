@@ -212,7 +212,7 @@ def invoke_factory_brain(
     *,
     thread_id: str | None = None,
     model: str | None = None,
-    purpose: str = "coding",
+    purpose: str = "general",
     progress_reporter: ProgressReporter | None = None,
 ) -> tuple[str, bool]:
     """Invoke the Factory Brain with a plain-language request.
@@ -306,7 +306,7 @@ def resume_factory_brain(
     thread_id: str,
     *,
     model: str | None = None,
-    purpose: str = "coding",
+    purpose: str = "general",
     progress_reporter: ProgressReporter | None = None,
 ) -> tuple[str, bool]:
     """Resume an interrupted Factory Brain conversation.
@@ -395,7 +395,7 @@ def reject_factory_brain(
     reason: str = "Rejected by user",
     *,
     model: str | None = None,
-    purpose: str = "coding",
+    purpose: str = "general",
     progress_reporter: ProgressReporter | None = None,
 ) -> str:
     """Inject a rejection message into an interrupted conversation and resume.

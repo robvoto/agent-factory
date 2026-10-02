@@ -1,5 +1,5 @@
 ---
-name: deep-agents-factory
+name: deepagents-factory
 description: How to create LangChain Deep Agents correctly in this project
 ---
 
@@ -13,6 +13,7 @@ Use `create_deep_agent` from `deepagents`:
 
 ```python
 from deepagents import create_deep_agent, FilesystemPermission
+from agent_factory.factory_settings import resolve_model
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
@@ -39,7 +40,7 @@ checkpointer = SqliteSaver(
 )
 
 agent = create_deep_agent(
-    model="openai:gpt-6-luna",
+    model=resolve_model(purpose="general"),
     tools=get_factory_tools(),
     system_prompt=_SYSTEM_PROMPT,
     backend=backend,
@@ -98,7 +99,7 @@ Key rules:
 
 ## Cost discipline
 
-- Default model: `openai:gpt-6-luna` via the `luna` alias (set in `config/factory_settings.json`)
-- Use model aliases from settings: `codex` → `openai:o4-mini`, `claude` → `anthropic:claude-sonnet-4-6`
+- Model selection is runtime configuration, not a source-code default. Set `FACTORY_GENERAL_MODEL` or `FACTORY_CODING_MODEL`; `FACTORY_MODEL` is the global fallback.
+- Use aliases from `config/factory_settings.json`; the selected alias is resolved at runtime and must not be replaced with a literal model in code or documentation.
 - Do not use large models without a clear reason
 - Do not run online research unless explicitly approved

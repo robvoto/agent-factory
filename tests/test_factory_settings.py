@@ -12,11 +12,14 @@ def _write_settings(path: Path) -> None:
     path.write_text(
         json.dumps(
             {
-                "default_model": "luna",
-                "default_coding_model": "codex",
+                "model_environment": {
+                    "general": "FACTORY_GENERAL_MODEL",
+                    "coding": "FACTORY_CODING_MODEL",
+                    "global": "FACTORY_MODEL",
+                },
                 "models": {
                     "codex": "openai:o4-mini",
-                    "luna": "openai:gpt-6-luna",
+                    "luna": "openai:gpt-5.6-luna",
                     "mini": "openai:gpt-4.1-mini",
                     "claude": "anthropic:claude-sonnet-4-6",
                 },
@@ -32,9 +35,11 @@ def test_resolve_model_uses_general_and_coding_defaults(tmp_path, monkeypatch):
     settings_file = tmp_path / "factory_settings.json"
     _write_settings(settings_file)
     monkeypatch.setattr(factory_settings, "_SETTINGS_FILE", settings_file)
+    monkeypatch.setenv("FACTORY_GENERAL_MODEL", "luna")
+    monkeypatch.setenv("FACTORY_CODING_MODEL", "codex")
     monkeypatch.delenv("FACTORY_MODEL", raising=False)
 
-    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-6-luna"
+    assert factory_settings.resolve_model(purpose="general") == "openai:gpt-5.6-luna"
     assert factory_settings.resolve_model(purpose="coding") == "openai:o4-mini"
 
 
@@ -70,24 +75,24 @@ def test_get_model_defaults_and_aliases(tmp_path, monkeypatch):
     defaults = factory_settings.get_model_defaults()
     aliases = factory_settings.list_model_aliases()
 
-    assert defaults == {
-        "general": "luna",
-        "coding": "codex",
-    }
+    assert defaults == {"general": "<not configured>", "coding": "<not configured>"}
     assert aliases["codex"] == "openai:o4-mini"
 
 
-def test_get_model_defaults_missing_required_keys_raises(tmp_path, monkeypatch):
+def test_resolve_model_fails_closed_when_runtime_model_is_missing(tmp_path, monkeypatch):
     settings_file = tmp_path / "factory_settings.json"
-    settings_file.write_text(json.dumps({"default_model": "mini"}) + "\n", encoding="utf-8")
+    _write_settings(settings_file)
     monkeypatch.setattr(factory_settings, "_SETTINGS_FILE", settings_file)
+    monkeypatch.delenv("FACTORY_MODEL", raising=False)
+    monkeypatch.delenv("FACTORY_GENERAL_MODEL", raising=False)
+    monkeypatch.delenv("FACTORY_CODING_MODEL", raising=False)
 
     try:
-        factory_settings.get_model_defaults()
+        factory_settings.resolve_model(purpose="general")
     except RuntimeError as exc:
-        assert "default_coding_model" in str(exc)
+        assert "No runtime model configured" in str(exc)
     else:
-        raise AssertionError("Expected RuntimeError for missing default_coding_model")
+        raise AssertionError("Expected RuntimeError when runtime model is missing")
 
 
 def test_get_telegram_bot_config_without_bots_raises(tmp_path, monkeypatch):
@@ -95,8 +100,11 @@ def test_get_telegram_bot_config_without_bots_raises(tmp_path, monkeypatch):
     settings_file.write_text(
         json.dumps(
             {
-                "default_model": "mini",
-                "default_coding_model": "codex",
+                "model_environment": {
+                    "general": "FACTORY_GENERAL_MODEL",
+                    "coding": "FACTORY_CODING_MODEL",
+                    "global": "FACTORY_MODEL",
+                },
                 "models": {},
                 "telegram_bots": [],
             }

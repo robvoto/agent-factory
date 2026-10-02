@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import inspect
 import json
 from types import SimpleNamespace
 from typing import Any
@@ -72,6 +73,32 @@ def _reporter(stream: io.StringIO) -> ProgressReporter:
         agent_name="Agent Factory",
         heartbeat_interval_seconds=0,
     )
+
+
+def test_factory_brain_entrypoints_default_to_general_model_purpose(monkeypatch) -> None:
+    assert inspect.signature(factory_brain.invoke_factory_brain).parameters["purpose"].default == "general"
+    assert inspect.signature(factory_brain.resume_factory_brain).parameters["purpose"].default == "general"
+    assert inspect.signature(factory_brain.reject_factory_brain).parameters["purpose"].default == "general"
+
+    seen_purposes: list[str] = []
+    agent = _FakeAgent()
+    monkeypatch.setattr(factory_brain, "_check_api_key", lambda: None)
+    monkeypatch.setattr(factory_brain, "_get_agent", lambda _model: agent)
+    monkeypatch.setattr(factory_brain, "_record_llm_run", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "agent_factory.factory_settings.resolve_model",
+        lambda *_a, purpose="general", **_k: seen_purposes.append(purpose) or "test:model",
+    )
+
+    response, interrupted = factory_brain.invoke_factory_brain(
+        "Create an agent",
+        thread_id="thread-1",
+        progress_reporter=_reporter(io.StringIO()),
+    )
+
+    assert response == "Factory response"
+    assert interrupted is False
+    assert seen_purposes == ["general"]
 
 
 def test_factory_brain_emits_design_tool_validation_and_completion(monkeypatch) -> None:
