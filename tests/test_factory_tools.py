@@ -135,6 +135,51 @@ def test_validate_agent_package_spec_rejects_unknown_nested_fields(tmp_path, mon
     assert not staging.exists()
 
 
+def test_validate_agent_package_spec_rejects_unregistered_tool_id(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "tools.json").write_text(
+        json.dumps({"tools": ["run_agent_task"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    result = factory_tools.validate_agent_package_spec.invoke(
+        {"spec_json": _spec_json(tools=["not_registered"])}
+    )
+
+    assert "Invalid agent spec" in result
+    assert "Unknown tool ID(s)" in result
+    assert "not_registered" in result
+
+
+def test_create_staged_agent_package_rejects_unregistered_tool_id_without_writes(
+    tmp_path, monkeypatch
+):
+    from agent_factory import factory_tools
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "tools.json").write_text(
+        json.dumps({"tools": ["run_agent_task"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    result = factory_tools.create_staged_agent_package.invoke(
+        {"spec_json": _spec_json(tools=["not_registered"])}
+    )
+
+    assert "Invalid agent spec" in result
+    assert "Unknown tool ID(s)" in result
+    assert list(staging.iterdir()) == []
+
+
 def test_create_staged_agent_package_rejects_unknown_nested_fields(tmp_path, monkeypatch):
     from agent_factory import factory_tools
 

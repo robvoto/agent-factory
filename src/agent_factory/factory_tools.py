@@ -105,6 +105,7 @@ def validate_agent_package_spec(spec_json: str) -> str:
 
     try:
         spec = validate_agent_package_spec_payload(raw)
+        _validate_registered_tool_ids(spec)
     except (ValidationError, ValueError) as exc:
         logger.warning("Invalid agent spec draft: %s", exc)
         return f"Invalid agent spec:\n{exc}"
@@ -113,6 +114,19 @@ def validate_agent_package_spec(spec_json: str) -> str:
         indent=2,
         exclude_none=True,
     )
+
+
+def _validate_registered_tool_ids(spec: AgentPackageSpec) -> None:
+    """Fail closed when a draft names tools outside config/tools.json."""
+    from .cli import load_allowed_tools
+
+    allowed = set(load_allowed_tools(_PROJECT_ROOT / "config" / "tools.json"))
+    unknown = sorted(tool_id for tool_id in spec.tools if tool_id not in allowed)
+    if unknown:
+        raise ValueError(
+            "Unknown tool ID(s) not registered in config/tools.json: "
+            + ", ".join(unknown)
+        )
 
 
 @tool
@@ -162,6 +176,7 @@ def create_staged_agent_package(spec_json: str) -> str:
 
     try:
         spec = validate_agent_package_spec_payload(raw)
+        _validate_registered_tool_ids(spec)
     except (ValidationError, ValueError) as exc:
         logger.warning("Invalid staged agent spec: %s", exc)
         return f"Invalid agent spec:\n{exc}"
