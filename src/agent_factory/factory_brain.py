@@ -100,11 +100,13 @@ def _get_agent(resolved_model: str) -> Any:
     permissions = _build_filesystem_permissions()
     filesystem_middleware = _build_filesystem_middleware(backend, permissions)
     _register_factory_harness_profile(resolved_model)
-    runtime_model = init_chat_model(
-        resolved_model,
-        timeout=limits["provider_timeout_seconds"],
-        max_retries=limits["max_retries"],
-    )
+    model_kwargs: dict[str, Any] = {
+        "timeout": limits["provider_timeout_seconds"],
+        "max_retries": limits["max_retries"],
+    }
+    if resolved_model.startswith("openai:"):
+        model_kwargs["use_responses_api"] = True
+    runtime_model = init_chat_model(resolved_model, **model_kwargs)
 
     store = get_knowledge_store()
     memory_tools = [

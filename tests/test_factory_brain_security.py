@@ -139,6 +139,7 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
         "model": "openai:gpt-test",
         "timeout": 60,
         "max_retries": 1,
+        "use_responses_api": True,
     }
     assert captured["subagents"] == []
     assert captured["skills"] == ["skills/"]
@@ -147,6 +148,44 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
         "request_agent_promotion": True,
         "request_approval": True,
         "manage_memory": True,
+    }
+
+
+def test_factory_agent_non_openai_model_does_not_force_responses_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr(factory_brain, "_agents_by_model", {})
+    monkeypatch.setattr(factory_brain, "_ensure_dependencies", lambda: None)
+    monkeypatch.setattr(factory_brain, "_build_checkpointer", lambda: object())
+    monkeypatch.setattr(factory_brain, "_build_filesystem_backend", lambda: object())
+    monkeypatch.setattr(factory_brain, "_build_filesystem_permissions", lambda: [object()])
+    monkeypatch.setattr(
+        factory_brain,
+        "_build_filesystem_middleware",
+        lambda _backend, _permissions: object(),
+    )
+    monkeypatch.setattr(factory_brain, "_register_factory_harness_profile", lambda _model: None)
+    monkeypatch.setattr("agent_factory.factory_tools.get_factory_tools", lambda: [])
+    monkeypatch.setattr("agent_factory.knowledge_store.get_knowledge_store", lambda: object())
+    monkeypatch.setattr("langmem.create_manage_memory_tool", lambda *a, **k: "manage-memory")
+    monkeypatch.setattr("langmem.create_search_memory_tool", lambda *a, **k: "search-memory")
+
+    def fake_init_chat_model(model_name, **kwargs):
+        captured["model"] = model_name
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("langchain.chat_models.init_chat_model", fake_init_chat_model)
+    monkeypatch.setattr("deepagents.create_deep_agent", lambda *a, **k: object())
+
+    factory_brain._get_agent("anthropic:claude-test")
+
+    assert captured == {
+        "model": "anthropic:claude-test",
+        "timeout": 60,
+        "max_retries": 1,
     }
 
 
