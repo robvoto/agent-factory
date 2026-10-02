@@ -62,7 +62,7 @@ def _approval_payload(question: str, allowed_domains: list[str]) -> str:
     )
 
 
-@tool
+@tool(return_direct=True)
 def request_design_research(question: str, allowed_domains: list[str]) -> str:
     """Request human approval for one bounded live design-research question.
 

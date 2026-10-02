@@ -13,6 +13,10 @@ def test_factory_exposes_design_research_tools():
     assert "run_design_research" in names
 
 
+def test_request_design_research_is_terminal_for_the_current_agent_turn():
+    assert design_research.request_design_research.return_direct is True
+
+
 def test_request_design_research_records_exact_bounded_payload(monkeypatch):
     captured = {}
 
