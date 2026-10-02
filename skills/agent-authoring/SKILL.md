@@ -15,6 +15,17 @@ Do not draft `AgentPackageSpec` or stage files until material design questions a
 
 Before staging, call `validate_agent_package_spec` with the complete draft JSON. This validation is non-mutating and fails closed on unknown fields, including nested runtime and contract fields. Correct every reported issue and validate again until the tool returns `Valid AgentPackageSpec`. Once it returns valid, stop the validation loop for that unchanged draft; do not call the validator again unless the spec is modified. Return the validated draft for human review, or proceed only to the next explicitly authorised lifecycle step. Only then may `create_staged_agent_package` be called.
 
+When choosing the manifest `tools` list, call `list_registered_tool_ids`.
+Do not try to read `config/tools.json` through the built-in filesystem tools.
+The manifest `tools` field describes approved Hub-facing tool IDs; it does not
+need to enumerate internal implementation steps such as web search, page
+extraction, or browser automation inside a specialist runtime.
+
+Do not inspect staged packages merely to infer the current AgentPackageSpec
+shape. Use the current authoring skill, schema validation tool, and registered
+tool-ID tool instead. Read a staged package only when the operator is asking
+about that existing staged agent.
+
 ## Required files
 
 Every staged package under `staging/agents/<agent-id>/` must include:

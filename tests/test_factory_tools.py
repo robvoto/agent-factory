@@ -93,6 +93,23 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
     assert "config/agents/alpha-agent.json" in result
 
 
+def test_list_registered_tool_ids_reads_canonical_registry(tmp_path, monkeypatch):
+    from agent_factory import factory_tools
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True)
+    (config_dir / "tools.json").write_text(
+        json.dumps({"tools": ["run_agent_task", "other_tool"]}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+
+    result = factory_tools.list_registered_tool_ids.invoke({})
+
+    assert "run_agent_task" in result
+    assert "other_tool" in result
+
+
 # ---------------------------------------------------------------------------
 # create_staged_agent_package (end-to-end)
 # ---------------------------------------------------------------------------

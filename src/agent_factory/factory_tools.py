@@ -86,6 +86,17 @@ def list_known_agents() -> str:
 
 
 @tool
+def list_registered_tool_ids() -> str:
+    """List tool IDs currently allowed in AgentPackageSpec manifests."""
+    from .cli import load_allowed_tools
+
+    tool_ids = load_allowed_tools(_PROJECT_ROOT / "config" / "tools.json")
+    if not tool_ids:
+        return "No registered manifest tool IDs."
+    return "Registered manifest tool IDs:\n" + "\n".join(f"- {tool_id}" for tool_id in tool_ids)
+
+
+@tool
 def validate_agent_package_spec(spec_json: str) -> str:
     """Validate an AgentPackageSpec JSON draft without writing or staging files.
 
@@ -466,6 +477,7 @@ def get_factory_tools() -> list:
         list_templates,
         list_staged_agents,
         list_known_agents,
+        list_registered_tool_ids,
         read_staged_review,
         validate_agent_package_spec,
         create_staged_agent_package,
