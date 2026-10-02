@@ -6,9 +6,15 @@ Before changing Factory Brain behavior, read `docs/agent-creator-workflow.md`, `
 
 ## Runtime
 
-- Run from WSL at /mnt/e/programming/agent-factory
+- Canonical WSL project path: /home/robvoto/projects/agent-factory
 - Never use Windows paths for Python or shell commands
 - Secrets come from local .env — never committed
+- Factory Brain's built-in filesystem tools run through a virtual project root.
+  Use only the approved virtual paths `/docs/**`, `/skills/**`,
+  `/memory/factory/**`, and `/templates/**`.
+- Do not pass host paths such as `/home/robvoto/...`, `/mnt/...`, Windows
+  paths, or `/` to built-in filesystem tools. Use bounded Factory tools for
+  registry/staging information that is outside the approved virtual read roots.
 
 ## Core behaviour
 

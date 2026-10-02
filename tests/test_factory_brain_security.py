@@ -7,6 +7,16 @@ import pytest
 from agent_factory import factory_brain
 
 
+def test_factory_memory_uses_canonical_wsl_and_virtual_filesystem_paths() -> None:
+    text = (Path(__file__).parents[1] / "memory" / "factory" / "AGENTS.md").read_text(
+        encoding="utf-8"
+    )
+    assert "/mnt/e/programming/agent-factory" not in text
+    assert "/home/robvoto/projects/agent-factory" in text
+    assert "/skills/**" in text
+    assert "/docs/**" in text
+
+
 def test_factory_backend_uses_virtual_mode() -> None:
     backend = factory_brain._build_filesystem_backend()
     assert backend.virtual_mode is True
