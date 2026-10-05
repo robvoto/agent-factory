@@ -88,6 +88,28 @@ For `runtime.mode = "subprocess"`, Factory now validates the staged caller contr
 
 Factory does not currently standardize `result_kind` values across all specialists. It only validates that subprocess agents declare the four shared status outcomes and their terminal/caller-facing meaning in the staged spec.
 
+## Optional `next_task` producer contract (AF-012)
+
+Agent Factory owns the producer-side shape of an explicit optional `next_task` result extension. The
+minimal object is:
+
+```json
+{
+  "task_kind": "coding_task",
+  "task": "Implement the approved Shopping Agent package.",
+  "references": ["shopping-agent://approved-design", "AGENT-HUB-054"]
+}
+```
+
+`task_kind` and `task` are required non-empty strings. `references` is optional and, when present,
+must be a list of strings. The object rejects `agent_id`, lifecycle fields, `project_root`,
+`request_id`, `run_id`, generic `context`, generic `metadata`, and every other undeclared field.
+Factory validates only an explicit object through `agent_factory.specialist_result`; it never parses
+or infers `next_task` from natural-language Factory output. Factory Brain's current runtime contract
+remains `(response_text, interrupted)`, so AF-012 does not make Factory Brain emit this field or
+dispatch a follow-on specialist. Hub separately requires an enclosing result with `status="success"`
+and validates `task_kind` against its current eligible registry.
+
 ## Optional Hub progress contract
 
 `runtime.progress` is optional and defaults to absent/disabled. Enable it only for a subprocess agent that is Hub-callable or genuinely long-running.
