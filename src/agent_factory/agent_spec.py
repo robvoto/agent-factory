@@ -342,6 +342,19 @@ class McpPermissionBoundary(BaseModel):
     filesystem: Literal["none", "read", "write"] = "none"
     shell: bool = False
 
+    def escalation_fields(self, agent_permissions: AgentPermissions) -> list[str]:
+        """Return permissions this MCP declaration would widen for its agent."""
+
+        escalations: list[str] = []
+        if self.network and not agent_permissions.network:
+            escalations.append("network")
+        if self.shell and not agent_permissions.shell:
+            escalations.append("shell")
+        filesystem_rank = {"none": 0, "read": 1, "write": 2}
+        if filesystem_rank[self.filesystem] > filesystem_rank[agent_permissions.filesystem]:
+            escalations.append(f"filesystem={self.filesystem}")
+        return escalations
+
 
 class McpServer(BaseModel):
     """One explicit MCP server declaration in an agent manifest."""
@@ -534,6 +547,14 @@ class AgentPackageSpec(BaseModel):
             )
         if self.permissions.requires_approval:
             self.interaction_contract.approval = True
+        for server in self.mcp_servers:
+            escalations = server.permission_boundary.escalation_fields(self.permissions)
+            if escalations:
+                raise ValueError(
+                    f"mcp_servers[{server.name!r}].permission_boundary exceeds the agent "
+                    "permissions ceiling: "
+                    + ", ".join(escalations)
+                )
         if self.runtime.mode == "subprocess" and self.output_contract is None:
             raise ValueError(
                 "Subprocess agents must define output_contract with the staged status contract."

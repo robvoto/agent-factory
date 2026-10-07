@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_spec import (
+    AgentPermissions,
     AgentTargetProjectAccess,
     AgentTaskContract,
     McpServer,
@@ -142,6 +143,17 @@ class AgentManifest:
                 names = [item["name"] for item in normalized_mcp_servers]
                 if len(set(names)) != len(names):
                     raise ValueError("mcp_servers must not contain duplicate server names.")
+                agent_permissions = AgentPermissions.model_validate(data["permissions"])
+                for server in normalized_mcp_servers:
+                    escalations = McpServer.model_validate(server).permission_boundary.escalation_fields(
+                        agent_permissions
+                    )
+                    if escalations:
+                        raise ValueError(
+                            f"mcp_servers[{server['name']!r}].permission_boundary exceeds the "
+                            "agent permissions ceiling: "
+                            + ", ".join(escalations)
+                        )
         except ValueError as exc:
             raise ManifestValidationError(str(exc)) from exc
 

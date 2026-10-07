@@ -277,8 +277,15 @@ consumer. Factory does not infer providers from names, descriptions, tools, or
 permissions. The committed `config/mcp_servers.json` file is the explicit
 approval registry: a declaration must name a registered server, request only
 registered tools, and stay within that server's approved permission boundary.
-The boundary is enforced by `agent_factory.mcp.load_mcp_capabilities`; it is
-not descriptive metadata.
+It must also stay within the agent's own top-level `permissions` ceiling; MCP
+cannot widen the agent's network, filesystem, or shell access. Both ceilings are
+enforced by `agent_factory.mcp.load_mcp_capabilities`, not treated as
+descriptive metadata.
+
+The legacy `required` field on `McpServer` is descriptive declaration metadata.
+`required=false` does not make approval or availability optional and does not
+create a fallback path: every declared MCP capability must still be approved and
+available, or loading fails closed.
 
 The loader also requires an explicit `available_servers` mapping supplied by the
 external runtime. It ignores extra available servers and fails closed for an

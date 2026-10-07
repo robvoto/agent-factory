@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .agent_spec import McpPermissionBoundary, McpServer
+from .agent_spec import AgentPermissions, McpPermissionBoundary, McpServer
 from .errors import McpCapabilityError
 
 _DEFAULT_APPROVAL_REGISTRY = Path(__file__).parents[2] / "config" / "mcp_servers.json"
@@ -80,12 +80,15 @@ def load_mcp_capabilities(
     approved_servers: Mapping[str, McpServer] | None = None,
     available_servers: Mapping[str, Any],
     approved_registry_path: str | Path | None = None,
+    agent_permissions: AgentPermissions | Mapping[str, Any] | None = None,
 ) -> tuple[LoadedMcpCapability, ...]:
     """Authorize and select only explicitly declared MCP server capabilities.
 
     ``available_servers`` is supplied by the external runtime consumer. It is
     never discovered or populated by Factory. Extra available servers are
-    ignored; every declared server must be approved and available.
+    ignored; every declared server must be approved and available. When a
+    manifest object is supplied, its own top-level permissions are authoritative
+    and cannot be overridden by the caller.
     """
 
     if approved_servers is not None and approved_registry_path is not None:
@@ -107,6 +110,34 @@ def load_mcp_capabilities(
         )
     except (TypeError, ValueError) as exc:
         raise McpCapabilityError(f"MCP declaration is invalid: {exc}") from exc
+
+    if not normalized:
+        return ()
+
+    declared_agent_permissions = getattr(declarations, "permissions", None)
+    if declared_agent_permissions is not None and agent_permissions is not None:
+        raise McpCapabilityError(
+            "Cannot override the agent's own top-level permissions when loading MCP capabilities."
+        )
+    raw_agent_permissions = (
+        declared_agent_permissions
+        if declared_agent_permissions is not None
+        else agent_permissions
+    )
+    if raw_agent_permissions is None:
+        raise McpCapabilityError(
+            "Agent permissions are required before loading MCP capabilities; refusing to load."
+        )
+    try:
+        normalized_agent_permissions = (
+            raw_agent_permissions
+            if isinstance(raw_agent_permissions, AgentPermissions)
+            else AgentPermissions.model_validate(raw_agent_permissions)
+        )
+    except (TypeError, ValueError) as exc:
+        raise McpCapabilityError(
+            f"Agent permissions are invalid; refusing to load MCP capabilities: {exc}"
+        ) from exc
 
     loaded: list[LoadedMcpCapability] = []
     seen_servers: set[str] = set()
@@ -138,6 +169,14 @@ def load_mcp_capabilities(
             raise McpCapabilityError(
                 f"MCP server '{declaration.name}' requested unapproved tool(s): "
                 + ", ".join(unknown_tools)
+            )
+        agent_escalations = declaration.permission_boundary.escalation_fields(
+            normalized_agent_permissions
+        )
+        if agent_escalations:
+            raise McpCapabilityError(
+                f"MCP server '{declaration.name}' exceeds the agent permission ceiling: "
+                + ", ".join(agent_escalations)
             )
         _ensure_permission_boundary_allowed(declaration, approved)
 

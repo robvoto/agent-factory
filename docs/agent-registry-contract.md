@@ -92,7 +92,8 @@ Agent Hub **must not** use staged agents or read from `staging/agents/`.
 - Human approval is required before any agent enters the registry
 - The manifest hash covers static fields only; live counts do not invalidate the hash
 - Subprocess specialists must declare `output_contract.status_values = ["success", "needs_clarification", "waiting_decision", "failed"]` plus the matching terminal/caller-action meaning in the registry spec Factory stages
-- MCP declarations are only runtime-loadable after Factory validates them against `config/mcp_servers.json` and an explicit availability map supplied by the external runtime; Agent Hub must not discover additional MCP servers from the filesystem or provider environment
+- MCP declarations are only runtime-loadable after Factory validates them against `config/mcp_servers.json`, the agent's own top-level permission ceiling, and an explicit availability map supplied by the external runtime; Agent Hub must not discover additional MCP servers from the filesystem or provider environment
+- `mcp_servers[].required=false` does not waive approval or availability. Every declared MCP capability remains fail-closed.
 
 ## Universal specialist protocol metadata
 
