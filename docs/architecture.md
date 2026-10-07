@@ -2,36 +2,52 @@
 
 Current technical shape of agent-factory. For product direction, read `platform-architecture.md`.
 
-> **Role:** agent-factory is a specialist agent — it creates, configures, and stages agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
+> **Role:** agent-factory is the lifecycle service — it creates, validates, stages, and governs released agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
+
+## Lifecycle placement
+
+Factory-owned standard agents may remain in this repository after promotion. An agent
+is implemented in a separate specialist repository only after an explicit human and
+architecture decision that it has genuine independent engineering needs. Graduation is
+not automatic, and promotion means release and enablement rather than graduation.
+
+For an independent product agent, the specialist repository owns implementation,
+dependencies, implementation tests, and implementation release work. Factory continues
+to own and gate the registry entry, release contract, permissions, promotion, activation
+metadata, and governed upgrades. Agent Hub consumes the enabled release definition and
+runs or orchestrates it; it is not the development home.
 
 ## Implemented pieces
 
 1. **AgentManifest / AgentPackageSpec** — Pydantic models for agent spec validation (`agent_spec.py`)
-2. **Factory Brain** — LangGraph Deep Agent that designs and stages packages (`factory_brain.py`); Factory Brain was already implemented as a Deep Agent before AF-050. AF-050 hardens its packaging, permissions, persistence, and security boundaries rather than migrating it to Deep Agents. Its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use. Runtime safety limits are centrally configured in `config/factory_settings.json`: Deep Agent turns use an explicit graph recursion limit, while provider calls use explicit timeout and retry caps so permissive framework defaults cannot leave a bad design or research turn effectively unbounded.
-3. **Factory Tools** — bounded tools: create, promote, approve, delete (`factory_tools.py`)
-4. **Agent Catalog** — staged + enabled inventory (`agent_catalog.py`)
-5. **Creator Workflow** — deterministic scaffolding from spec (`creator_workflow.py`)
-6. **Telegram gateway** — factory admin bot: /staged, /approve, /reject, /promote (`telegram_gateway.py`)
-7. **Storage** — SQLite persistence for staged agents and approvals (`storage.py`)
-8. **Knowledge store** — factory-scoped knowledge for docs ingestion (`knowledge_store.py`)
-9. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
+2. **MCP capability boundary** — explicit approval-registry validation and runtime handle selection (`mcp.py`); no provider discovery or execution
+3. **Factory Brain** — LangGraph Deep Agent that designs and stages packages (`factory_brain.py`); Factory Brain was already implemented as a Deep Agent before AF-050. AF-050 hardens its packaging, permissions, persistence, and security boundaries rather than migrating it to Deep Agents. Its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use. Runtime safety limits are centrally configured in `config/factory_settings.json`: Deep Agent turns use an explicit graph recursion limit, while provider calls use explicit timeout and retry caps so permissive framework defaults cannot leave a bad design or research turn effectively unbounded.
+4. **Factory Tools** — bounded tools: create, promote, approve, delete (`factory_tools.py`)
+5. **Agent Catalog** — staged + enabled inventory (`agent_catalog.py`)
+6. **Creator Workflow** — deterministic scaffolding from spec (`creator_workflow.py`)
+7. **Telegram gateway** — factory admin bot: /staged, /approve, /reject, /promote (`telegram_gateway.py`)
+8. **Storage** — SQLite persistence for staged agents and approvals (`storage.py`)
+9. **Knowledge store** — factory-scoped knowledge for docs ingestion (`knowledge_store.py`)
+10. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
 
 ## What lives where
 
 ```text
 agent-factory/
   src/agent_factory/       # factory logic only
-  config/agents/           # enabled agents (read by Agent Hub)
+  config/agents/           # enabled release manifests (read by Agent Hub)
   staging/agents/          # unapproved drafts
   templates/agent-package/ # base scaffold template
   templates/progress-adapter/ # optional Hub progress capability
+  # independent product implementations live in their own specialist repositories after graduation
   docs/
   skills/
 ```
 
 ## Registry contract
 
-Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fields:
+Factory writes and activates `config/agents/<id>/agent.json` for a released version.
+Agent Hub reads it. Required fields:
 
 | Field | Written by | Read by |
 |-------|-----------|---------|
@@ -41,10 +57,19 @@ Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fie
 | `input_contract`, `interaction_contract`, `task_contract` | Factory | Agent Hub universal dispatch/capability discovery |
 | `extensions` (e.g. a backlog pointer) | Factory | Specialist's own tooling — Agent Hub does not interpret it |
 | `target_project_access` | Factory | Generic explicit-target authorization and creation contract for project-root specialists |
+| `mcp_servers` | Factory | External runtime capability authorization; Factory validates and selects handles, but does not execute MCP tools |
 
 ## Current boundary
 
 `src/agent_factory` is factory logic only. Do not put orchestration, routing, or runtime dispatch code here — those belong in `agent-hub`.
+
+Factory may modify or rebuild incubating packages and may propose upgrades, but it must
+not silently self-modify a released independent product implementation. Changes to
+permissions, tools or capability declarations, the runtime contract, manifest-governed
+model or cost limits, or the active release version require Factory validation and
+explicit human approval before activation. Release rollback reactivates a previously
+validated release through the registry; it does not restore arbitrary filesystem
+snapshots.
 
 ## Hub progress boundary
 

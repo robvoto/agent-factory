@@ -88,7 +88,9 @@ flowchart TD
 
 - **Factory** designs and promotes agents. It never runs coding work itself.
 - **Orchestrator** routes requests. It never performs the work itself.
-- **Specialist agents** (ai-tech-lead, job-hunter) do the actual work. They exist independently of the hub.
+- **Specialist agents** do the actual work. A standard released agent may remain Factory-owned; an independent product agent has its own specialist repository only after an explicit graduation decision.
+- **Factory** owns release governance for both forms: registry registration, release contract, permissions, promotion, activation metadata, and governed upgrades.
+- **Agent Hub** consumes released definitions from the enabled registry. It never uses staging as a runtime or development home and does not decide graduation.
 - **Knowledge Store** is shared. One SQLite file, all agents read from and write to it.
 - **Checkpoints** are per-project. Each agent's conversation history stays in its own file.
 - Every agent can also be used directly via its own Telegram bot — the hub is an additional entry point, not a replacement.

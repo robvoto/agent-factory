@@ -17,6 +17,10 @@ class UnknownToolError(AgentFactoryError):
     """Raised when a manifest asks for a tool that is not allowed."""
 
 
+class McpCapabilityError(AgentFactoryError):
+    """Raised when an MCP declaration cannot be authorized and loaded."""
+
+
 class AgentNotFoundError(AgentFactoryError):
     """Raised when routing cannot find a matching agent."""
 

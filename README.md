@@ -17,7 +17,7 @@ Human request
       ▼
 Agent Factory
       │
-      ├── validate specification, tools, permissions, and memory policy
+      ├── validate specification, tools, permissions, memory, and MCP declarations
       ├── stage an agent package
       └── request human approval
               │
@@ -74,6 +74,7 @@ An LLM-generated draft is not trusted merely because it was generated successful
 - staged and enabled agent catalogues;
 - approval, rejection, promotion, and deletion flows;
 - bounded factory tools;
+- explicit MCP approval and runtime capability-loading boundary (without provider discovery or execution);
 - SQLite lifecycle persistence;
 - CLI and Telegram administration interfaces;
 - setup, health, manifest, and test commands.
@@ -109,6 +110,7 @@ Use [`docs/COMMANDS.md`](docs/COMMANDS.md) for the canonical operational command
 - **Human approval** — promotion requires an explicit decision.
 - **Bounded tools** — factory actions operate only within defined staging and registry scopes.
 - **Explicit permissions** — agent access is declared and validated rather than inferred.
+- **Explicit MCP capabilities** — server/tool identifiers must be approved and available through an explicit runtime map; Factory does not discover or execute providers.
 - **Inspectable contracts** — manifests and interaction boundaries remain machine-readable and reviewable.
 - **Machine-readable integration** — Agent Hub discovers enabled specialists through explicit catalogue and handshake contracts.
 - **Separation of concerns** — creation belongs here; orchestration belongs to Agent Hub.

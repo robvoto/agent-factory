@@ -13,7 +13,7 @@ Each diagram has two files: `.mmd` (source) and `.svg` (scalable preview).
 | # | Diagram | What it shows |
 |---|---|---|
 | 01 | [System Overview](01-SYSTEM-OVERVIEW.md) | Every component and how they connect. Start here. |
-| 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | How an agent goes from idea → factory → Agent Hub → improvement. |
+| 02 | [Agent Lifecycle](02-AGENT-LIFECYCLE.md) | Prototype, standard release, explicit graduation, independent product ownership, and Agent Hub enablement. |
 | 03 | [Telegram Flows](03-TELEGRAM-FLOWS.md) | Which bot to use, what each handles, all commands. |
 | 04 | [Knowledge Flow](04-KNOWLEDGE-FLOW.md) | How agents share knowledge and learn from each other. |
 ---

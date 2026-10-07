@@ -1,6 +1,7 @@
-# Agent Lifecycle — From Idea to Agent Hub
+# Agent Lifecycle — From Idea to Released Agent
 
-How an agent goes from an idea to a running specialist in the hub.
+How an agent goes from an idea to a released specialist in the hub, including the
+explicit boundary between a Factory-owned standard release and an independent product.
 
 ```mermaid
 stateDiagram-v2
@@ -15,9 +16,16 @@ stateDiagram-v2
 
     Rejected --> Designing : Factory Brain refines
 
-    Approved --> Enabled : Promoted to config/agents/\nAgent Hub registry picks it up
+    Approved --> StandardReleased : Factory promotion\nvalidated + human-approved release
+    StandardReleased --> Enabled : Factory activates\nconfig/agents/ release definition
 
     Enabled --> Running : Agent Hub Orchestrator\nroutes tasks to it
+    Enabled --> GraduationReview : Optional later human /\narchitecture proposal
+
+    GraduationReview --> Enabled : Not justified\nremain Factory-owned
+    GraduationReview --> ProductRepo : Genuine independent\nengineering needs only
+    ProductRepo --> IndependentRelease : Specialist repo owns\nimplementation release
+    IndependentRelease --> Enabled : Factory validates + activates\nnew registry release definition
 
     Running --> Learning : Agent writes outcomes\nto shared knowledge store
 
@@ -25,7 +33,7 @@ stateDiagram-v2
 
     Running --> Improving : Factory Brain reads\nagent outcomes,\npropose v2 spec
 
-    Improving --> Staged : New version staged\nOld version archived on approval
+    Improving --> Staged : New version staged\nPrior validated release remains available
 
     Running --> Retired : /delete or superseded by v2
 
@@ -39,7 +47,13 @@ stateDiagram-v2
 | Idea → Designing | You + Factory Brain | Conversation in Telegram |
 | Staged | Factory Brain | `staging/agents/<id>/` |
 | Under Review | You | Admin UI or Telegram `/staged` |
-| Enabled | Factory (on `/approve`) | `config/agents/<id>/agent.json` |
+| Standard released | Factory (after validation, approval, and promotion) | Factory-owned package plus `config/agents/<id>/agent.json` |
+| Independent product | Specialist repository implements; Factory validates and activates | Specialist repository plus Factory-owned `config/agents/<id>/agent.json` |
+| Enabled | Agent Hub consumes the Factory-activated release definition | `config/agents/<id>/agent.json` |
 | Running | Agent Hub Orchestrator | Live, called via subprocess |
 | Learning | The agent itself | `knowledge_store.sqlite3` |
 | Improving | Factory Brain (reads logs) | New staging draft |
+
+Promotion is release and enablement, not automatic graduation. Release rollback is
+performed by activating a previously validated release/version through Factory release
+governance, not by restoring arbitrary files or snapshots.

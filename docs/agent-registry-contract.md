@@ -30,6 +30,7 @@ during promotion. Agent Hub reads it directly or via the manifest.
 | `purpose` | Single structured routing contract used by Hub |
 | `aliases` | Short human-facing command words (e.g. `["code", "atl"]`) — not used for Agent Hub routing |
 | `tools` | Array of tool IDs the agent may use |
+| `mcp_servers` | Explicit MCP server/tool declarations and requested permission boundaries; no implicit discovery |
 | `permissions` | `network`, `filesystem`, `shell`, `requires_approval`, `allowed_roots` |
 | `memory` | `scope`, `retention` |
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
@@ -74,6 +75,35 @@ An agent enters the registry only after:
 
 Agent Hub **must not** use staged agents or read from `staging/agents/`.
 
+## Release and graduation boundary
+
+The registry publishes released definitions, not development ownership. A released
+definition may refer to either:
+
+- a standard agent whose package remains owned and maintained by Factory; or
+- an independent product agent whose implementation is owned by a separate specialist
+  repository after an explicit human and architecture decision.
+
+Promotion makes the validated version released, runnable, and eligible for the enabled
+registry. The default path is approval, promotion, and enablement; it does not require a
+graduation decision. Promotion does not automatically graduate a Factory-owned package.
+Only a concrete proposal enters optional graduation review. Graduation is not an
+executable threshold or heuristic; it is a deliberate architecture decision based on
+genuine independent engineering needs. If the proposal is rejected or not justified,
+the agent remains a standard released agent. Shopping Agent can therefore remain
+Factory-owned initially and graduate only if those needs later justify it.
+
+For an independent product agent, the specialist repository owns implementation,
+dependencies, implementation tests, and implementation release work. Factory still owns
+and gates registration, the registry and release contract, permission and capability
+validation, promotion, activation metadata, and governed upgrades. Agent Hub only
+consumes the enabled definition and runs or orchestrates the released agent; it is not
+the development home and must not modify the registry directly.
+
+When a released version must be rolled back, release governance activates a previously
+validated release/version through the Factory-controlled registry path. The process does
+not restore arbitrary filesystem snapshots or copy random old files.
+
 ## Agent Hub ↔ Factory communication protocol
 
 | Event | Action |
@@ -91,6 +121,8 @@ Agent Hub **must not** use staged agents or read from `staging/agents/`.
 - Human approval is required before any agent enters the registry
 - The manifest hash covers static fields only; live counts do not invalidate the hash
 - Subprocess specialists must declare `output_contract.status_values = ["success", "needs_clarification", "waiting_decision", "failed"]` plus the matching terminal/caller-action meaning in the registry spec Factory stages
+- MCP declarations are only runtime-loadable after Factory validates them against `config/mcp_servers.json`, the agent's own top-level permission ceiling, and an explicit availability map supplied by the external runtime; Agent Hub must not discover additional MCP servers from the filesystem or provider environment
+- `mcp_servers[].required=false` does not waive approval or availability. Every declared MCP capability remains fail-closed.
 
 ## Universal specialist protocol metadata
 

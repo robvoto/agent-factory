@@ -313,6 +313,7 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
             "purpose": spec.purpose,
             "aliases": list(spec.aliases),
             "tools": list(spec.tools),
+            "mcp_servers": [server.model_dump(exclude_none=True) for server in spec.mcp_servers],
             "permissions": permissions,
             "memory": memory,
             "runtime": spec.runtime.model_dump(exclude_none=True),
@@ -333,6 +334,7 @@ def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
         and lhs.purpose == rhs.purpose
         and lhs.aliases == rhs.aliases
         and lhs.tools == rhs.tools
+        and _compatible_optional_contract(lhs.mcp_servers, rhs.mcp_servers)
         and lhs.permissions == rhs.permissions
         and lhs.memory == rhs.memory
         and lhs.runtime == rhs.runtime

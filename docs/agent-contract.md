@@ -39,6 +39,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `purpose` | Yes | Single routing contract with `Primary responsibility:`, `Select for:`, and `Do not select for:` sections |
 | `aliases` | Yes | Non-empty list of short human-facing command words (not used for Agent Hub routing — `purpose` is the sole routing contract) |
 | `tools` | Yes | List of tool IDs the agent exposes |
+| `mcp_servers` | No | Explicit MCP server declarations, including tool IDs and requested permission boundaries; Factory never discovers undeclared servers |
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
 | `memory` | Yes | Object: `scope`, `retention` |
 | `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how Agent Hub invokes the agent |
@@ -248,6 +249,51 @@ Every generated specialist's boundary adapter fails closed on drift rather than 
 After writing a staged package's files, Factory independently re-reads `agent.json` and `specialist_contract.py` from disk (`verify_project_context_consistency`) and fails staging if the generated adapter's `PROJECT_ROOT_REQUIRED` constant disagrees with the manifest's `project_context_contract.required` — catching a template-rendering bug instead of trusting that writing the files correctly is the same as generating them correctly.
 
 `permissions.allowed_roots` (seen today as a hand-added field on `ai-tech-lead`'s enabled manifest, predating this contract) is the kind of ungoverned, per-specialist field this contract is meant to replace. Migrating it is out of scope here: it is a live enabled agent, and any cutover is downstream of whatever Agent Hub and AI Tech Lead decide under `AGENT-HUB-039`/`ATL-072`, not something Factory does unilaterally.
+
+## MCP capability contract (AF-007)
+
+An agent may declare MCP capabilities explicitly:
+
+```json
+{
+  "mcp_servers": [
+    {
+      "name": "approved.server",
+      "description": "Optional human-facing description",
+      "required": true,
+      "tools": ["records.read"],
+      "permission_boundary": {
+        "network": false,
+        "filesystem": "read",
+        "shell": false
+      }
+    }
+  ]
+}
+```
+
+`name` and each `tools` entry are opaque identifiers owned by the external MCP
+consumer. Factory does not infer providers from names, descriptions, tools, or
+permissions. The committed `config/mcp_servers.json` file is the explicit
+approval registry: a declaration must name a registered server, request only
+registered tools, and stay within that server's approved permission boundary.
+It must also stay within the agent's own top-level `permissions` ceiling; MCP
+cannot widen the agent's network, filesystem, or shell access. Both ceilings are
+enforced by `agent_factory.mcp.load_mcp_capabilities`, not treated as
+descriptive metadata.
+
+The legacy `required` field on `McpServer` is descriptive declaration metadata.
+`required=false` does not make approval or availability optional and does not
+create a fallback path: every declared MCP capability must still be approved and
+available, or loading fails closed.
+
+The loader also requires an explicit `available_servers` mapping supplied by the
+external runtime. It ignores extra available servers and fails closed for an
+unknown, unapproved, denied, duplicate, or unavailable declaration. Factory
+returns authorized handles and does not start MCP processes, discover providers,
+invoke tools, or implement a provider transport. Agent Hub or another runtime
+consumer owns that execution step and must pass the resulting handles through
+this Factory-owned authorization boundary first.
 
 ## Target-project access contract
 
