@@ -151,6 +151,7 @@ def create_staged_agent_package(spec_json: str) -> str:
       purpose    - routing contract with Primary responsibility, Select for, and Do not select for sections
       aliases    - list of command aliases, e.g. ["research", "find"]
       tools      - list of approved tool IDs (may be empty)
+      mcp_servers - explicit MCP server/tool declarations and permission boundaries
       permissions - object: network, filesystem, shell, requires_approval
       memory_policy - object: scope, retention
       runtime    - object: mode plus mode-specific invocation details
@@ -238,6 +239,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         "purpose": spec.purpose,
         "aliases": spec.aliases,
         "tools": spec.tools,
+        "mcp_servers": [server.model_dump(exclude_none=True) for server in spec.mcp_servers],
         "permissions": spec.permissions.model_dump(),
         "memory": spec.memory_policy.model_dump(),
         "runtime": spec.runtime.model_dump(exclude_none=True),

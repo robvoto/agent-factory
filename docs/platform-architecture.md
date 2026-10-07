@@ -14,6 +14,7 @@
 
 - Designs and stages agent packages on request (via Factory Brain or CLI)
 - Validates manifests, tools, permissions, and memory policy
+- Validates explicit MCP server/tool declarations against the approval registry and selects authorized runtime handles
 - Enables agents only after human approval
 - Tracks agent lifecycle: staged → approved → enabled
 - Exposes enabled agents via `config/agents/` — Agent Hub reads from there
@@ -26,6 +27,7 @@
 - Does not own the user-facing Telegram gateway (Agent Hub does this)
 - Does not route user requests (Agent Hub does this)
 - Does not persist or present progress to users; Agent Hub owns `/status`, stale detection, cancellation, and Telegram updates
+- Does not discover, start, or execute MCP servers; an external runtime must supply explicit available handles after Factory authorization
 
 ## Responsibilities within factory
 

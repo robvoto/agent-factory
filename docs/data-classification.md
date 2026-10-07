@@ -26,6 +26,7 @@ Decision item: AF-025. Defines what belongs in Git, what is runtime state, and w
 ### Settings
 
 - `config/factory_settings.json` — committed; contains model aliases and bot config keys only, no real tokens
+- `config/mcp_servers.json` — committed; contains only the explicit non-secret MCP server/tool approval registry and permission ceilings
 - `data/settings.local.json` — **not committed**; contains real token values and chat IDs
 - Always provide `data/settings.local.example.json` as a safe committed example
 

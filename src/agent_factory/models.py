@@ -9,6 +9,7 @@ from typing import Any
 from .agent_spec import (
     AgentTargetProjectAccess,
     AgentTaskContract,
+    McpServer,
     normalize_output_contract,
     normalize_runtime_config,
 )
@@ -33,6 +34,7 @@ class AgentManifest:
     permissions: dict[str, Any]
     memory: dict[str, Any]
     runtime: dict[str, Any] = None  # type: ignore[assignment]
+    mcp_servers: tuple[dict[str, Any], ...] | None = None
     input_contract: dict[str, Any] | None = None
     interaction_contract: dict[str, Any] | None = None
     task_contract: dict[str, Any] | None = None
@@ -62,6 +64,9 @@ class AgentManifest:
             raise ManifestValidationError(str(exc)) from exc
         aliases = _string_list(data["aliases"], "aliases", allow_empty=False)
         tools = _string_list(data["tools"], "tools", allow_empty=True)
+        raw_mcp_servers = data.get("mcp_servers")
+        if raw_mcp_servers is not None and not isinstance(raw_mcp_servers, list):
+            raise ManifestValidationError("mcp_servers must be a list when present.")
 
         normalized_aliases = tuple(alias.strip().lower() for alias in aliases)
         if len(set(normalized_aliases)) != len(normalized_aliases):
@@ -128,6 +133,15 @@ class AgentManifest:
                 normalized_runtime["mode"],
                 output_contract,
             )
+            normalized_mcp_servers = (
+                tuple(McpServer.model_validate(item).model_dump(exclude_none=True) for item in raw_mcp_servers)
+                if raw_mcp_servers is not None
+                else None
+            )
+            if normalized_mcp_servers is not None:
+                names = [item["name"] for item in normalized_mcp_servers]
+                if len(set(names)) != len(names):
+                    raise ValueError("mcp_servers must not contain duplicate server names.")
         except ValueError as exc:
             raise ManifestValidationError(str(exc)) from exc
 
@@ -137,6 +151,7 @@ class AgentManifest:
             purpose=purpose,
             aliases=normalized_aliases,
             tools=tuple(tool.strip() for tool in tools),
+            mcp_servers=normalized_mcp_servers,
             permissions=dict(data["permissions"]),
             memory=dict(data["memory"]),
             runtime=normalized_runtime,

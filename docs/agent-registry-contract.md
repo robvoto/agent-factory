@@ -30,6 +30,7 @@ during promotion. Agent Hub reads it directly or via the manifest.
 | `purpose` | Single structured routing contract used by Hub |
 | `aliases` | Short human-facing command words (e.g. `["code", "atl"]`) — not used for Agent Hub routing |
 | `tools` | Array of tool IDs the agent may use |
+| `mcp_servers` | Explicit MCP server/tool declarations and requested permission boundaries; no implicit discovery |
 | `permissions` | `network`, `filesystem`, `shell`, `requires_approval`, `allowed_roots` |
 | `memory` | `scope`, `retention` |
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
@@ -91,6 +92,7 @@ Agent Hub **must not** use staged agents or read from `staging/agents/`.
 - Human approval is required before any agent enters the registry
 - The manifest hash covers static fields only; live counts do not invalidate the hash
 - Subprocess specialists must declare `output_contract.status_values = ["success", "needs_clarification", "waiting_decision", "failed"]` plus the matching terminal/caller-action meaning in the registry spec Factory stages
+- MCP declarations are only runtime-loadable after Factory validates them against `config/mcp_servers.json` and an explicit availability map supplied by the external runtime; Agent Hub must not discover additional MCP servers from the filesystem or provider environment
 
 ## Universal specialist protocol metadata
 

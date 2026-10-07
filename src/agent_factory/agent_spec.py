@@ -10,7 +10,7 @@ import types
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Mapping, Union, get_args, get_origin
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .project_context import ProjectContextContract
 from .routing_purpose import validate_routing_purpose
@@ -333,10 +333,53 @@ class AgentTargetProjectAccess(BaseModel):
         return self
 
 
+class McpPermissionBoundary(BaseModel):
+    """Maximum permissions an MCP declaration may request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    network: bool = False
+    filesystem: Literal["none", "read", "write"] = "none"
+    shell: bool = False
+
+
 class McpServer(BaseModel):
+    """One explicit MCP server declaration in an agent manifest."""
+
+    model_config = ConfigDict(extra="forbid")
+
     name: str
     description: str = ""
     required: bool = True
+    tools: list[str] = Field(default_factory=list)
+    permission_boundary: McpPermissionBoundary = Field(default_factory=McpPermissionBoundary)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("mcp_servers.name must be a non-empty identifier.")
+        if any(character.isspace() for character in normalized):
+            raise ValueError("mcp_servers.name must not contain whitespace.")
+        return normalized
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("tools")
+    @classmethod
+    def validate_tools(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for value in values:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("mcp_servers.tools must contain non-empty identifiers.")
+            normalized.append(value.strip())
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("mcp_servers.tools must not contain duplicates.")
+        return normalized
 
 
 class AgentPackageSpec(BaseModel):
@@ -347,7 +390,7 @@ class AgentPackageSpec(BaseModel):
     purpose: str
     aliases: list[str]
     tools: list[str] = []
-    mcp_servers: list[McpServer] = []
+    mcp_servers: list[McpServer] = Field(default_factory=list)
     permissions: AgentPermissions = Field(default_factory=AgentPermissions)
     memory_policy: AgentMemoryPolicy = Field(default_factory=AgentMemoryPolicy)
     runtime: AgentRuntimeConfig = Field(default_factory=AgentRuntimeConfig)
@@ -380,6 +423,14 @@ class AgentPackageSpec(BaseModel):
         if len(set(normalized)) != len(normalized):
             raise ValueError("operating_rules must not contain duplicates.")
         return normalized
+
+    @field_validator("mcp_servers")
+    @classmethod
+    def validate_mcp_servers(cls, values: list[McpServer]) -> list[McpServer]:
+        names = [server.name for server in values]
+        if len(set(names)) != len(names):
+            raise ValueError("mcp_servers must not contain duplicate server names.")
+        return values
 
     _CORE_MANIFEST_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {
