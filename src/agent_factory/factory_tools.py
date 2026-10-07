@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from .agent_catalog import (
@@ -21,6 +22,15 @@ from .agent_catalog import (
     plan_package_reuse,
 )
 from .agent_spec import AgentPackageSpec, validate_agent_package_spec_payload
+from .build_task import (
+    BUILD_TASK_FILENAME,
+    AgentBuildTask,
+    BuildTaskError,
+    assert_task_matches_staged_package,
+    deterministic_correlation_id,
+    load_staged_manifest,
+)
+from .build_task import build_task_reference as task_reference
 from .design_research import request_design_research, run_design_research
 from .errors import AgentFactoryError
 from .package_scaffold import copy_standard_workspace
@@ -243,6 +253,7 @@ def create_staged_agent_package(spec_json: str) -> str:
 
     agent_manifest_data: dict[str, Any] = {
         "id": spec.id,
+        "version": spec.version,
         "manifest_schema_version": spec.manifest_schema_version,
         "name": spec.name,
         "purpose": spec.purpose,
@@ -418,6 +429,249 @@ def _copy_progress_adapter(package_dir: Path) -> None:
         shutil.copyfile(source, target)
 
 
+def _factory_thread_id(config: RunnableConfig) -> str:
+    configurable = config.get("configurable") if isinstance(config, dict) else None
+    thread_id = configurable.get("thread_id") if isinstance(configurable, dict) else None
+    if not isinstance(thread_id, str) or not thread_id.strip():
+        raise BuildTaskError("Factory thread identity is unavailable; refusing to create a build task")
+    return thread_id.strip()
+
+
+def _staged_package_dir(agent_id: str) -> Path:
+    from .agent_spec import VALID_ID_PATTERN
+
+    normalized = agent_id.strip()
+    if not VALID_ID_PATTERN.fullmatch(normalized):
+        raise BuildTaskError(f"Invalid staged agent id: {agent_id!r}")
+    staging_root = _STAGING_DIR.resolve()
+    package_dir = (_STAGING_DIR / normalized).resolve()
+    try:
+        package_dir.relative_to(staging_root)
+    except ValueError as exc:
+        raise BuildTaskError("staged package resolves outside staging/agents") from exc
+    if not package_dir.is_dir():
+        raise BuildTaskError(f"Staged agent not found: {normalized!r}")
+    return package_dir
+
+
+@tool
+def prepare_agent_build_task(
+    agent_id: str,
+    permitted_paths: list[str],
+    acceptance_criteria: list[str],
+    test_commands: list[str],
+    relevant_docs: list[str],
+    relevant_skills: list[str],
+    token_budget: int,
+    time_budget_seconds: int,
+    stop_conditions: list[str],
+    config: RunnableConfig,
+) -> str:
+    """Validate and persist an explicit Factory implementation handoff.
+
+    All implementation controls are caller-supplied.  This tool has no hidden
+    defaults and only writes ``BUILD_TASK.json`` inside the requested staged
+    package.  It does not approve, dispatch, execute, or promote the agent.
+    """
+
+    thread_id = _factory_thread_id(config)
+    package_dir = _staged_package_dir(agent_id)
+    raw_manifest, _manifest, digest = load_staged_manifest(package_dir, agent_id.strip())
+    design = raw_manifest["design"]
+    controls = {
+        "agent_id": agent_id.strip(),
+        "permitted_paths": permitted_paths,
+        "acceptance_criteria": acceptance_criteria,
+        "test_commands": test_commands,
+        "relevant_docs": relevant_docs,
+        "relevant_skills": relevant_skills,
+        "token_budget": token_budget,
+        "time_budget_seconds": time_budget_seconds,
+        "stop_conditions": stop_conditions,
+    }
+    correlation_id = deterministic_correlation_id(thread_id, {**controls, "manifest_sha256": digest})
+    task = AgentBuildTask.model_validate(
+        {
+            "agent_id": agent_id.strip(),
+            "agent_version": raw_manifest["version"],
+            "manifest_schema_version": raw_manifest["manifest_schema_version"],
+            "manifest_sha256": digest,
+            "staging_target": f"staging/agents/{agent_id.strip()}",
+            "permitted_paths": permitted_paths,
+            "acceptance_criteria": acceptance_criteria,
+            "test_commands": test_commands,
+            "relevant_docs": relevant_docs,
+            "relevant_skills": relevant_skills,
+            "token_budget": token_budget,
+            "time_budget_seconds": time_budget_seconds,
+            "stop_conditions": stop_conditions,
+            "runtime_pattern": design["runtime_pattern"],
+            "runtime_pattern_reason": design["runtime_pattern_reason"],
+            "thread_id": thread_id,
+            "correlation_id": correlation_id,
+        }
+    )
+    reference = task_reference(task)
+    artifact_path = (package_dir / BUILD_TASK_FILENAME).resolve()
+    try:
+        artifact_path.relative_to(package_dir.resolve())
+    except ValueError as exc:
+        raise BuildTaskError("build-task artifact resolves outside staged package") from exc
+
+    from .storage import (
+        list_build_tasks_for_reference,
+        list_build_tasks_for_thread,
+        mark_build_task_status,
+        record_build_task,
+    )
+
+    reference_rows = list_build_tasks_for_reference(reference)
+    exact_row = next(
+        (row for row in reference_rows if row["correlation_id"] == task.correlation_id),
+        None,
+    )
+    for row in reference_rows:
+        if row["status"] in {"prepared", "approved"} and row["thread_id"] != thread_id:
+            raise BuildTaskError(
+                "A current build task for this staged artifact belongs to another Factory thread"
+            )
+
+    if exact_row is not None and exact_row["status"] == "prepared":
+        try:
+            existing_task = AgentBuildTask.model_validate(
+                json.loads(artifact_path.read_text(encoding="utf-8"))
+            )
+            if existing_task == task:
+                assert_task_matches_staged_package(existing_task, _PROJECT_ROOT)
+                return json.dumps(
+                    {"status": "prepared", "artifact_reference": reference, "correlation_id": task.correlation_id},
+                    sort_keys=True,
+                )
+        except (OSError, json.JSONDecodeError, ValueError, BuildTaskError):
+            mark_build_task_status(
+                reference,
+                "stale",
+                "Artifact or staged package changed before regeneration.",
+                correlation_id=exact_row["correlation_id"],
+                thread_id=exact_row["thread_id"],
+            )
+            exact_row["status"] = "stale"
+
+    if exact_row is not None and exact_row["status"] == "approved":
+        try:
+            approved_task = AgentBuildTask.model_validate(
+                json.loads(artifact_path.read_text(encoding="utf-8"))
+            )
+            assert_task_matches_staged_package(approved_task, _PROJECT_ROOT)
+        except (OSError, json.JSONDecodeError, ValueError, BuildTaskError):
+            mark_build_task_status(
+                reference,
+                "stale",
+                "Staged package changed; regeneration required.",
+                correlation_id=exact_row["correlation_id"],
+                thread_id=exact_row["thread_id"],
+            )
+            exact_row["status"] = "stale"
+        else:
+            raise BuildTaskError("An approved current build task already exists for this Factory thread")
+
+    if exact_row is not None and exact_row["status"] in {"rejected", "stale", "superseded"}:
+        raise BuildTaskError(
+            "The exact build-task correlation is terminal; change the staged manifest "
+            "or explicit build controls before regeneration"
+        )
+
+    for row in list_build_tasks_for_thread(thread_id):
+        if row["status"] == "approved":
+            try:
+                approved_path = _PROJECT_ROOT / row["artifact_reference"]
+                approved_task = AgentBuildTask.model_validate(
+                    json.loads(approved_path.read_text(encoding="utf-8"))
+                )
+                assert_task_matches_staged_package(approved_task, _PROJECT_ROOT)
+            except (OSError, json.JSONDecodeError, ValueError, BuildTaskError):
+                mark_build_task_status(
+                    row["artifact_reference"],
+                    "stale",
+                    "Staged package changed; regeneration required.",
+                    correlation_id=row["correlation_id"],
+                    thread_id=row["thread_id"],
+                )
+            else:
+                raise BuildTaskError("An approved current build task already exists for this Factory thread")
+
+    for row in reference_rows:
+        if row["thread_id"] == thread_id and row["status"] == "prepared" and row["correlation_id"] != task.correlation_id:
+            mark_build_task_status(
+                reference,
+                "superseded",
+                "Replaced by an explicit regenerated build task.",
+                correlation_id=row["correlation_id"],
+                thread_id=row["thread_id"],
+            )
+
+    artifact_path.write_text(task.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    record_build_task(
+        thread_id=thread_id,
+        artifact_reference=reference,
+        correlation_id=task.correlation_id,
+        agent_id=task.agent_id,
+        agent_version=task.agent_version,
+        manifest_sha256=task.manifest_sha256,
+    )
+    logger.info("Prepared build task %s for Factory thread %s.", reference, thread_id)
+    return json.dumps(
+        {"status": "prepared", "artifact_reference": reference, "correlation_id": task.correlation_id},
+        sort_keys=True,
+    )
+
+
+@tool
+def approve_agent_build_handoff(build_task_reference: str, config: RunnableConfig) -> str:
+    """Mark the exact prepared build task approved after HITL middleware approval."""
+
+    thread_id = _factory_thread_id(config)
+    reference = build_task_reference.strip()
+    expected_prefix = "staging/agents/"
+    if not reference.startswith(expected_prefix) or not reference.endswith(f"/{BUILD_TASK_FILENAME}"):
+        raise BuildTaskError("build_task_reference must be a staged BUILD_TASK.json repo-relative reference")
+    artifact_path = (_PROJECT_ROOT / reference).resolve()
+    staging_root = (_PROJECT_ROOT / "staging" / "agents").resolve()
+    try:
+        artifact_path.relative_to(staging_root)
+    except ValueError as exc:
+        raise BuildTaskError("build-task reference resolves outside staging/agents") from exc
+    if not artifact_path.is_file():
+        raise BuildTaskError(f"Build-task artifact not found: {reference}")
+    try:
+        task = AgentBuildTask.model_validate(json.loads(artifact_path.read_text(encoding="utf-8")))
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise BuildTaskError(f"Invalid build-task artifact: {reference}") from exc
+    if task.thread_id != thread_id or task_reference(task) != reference:
+        raise BuildTaskError("build-task correlation does not match the current Factory thread")
+    assert_task_matches_staged_package(task, _PROJECT_ROOT)
+    from .storage import get_build_task, mark_build_task_approved
+
+    row = get_build_task(
+        reference,
+        correlation_id=task.correlation_id,
+        thread_id=thread_id,
+    )
+    if not row or row["thread_id"] != thread_id or row["status"] != "prepared":
+        raise BuildTaskError("build task is missing, already decided, or not prepared for this thread")
+    if not mark_build_task_approved(
+        thread_id=thread_id,
+        artifact_reference=reference,
+        correlation_id=task.correlation_id,
+    ):
+        raise BuildTaskError("build task approval was not applied atomically")
+    logger.info("Approved build task %s for Factory thread %s.", reference, thread_id)
+    return json.dumps(
+        {"status": "approved", "artifact_reference": reference, "correlation_id": task.correlation_id},
+        sort_keys=True,
+    )
+
+
 @tool
 def record_decision(note: str) -> str:
     """Record a durable project decision in memory/factory/decisions.md.
@@ -516,6 +770,8 @@ def get_factory_tools() -> list:
         read_staged_review,
         validate_agent_package_spec,
         create_staged_agent_package,
+        prepare_agent_build_task,
+        approve_agent_build_handoff,
         record_decision,
         request_design_research,
         run_design_research,

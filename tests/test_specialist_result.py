@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from agent_factory.specialist_result import (
+    FactorySpecialistResult,
     NextTaskContractError,
     validate_next_task_contract,
 )
@@ -72,3 +73,28 @@ def test_next_task_rejects_malformed_values(value) -> None:
 def test_next_task_does_not_parse_natural_language() -> None:
     with pytest.raises(NextTaskContractError, match="JSON object"):
         validate_next_task_contract("next_task: coding_task — implement it")
+
+
+def test_factory_result_rejects_handoff_without_success_and_evidence() -> None:
+    with pytest.raises(ValueError, match="next_task is only valid"):
+        FactorySpecialistResult(
+            status="waiting_approval",
+            summary="Waiting.",
+            next_task=SHOPPING_AGENT_NEXT_TASK,
+        )
+    with pytest.raises(ValueError, match="artifact_reference requires"):
+        FactorySpecialistResult(
+            status="success",
+            summary="Ready.",
+            artifact_reference="staging/agents/shopping-agent/BUILD_TASK.json",
+        )
+
+
+def test_factory_result_rejects_non_staged_artifact_reference() -> None:
+    with pytest.raises(ValueError, match="normalized staged agent"):
+        FactorySpecialistResult(
+            status="success",
+            summary="Ready.",
+            next_task=SHOPPING_AGENT_NEXT_TASK,
+            artifact_reference="staging/agents/../shopping-agent/BUILD_TASK.json",
+        )

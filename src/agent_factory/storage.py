@@ -4,20 +4,22 @@ Tables:
   staged_agents   — draft packages waiting for approval
   approvals       — pending/decided approval records
   factory_threads — Telegram chat → LangGraph thread mapping
+  build_tasks     — Factory implementation handoffs keyed by thread
 """
 
 from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Generator
 
 _PROJECT_ROOT = Path(__file__).parents[2]
 _DEFAULT_DB_PATH = _PROJECT_ROOT / "data" / "agent_factory.sqlite3"
 logger = logging.getLogger(__name__)
+BUILD_TASK_STATUSES = frozenset({"prepared", "approved", "rejected", "stale", "superseded"})
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS staged_agents (
@@ -48,11 +50,28 @@ CREATE TABLE IF NOT EXISTS factory_threads (
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS build_tasks (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id           TEXT NOT NULL,
+    artifact_reference  TEXT NOT NULL,
+    correlation_id      TEXT NOT NULL,
+    agent_id            TEXT NOT NULL,
+    agent_version       TEXT NOT NULL,
+    manifest_sha256     TEXT NOT NULL,
+    status              TEXT NOT NULL,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL,
+    decision_reason     TEXT,
+    CHECK (status IN ('prepared', 'approved', 'rejected', 'stale', 'superseded'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_build_tasks_thread_id ON build_tasks(thread_id);
 """
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 @contextmanager
@@ -79,6 +98,45 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute(
             "ALTER TABLE factory_threads ADD COLUMN is_interrupted INTEGER NOT NULL DEFAULT 0"
         )
+
+    unique_artifact_reference = False
+    for index in conn.execute("PRAGMA index_list(build_tasks)").fetchall():
+        if not index[2]:
+            continue
+        columns = conn.execute(f"PRAGMA index_info({index[1]!r})").fetchall()
+        if [column[2] for column in columns] == ["artifact_reference"]:
+            unique_artifact_reference = True
+            break
+    if unique_artifact_reference:
+        # AF-048 originally made the stable artifact path unique. Preserve every
+        # old row while replacing only that schema constraint.
+        conn.execute("DROP INDEX IF EXISTS idx_build_tasks_thread_id")
+        conn.execute("ALTER TABLE build_tasks RENAME TO build_tasks_legacy")
+        conn.execute(
+            """CREATE TABLE build_tasks (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                thread_id           TEXT NOT NULL,
+                artifact_reference  TEXT NOT NULL,
+                correlation_id      TEXT NOT NULL,
+                agent_id            TEXT NOT NULL,
+                agent_version       TEXT NOT NULL,
+                manifest_sha256     TEXT NOT NULL,
+                status              TEXT NOT NULL,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL,
+                decision_reason     TEXT,
+                CHECK (status IN ('prepared', 'approved', 'rejected', 'stale', 'superseded'))
+            )"""
+        )
+        conn.execute(
+            "INSERT INTO build_tasks (id, thread_id, artifact_reference, correlation_id, agent_id,"
+            " agent_version, manifest_sha256, status, created_at, updated_at, decision_reason)"
+            " SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks_legacy"
+        )
+        conn.execute("DROP TABLE build_tasks_legacy")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_build_tasks_thread_id ON build_tasks(thread_id)")
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +398,183 @@ def get_thread_state(chat_id: str, *, db_path: Path | None = None) -> dict | Non
             (chat_id,),
         ).fetchone()
     return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# build_tasks (Factory implementation handoffs)
+# ---------------------------------------------------------------------------
+
+def record_build_task(
+    *,
+    thread_id: str,
+    artifact_reference: str,
+    correlation_id: str,
+    agent_id: str,
+    agent_version: str,
+    manifest_sha256: str,
+    status: str = "prepared",
+    db_path: Path | None = None,
+) -> int:
+    """Record one prepared build task without creating a second approval record."""
+
+    if status not in BUILD_TASK_STATUSES:
+        raise ValueError(f"Unknown build-task status: {status!r}")
+    now = _now_iso()
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "INSERT INTO build_tasks (thread_id, artifact_reference, correlation_id, agent_id,"
+            " agent_version, manifest_sha256, status, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                thread_id,
+                artifact_reference,
+                correlation_id,
+                agent_id,
+                agent_version,
+                manifest_sha256,
+                status,
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+def get_build_task(
+    artifact_reference: str,
+    *,
+    correlation_id: str | None = None,
+    thread_id: str | None = None,
+    db_path: Path | None = None,
+) -> dict | None:
+    """Return an exact task, or fail closed when a path-only lookup is ambiguous."""
+
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return None
+    clauses = ["artifact_reference = ?"]
+    params: list[str] = [artifact_reference]
+    if correlation_id is not None:
+        clauses.append("correlation_id = ?")
+        params.append(correlation_id)
+    if thread_id is not None:
+        clauses.append("thread_id = ?")
+        params.append(thread_id)
+    with _connect(resolved) as conn:
+        row = conn.execute(
+            "SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks WHERE " + " AND ".join(clauses)
+            + " ORDER BY id",
+            params,
+        ).fetchall()
+    if len(row) > 1:
+        raise ValueError(
+            "Build-task artifact reference is ambiguous; correlation_id and thread_id are required"
+        )
+    return dict(row[0]) if row else None
+
+
+def list_build_tasks_for_reference(
+    artifact_reference: str,
+    *,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Return all historical rows for one stable artifact path."""
+
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return []
+    with _connect(resolved) as conn:
+        rows = conn.execute(
+            "SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks WHERE artifact_reference = ? ORDER BY id",
+            (artifact_reference,),
+        ).fetchall()
+    return [dict(item) for item in rows]
+
+
+def list_build_tasks_for_thread(thread_id: str, *, db_path: Path | None = None) -> list[dict]:
+    """Return build tasks for one Factory thread without a repository scan."""
+
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return []
+    with _connect(resolved) as conn:
+        rows = conn.execute(
+            "SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks WHERE thread_id = ? ORDER BY id",
+            (thread_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def mark_build_task_approved(
+    *,
+    thread_id: str,
+    artifact_reference: str,
+    correlation_id: str,
+    db_path: Path | None = None,
+) -> bool:
+    """Atomically mark the exact prepared task approved by HITL middleware."""
+
+    now = _now_iso()
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE build_tasks SET status = 'approved', updated_at = ?"
+            " WHERE thread_id = ? AND artifact_reference = ? AND correlation_id = ?"
+            " AND status = 'prepared'",
+            (now, thread_id, artifact_reference, correlation_id),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def mark_build_task_status(
+    artifact_reference: str,
+    status: str,
+    reason: str = "",
+    *,
+    correlation_id: str,
+    thread_id: str,
+    db_path: Path | None = None,
+) -> bool:
+    """Record a fail-closed terminal or superseding build-task state."""
+
+    if status not in BUILD_TASK_STATUSES:
+        raise ValueError(f"Unknown build-task status: {status!r}")
+    now = _now_iso()
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE build_tasks SET status = ?, updated_at = ?, decision_reason = ?"
+            " WHERE artifact_reference = ? AND correlation_id = ? AND thread_id = ?"
+            " AND status NOT IN ('rejected', 'stale', 'superseded')",
+            (status, now, reason, artifact_reference, correlation_id, thread_id),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+
+
+def reject_build_tasks_for_thread(
+    thread_id: str,
+    reason: str = "Rejected by user",
+    *,
+    db_path: Path | None = None,
+) -> int:
+    """Leave every unapproved task in a thread non-dispatchable."""
+
+    now = _now_iso()
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE build_tasks SET status = 'rejected', updated_at = ?, decision_reason = ?"
+            " WHERE thread_id = ? AND status = 'prepared'",
+            (now, reason, thread_id),
+        )
+        conn.commit()
+        return cur.rowcount
 
 
 # ---------------------------------------------------------------------------

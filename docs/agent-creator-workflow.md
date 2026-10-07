@@ -147,7 +147,18 @@ Flag risks before approval:
 
 When an approved agent design requires substantive code, architecture, tests, configuration, infrastructure, integrations, or technical documentation, Factory prepares a bounded implementation task for Agent Hub to route to AI Tech Lead.
 
-The handoff must preserve the approved purpose, responsibilities, non-responsibilities, runtime choice, permissions, acceptance evidence, budgets, permitted paths, stop conditions, and the evidence brief behind material technical choices. AI Tech Lead may improve implementation details but must not silently change the agent's approved purpose or lifecycle decisions.
+Factory writes that handoff as `staging/agents/<agent-id>/BUILD_TASK.json` and records
+its thread and correlation in Factory SQLite. The task is strict and versioned: it
+contains the staged `agent.json` identity/hash, explicit acceptance criteria and test
+commands, permitted paths, relevant `docs/`/`skills/` references (including only the
+same package's local references), token/time budgets, stop conditions, and the
+manifest's explicit runtime pattern and reason. Preparation has no hidden defaults.
+Regeneration reuses the stable artifact path while preserving superseded/stale history.
+The correlation covers all caller-controlled task fields and the manifest hash, so a
+changed approved artifact is stale and the `BUILD_TASK.json` control artifact cannot
+be included as an implementation path.
+
+The handoff must preserve the approved purpose, responsibilities, non-responsibilities, runtime choice, permissions, acceptance evidence, budgets, permitted paths, stop conditions, and the evidence brief behind material technical choices. The dedicated Deep Agents HITL approval marks the exact prepared correlation approved; rejection leaves it non-dispatchable. AI Tech Lead may improve implementation details but must not silently change the agent's approved purpose or lifecycle decisions.
 
 Factory stops at **implementation-ready**. It does not need to settle every
 library, adapter, selector, provider, retry policy, or internal class before
@@ -156,6 +167,11 @@ implementation details belong to AI Tech Lead unless they materially change
 purpose, permissions, budgets, lifecycle state, or acceptance criteria.
 
 If AI Tech Lead discovers implementation evidence that invalidates a Factory design assumption, the conflict returns to Factory/operator review rather than being silently replaced during coding.
+
+This AF-048 slice does not dispatch to Agent Hub or invoke AI Tech Lead. Hub/ATL
+consumption is the next cross-project bridge change. It also does not promote the
+package: `agents/<id>/` and `config/agents/<id>.json` appear only after the separate
+Factory promotion approval.
 
 ## Promotion rule
 

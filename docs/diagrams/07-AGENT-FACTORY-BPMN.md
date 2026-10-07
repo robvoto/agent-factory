@@ -15,7 +15,9 @@ Model shape:
 
 1. Human / Operator is the external request and response pool.
 2. Agent Factory is one main pool with lanes for Telegram Interface, Orchestrator, and Specialist Agent.
-3. Coding Backend is the external execution pool for Codex / Claude Code.
+3. Coding Backend is the external execution pool for Codex / Claude Code in the
+   future Hub -> AI Tech Lead bridge; it is not invoked by the first AF-048 Factory
+   manufacturing slice.
 4. Persistent State / Logs is a BPMN data store, not a pool.
 
 Flow rules:
@@ -34,7 +36,10 @@ Message flow meanings:
 | MF_04 | Approval request | Agent Factory -> Human |
 | MF_05 | Approval decision | Human -> Agent Factory |
 | MF_06 | Final summary | Agent Factory -> Human |
-| MF_07 | Backend instruction | Agent Factory -> Coding Backend |
-| MF_08 | Backend result | Coding Backend -> Agent Factory |
+| MF_07 | Backend instruction (future Hub bridge) | Agent Factory -> Coding Backend |
+| MF_08 | Backend result (future Hub bridge) | Coding Backend -> Agent Factory |
 
-The model covers request intake, intent classification, agent selection, clarification, approval, execution, logging, and safe stop paths.
+For AF-048, the Factory flow stops after the approved structured build-task result;
+MF_07/MF_08 remain future cross-project flows. The model otherwise covers request
+intake, intent classification, agent selection, clarification, approval, execution,
+logging, and safe stop paths.

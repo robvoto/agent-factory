@@ -22,13 +22,14 @@ runs or orchestrates it; it is not the development home.
 1. **AgentManifest / AgentPackageSpec** — Pydantic models for agent spec validation (`agent_spec.py`)
 2. **MCP capability boundary** — explicit approval-registry validation and runtime handle selection (`mcp.py`); no provider discovery or execution
 3. **Factory Brain** — LangGraph Deep Agent that designs and stages packages (`factory_brain.py`); Factory Brain was already implemented as a Deep Agent before AF-050. AF-050 hardens its packaging, permissions, persistence, and security boundaries rather than migrating it to Deep Agents. Its declared `langchain` dependency set includes SQLite checkpoint support, and `agent-factory doctor` validates that runtime before use. Runtime safety limits are centrally configured in `config/factory_settings.json`: Deep Agent turns use an explicit graph recursion limit, while provider calls use explicit timeout and retry caps so permissive framework defaults cannot leave a bad design or research turn effectively unbounded.
-4. **Factory Tools** — bounded tools: create, promote, approve, delete (`factory_tools.py`)
+4. **Factory Tools** — bounded tools: create, prepare/approve implementation handoffs, promote, approve, delete (`factory_tools.py`)
 5. **Agent Catalog** — staged + enabled inventory (`agent_catalog.py`)
 6. **Creator Workflow** — deterministic scaffolding from spec (`creator_workflow.py`)
 7. **Telegram gateway** — factory admin bot: /staged, /approve, /reject, /promote (`telegram_gateway.py`)
 8. **Storage** — SQLite persistence for staged agents and approvals (`storage.py`)
 9. **Knowledge store** — factory-scoped knowledge for docs ingestion (`knowledge_store.py`)
 10. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
+11. **AF-048 build-task boundary** — strict staged `BUILD_TASK.json` artifacts, SQLite thread/correlation persistence, and a structured specialist-result wrapper (`build_task.py`, `storage.py`, `factory_brain.py`)
 
 ## What lives where
 
@@ -72,6 +73,13 @@ model or cost limits, or the active release version require Factory validation a
 explicit human approval before activation. Release rollback reactivates a previously
 validated release through the registry; it does not restore arbitrary filesystem
 snapshots.
+
+The first AF-048 manufacturing slice stops at an approved, current structured build
+handoff. Factory does not dispatch the task, call AI Tech Lead/Codex/Claude, promote
+the staged package, or update `config/agents`. The next cross-project change belongs
+in Agent Hub: consume the Factory structured result and route its stable artifact
+reference to AI Tech Lead's existing coding workflow. Only separate promotion
+approval creates the released `agents/<id>/` package home and registry entry.
 
 ## Hub progress boundary
 

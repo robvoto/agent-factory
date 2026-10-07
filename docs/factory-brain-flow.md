@@ -15,12 +15,19 @@ flowchart TD
 
     WhichTool -->|safe tools| SafeTools["list_staged_agents\nread_staged_review\nlist_templates\nrecord_decision"]
     WhichTool -->|memory tools| MemTools["manage_memory — write learnings\nsearch_memory — search local docs\nsearch_trusted_sources — search online"]
-    WhichTool -->|approval-required| ApprovalTool["request_approval\nrequest_agent_promotion"]
+    WhichTool -->|handoff preparation| BuildTask["prepare_agent_build_task"]
+    WhichTool -->|approval-required| ApprovalTool["request_approval\nrequest_agent_promotion\napprove_agent_build_handoff"]
 
     SafeTools --> RunTool[Run Tool]
     MemTools --> KnowledgeStore[(Knowledge Store\nSQLite — shared\nacross all agents)]
     KnowledgeStore --> RunTool
     RunTool --> LLM
+
+    BuildTask --> BuildArtifact[(staging/agents/<id>/BUILD_TASK.json\nSQLite thread/correlation)]
+    BuildArtifact --> ApprovalTool
+    ApprovalTool --> Checkpoint
+    Checkpoint --> StructuredResult["Structured Factory result\nstatus + summary + validated AF-012 next_task"]
+    StructuredResult -.-> FutureBridge["Next cross-project step:\nAgent Hub -> AI Tech Lead"]
 
     ApprovalTool --> Checkpoint[(Checkpoint saved\nto SQLite)]
     Checkpoint --> Interrupt[INTERRUPT\nwait for human]
@@ -54,3 +61,8 @@ flowchart TD
 - `/fork <id>` — branch a new thread from a past checkpoint
 - Hot reload — code changes without restarting the gateway
 - Semantic search — current store uses keyword matching, not embeddings
+
+The AF-048 build task remains inside the staged package and is not runtime or
+promotion evidence. Factory never dispatches it or calls a coding backend in this
+slice; `agents/<id>/` and `config/agents/<id>.json` appear only after separate
+promotion approval.

@@ -7,16 +7,28 @@ docs/skills/memory/templates) plus bounded write tools.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 from langgraph.types import Command
 
+from .build_task import (
+    AgentBuildTask,
+    BuildTaskError,
+    assert_task_matches_staged_package,
+    build_task_reference,
+)
 from .progress_events import ProgressReporter, run_agent_with_progress
+from .specialist_result import (
+    FactorySpecialistResult,
+    validate_next_task_contract,
+)
 
 _PROJECT_ROOT = Path(__file__).parents[2]
 _CHECKPOINT_DB = _PROJECT_ROOT / "data" / "factory_checkpoints.sqlite3"
@@ -57,6 +69,10 @@ Handles useful work and helps with agents.
 - Flag risky permissions (shell, network, filesystem_write) explicitly.
 - Use request_approval before promoting, enabling, or modifying shared memory.
 - Never enable an agent yourself — staging only.
+- For substantive implementation work, prepare_agent_build_task with every explicit
+  acceptance, test, path, reference, budget, and stop-control value, then call
+  approve_agent_build_handoff with its exact artifact reference. That handoff only
+  prepares a staged task; it never dispatches, executes, or promotes an agent.
 - Ask when uncertain rather than guessing.
 - Call list_known_agents before creating or promoting an agent so reused staged or enabled agents are not duplicated.
 - Before answering architecture or "what should we do next" questions, call search_memory or search_trusted_sources for relevant context, including Thoughtworks Radar when judging current engineering patterns.
@@ -72,8 +88,6 @@ _agents_by_model: dict[str, Any] = {}
 
 def _get_agent(resolved_model: str) -> Any:
     """Return the compiled Factory Brain agent for a resolved model."""
-    global _checkpointer_conn
-
     from .factory_settings import get_runtime_limits
 
     limits = get_runtime_limits()
@@ -91,7 +105,6 @@ def _get_agent(resolved_model: str) -> Any:
 
     from deepagents import create_deep_agent
     from langchain.chat_models import init_chat_model
-
     from langmem import create_manage_memory_tool, create_search_memory_tool
 
     from .factory_tools import get_factory_tools
@@ -135,6 +148,7 @@ def _get_agent(resolved_model: str) -> Any:
         interrupt_on={
             "request_agent_promotion": True,
             "request_approval": True,
+            "approve_agent_build_handoff": True,
             "manage_memory": True,
         },
         subagents=[],
@@ -247,7 +261,9 @@ def invoke_factory_brain(
         _ensure_openai_credentials()
 
         import uuid
+
         from langchain_core.callbacks import UsageMetadataCallbackHandler
+
         from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
@@ -345,6 +361,7 @@ def resume_factory_brain(
         _ensure_openai_credentials()
 
         from langchain_core.callbacks import UsageMetadataCallbackHandler
+
         from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
@@ -437,6 +454,7 @@ def reject_factory_brain(
         _ensure_openai_credentials()
 
         from langchain_core.callbacks import UsageMetadataCallbackHandler
+
         from .factory_settings import get_runtime_limits, resolve_model
 
         resolved_model = resolve_model(model, purpose=purpose)
@@ -503,7 +521,149 @@ def reject_factory_brain(
         result_preview=response,
     )
     logger.debug("Factory Brain rejection response for thread %s: %s", thread_id, response)
+    from .storage import reject_build_tasks_for_thread
+
+    reject_build_tasks_for_thread(thread_id, reason)
     return response
+
+
+def build_factory_specialist_result(
+    thread_id: str,
+    summary: str,
+    *,
+    interrupted: bool,
+) -> FactorySpecialistResult:
+    """Build a validated structured result without reading handoff data from prose."""
+
+    if interrupted:
+        return FactorySpecialistResult(status="waiting_approval", summary=summary)
+
+    from .storage import list_build_tasks_for_thread, mark_build_task_status
+
+    rows = list_build_tasks_for_thread(thread_id)
+    approved_rows = [row for row in rows if row["status"] == "approved"]
+    current_approved: list[tuple[dict, AgentBuildTask]] = []
+    stale_approved: list[dict] = []
+    for row in approved_rows:
+        artifact_reference = row["artifact_reference"]
+        artifact_path = (_PROJECT_ROOT / artifact_reference).resolve()
+        try:
+            task = AgentBuildTask.model_validate(
+                json.loads(artifact_path.read_text(encoding="utf-8"))
+            )
+            if (
+                task.thread_id != thread_id
+                or task.correlation_id != row["correlation_id"]
+                or build_task_reference(task) != artifact_reference
+            ):
+                raise BuildTaskError("approved build-task correlation does not match storage")
+            assert_task_matches_staged_package(task, _PROJECT_ROOT)
+        except (OSError, json.JSONDecodeError, ValueError, BuildTaskError):
+            stale_approved.append(row)
+        else:
+            current_approved.append((row, task))
+
+    for row in stale_approved:
+        mark_build_task_status(
+            row["artifact_reference"],
+            "stale",
+            "Stable artifact no longer matches this approved correlation.",
+            correlation_id=row["correlation_id"],
+            thread_id=row["thread_id"],
+        )
+
+    if len(current_approved) > 1:
+        raise BuildTaskError(
+            f"More than one approved build task exists for Factory thread {thread_id!r}"
+        )
+    if not current_approved:
+        if approved_rows:
+            raise BuildTaskError(
+                f"Approved build task for Factory thread {thread_id!r} is stale; regenerate and reapprove it"
+            )
+        status = "rejected" if any(row["status"] == "rejected" for row in rows) else "success"
+        return FactorySpecialistResult(status=status, summary=summary)
+
+    row, task = current_approved[0]
+    artifact_reference = row["artifact_reference"]
+
+    references: list[str] = [artifact_reference, *task.relevant_docs, *task.relevant_skills]
+    references = list(dict.fromkeys(references))
+    next_task_value = {
+        "task_kind": "coding_task",
+        "task": (
+            f"Implement the approved staged agent package '{task.agent_id}' within the permitted "
+            f"paths and controls recorded in {artifact_reference}. Stop after implementation "
+            "validation; do not promote the package or update config/agents."
+        ),
+        "references": references,
+    }
+    next_task = validate_next_task_contract(next_task_value)
+    return FactorySpecialistResult(
+        status="success",
+        summary=summary,
+        next_task=next_task,
+        artifact_reference=artifact_reference,
+    )
+
+
+def invoke_factory_brain_result(
+    request: str,
+    *,
+    thread_id: str | None = None,
+    model: str | None = None,
+    purpose: str = "general",
+    progress_reporter: ProgressReporter | None = None,
+) -> FactorySpecialistResult:
+    """Invoke Factory Brain and return its structured specialist boundary."""
+
+    tid = thread_id or str(uuid.uuid4())
+    response, interrupted = invoke_factory_brain(
+        request,
+        thread_id=tid,
+        model=model,
+        purpose=purpose,
+        progress_reporter=progress_reporter,
+    )
+    return build_factory_specialist_result(tid, response, interrupted=interrupted)
+
+
+def resume_factory_brain_result(
+    thread_id: str,
+    *,
+    model: str | None = None,
+    purpose: str = "general",
+    progress_reporter: ProgressReporter | None = None,
+) -> FactorySpecialistResult:
+    """Resume Factory Brain and return the same-thread structured boundary."""
+
+    response, interrupted = resume_factory_brain(
+        thread_id,
+        model=model,
+        purpose=purpose,
+        progress_reporter=progress_reporter,
+    )
+    return build_factory_specialist_result(thread_id, response, interrupted=interrupted)
+
+
+def reject_factory_brain_result(
+    thread_id: str,
+    reason: str = "Rejected by user",
+    *,
+    model: str | None = None,
+    purpose: str = "general",
+    progress_reporter: ProgressReporter | None = None,
+) -> FactorySpecialistResult:
+    """Reject a paused Factory turn and expose no dispatchable handoff."""
+
+    response = reject_factory_brain(
+        thread_id,
+        reason,
+        model=model,
+        purpose=purpose,
+        progress_reporter=progress_reporter,
+    )
+    return build_factory_specialist_result(thread_id, response, interrupted=False)
 
 
 def list_checkpoints(thread_id: str, *, model: str | None = None, purpose: str = "general") -> list[dict]:
@@ -530,7 +690,7 @@ def list_checkpoints(thread_id: str, *, model: str | None = None, purpose: str =
 
 def fork_thread(thread_id: str, checkpoint_id: str, new_thread_id: str, *, model: str | None = None, purpose: str = "general") -> str:
     """Fork a new thread from a specific checkpoint of an existing thread."""
-    import uuid
+
     from .factory_settings import resolve_model
 
     resolved_model = resolve_model(model, purpose=purpose)

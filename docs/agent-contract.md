@@ -115,6 +115,47 @@ remains `(response_text, interrupted)`, so AF-012 does not make Factory Brain em
 dispatch a follow-on specialist. Hub separately requires an enclosing result with `status="success"`
 and validates `task_kind` against its current eligible registry.
 
+## Factory implementation handoff artifact (AF-048 first slice)
+
+When an approved staged design needs substantive implementation, Factory may prepare
+one bounded `AgentBuildTask` artifact at:
+
+```text
+staging/agents/<agent-id>/BUILD_TASK.json
+```
+
+`BUILD_TASK.json` is a non-runtime, versioned handoff artifact. It records the staged
+manifest identity (`agent_id`, `agent_version`, `manifest_schema_version`, and the
+exact `agent.json` SHA-256), `staging_target`, permitted paths, explicit acceptance
+criteria, test commands, canonical or package-local docs/skills references, token and
+time budgets, stop conditions, and the explicit `design.runtime_pattern` plus reason.
+The runtime pattern is read from the staged manifest; Factory never infers or defaults
+it. References are limited to canonical `docs/` and `skills/` paths or the exact
+package's `staging/agents/<id>/docs/` and `skills/` paths. Secret paths, traversal,
+absolute paths, other-agent paths, and arbitrary repository paths fail closed.
+
+Factory persists the task's `thread_id` and `correlation_id` in SQLite. The artifact
+path is stable, but regenerated logical tasks retain historical rows distinguished by
+correlation and lifecycle status (`prepared`, `approved`, `rejected`, `stale`, or
+`superseded`). A current task cannot be hijacked by another Factory thread. The
+correlation is derived from every caller-controlled task field and the staged manifest
+hash, so editing an approved `BUILD_TASK.json` body fails closed. The control artifact
+itself is never an allowed implementation path, even though it remains inside the
+staged workspace.
+The dedicated `approve_agent_build_handoff` tool is included in Deep Agents HITL
+`interrupt_on`; its approved execution marks that exact correlation approved. A
+rejection only changes currently prepared tasks for that same thread.
+
+The structured Factory result emits `next_task` only after one current, non-stale
+approved correlation is found. It deterministically emits the AF-012 minimal shape
+with `task_kind="coding_task"`, a bounded implementation instruction, and the
+artifact/reference paths; it never parses prose. `BUILD_TASK.json` is not promotion
+evidence. This slice stops before the Agent Hub -> AI Tech Lead bridge, direct coding
+execution, promotion, or registry mutation. The next cross-project step is a Hub-side
+bridge that consumes this structured result and routes the artifact to AI Tech Lead.
+Until a separate promotion approval, the released home `agents/<id>/` and registry
+entry `config/agents/<id>.json` do not appear.
+
 ## Optional Hub progress contract
 
 `runtime.progress` is optional and defaults to absent/disabled. Enable it only for a subprocess agent that is Hub-callable or genuinely long-running.

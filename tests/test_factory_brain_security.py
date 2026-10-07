@@ -121,7 +121,7 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
     monkeypatch.setattr(factory_brain, "_build_filesystem_permissions", lambda: [object()])
     monkeypatch.setattr(factory_brain, "_build_filesystem_middleware", lambda _backend, _permissions: object())
     monkeypatch.setattr(factory_brain, "_register_factory_harness_profile", lambda _model: None)
-    monkeypatch.setattr("agent_factory.factory_tools.get_factory_tools", lambda: [])
+    monkeypatch.setattr("agent_factory.factory_tools.get_factory_tools", list)
     monkeypatch.setattr("agent_factory.knowledge_store.get_knowledge_store", lambda: object())
     monkeypatch.setattr("langmem.create_manage_memory_tool", lambda *a, **k: "manage-memory")
     monkeypatch.setattr("langmem.create_search_memory_tool", lambda *a, **k: "search-memory")
@@ -157,6 +157,7 @@ def test_factory_agent_construction_gates_memory_and_disables_subagents(monkeypa
     assert captured["interrupt_on"] == {
         "request_agent_promotion": True,
         "request_approval": True,
+        "approve_agent_build_handoff": True,
         "manage_memory": True,
     }
 
@@ -177,7 +178,7 @@ def test_factory_agent_non_openai_model_does_not_force_responses_api(
         lambda _backend, _permissions: object(),
     )
     monkeypatch.setattr(factory_brain, "_register_factory_harness_profile", lambda _model: None)
-    monkeypatch.setattr("agent_factory.factory_tools.get_factory_tools", lambda: [])
+    monkeypatch.setattr("agent_factory.factory_tools.get_factory_tools", list)
     monkeypatch.setattr("agent_factory.knowledge_store.get_knowledge_store", lambda: object())
     monkeypatch.setattr("langmem.create_manage_memory_tool", lambda *a, **k: "manage-memory")
     monkeypatch.setattr("langmem.create_search_memory_tool", lambda *a, **k: "search-memory")
