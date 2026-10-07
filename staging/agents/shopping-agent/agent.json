@@ -20,7 +20,7 @@
   },
   "runtime": {
     "mode": "manual",
-    "notes": "Implementation pending. Approved target is a deterministic LangGraph shopping workflow. Agent Hub -> AI Tech Lead owns substantive implementation."
+    "notes": "Runnable deterministic LangGraph MVP is present under runtime/. The package remains manual and requires separate human-approved promotion before Agent Hub can call it."
   },
   "input_contract": {
     "protocol": "agent-hub.task",

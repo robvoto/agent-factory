@@ -1,6 +1,6 @@
 # Agent Draft Review
 
-Status: staged draft only. This agent is not enabled.
+Status: staged runnable MVP. This agent is not enabled.
 
 ## Spec
 
@@ -33,6 +33,18 @@ Do not select for: Purchasing or checkout, account/order changes, general non-sh
 - Verify budget exhaustion stops safely, logs the exact stop reason, and returns partial verified results rather than silently overspending.
 - Verify sensitive credentials, cookies, tokens, payment details, and raw private account data are never written to logs.
 - Verify no durable user-memory behavior, shell access, or broad filesystem access is introduced for the MVP.
+
+## Implementation evidence
+
+- `runtime/shopping_agent/workflow.py` implements the deterministic LangGraph workflow.
+- `runtime/shopping_agent/providers.py` implements configurable, bounded SerpApi Google Shopping discovery.
+- `runtime/shopping_agent/verification.py` verifies direct retailer Product/Offer JSON-LD and fails closed when exact variant, stock, postcode shipping, or delivered price is unknown.
+- `runtime/shopping_agent/cli.py` accepts the universal task envelope and emits a structured result without secrets or raw provider payloads.
+- `tests/test_runtime.py` covers the approved 7-foot benchmark, stale/unavailable ZacJac evidence, direct PASS evidence, unknown shipping, wrong length, missing credentials, three-search budget, telemetry redaction, and subprocess output shape.
+
+The package is directly runnable in its staged worktree but remains manual/not
+enabled. Hub registry promotion and live Telegram proof are separate approval
+gates and were not performed by this implementation.
 
 ## Approval rule
 
