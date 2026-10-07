@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from agent_factory.agent_spec import AgentPackageSpec
-from agent_factory.errors import McpCapabilityError, ManifestValidationError
+from agent_factory.errors import ManifestValidationError, McpCapabilityError
 from agent_factory.mcp import load_mcp_capabilities
 from agent_factory.models import AgentManifest
 
