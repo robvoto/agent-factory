@@ -29,8 +29,6 @@ class ShoppingBudget:
     max_api_calls: int = 3
     max_page_fetches: int = 6
     max_browser_pages: int = 0
-    max_browser_actions: int = 0
-    max_retries: int = 0
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> ShoppingBudget:
@@ -40,8 +38,6 @@ class ShoppingBudget:
             max_api_calls=_int_env(values, "SHOPPING_MAX_API_CALLS", 3, minimum=1),
             max_page_fetches=_int_env(values, "SHOPPING_MAX_PAGE_FETCHES", 6, minimum=0),
             max_browser_pages=_int_env(values, "SHOPPING_MAX_BROWSER_PAGES", 0, minimum=0),
-            max_browser_actions=_int_env(values, "SHOPPING_MAX_BROWSER_ACTIONS", 0, minimum=0),
-            max_retries=_int_env(values, "SHOPPING_MAX_RETRIES", 0, minimum=0),
         )
 
 

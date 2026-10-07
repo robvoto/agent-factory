@@ -125,6 +125,7 @@ class CallTelemetry:
     error_type: str | None = None
     run_id: str | None = None
     phase_or_node: str | None = None
+    estimated_cost_usd: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -136,6 +137,7 @@ class CallTelemetry:
             "duration_ms": self.duration_ms,
             "safe_domain_or_url": self.safe_domain_or_url,
             "error_type": self.error_type,
+            "estimated_cost_usd": self.estimated_cost_usd,
         }
 
 
@@ -152,17 +154,11 @@ class RunTelemetry:
     pass_count: int = 0
     fail_count: int = 0
     unverified_count: int = 0
-    llm_call_count: int = 0
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cached_tokens_when_available: int = 0
-    estimated_cost_usd: str = "0.00"
+    estimated_cost_usd: str | None = None
     search_call_count: int = 0
     api_call_count: int = 0
     page_fetch_count: int = 0
     browser_page_count: int = 0
-    browser_action_count: int = 0
-    retry_count: int = 0
     error_count: int = 0
     budget_exhausted_events: list[dict[str, int | str]] = field(default_factory=list)
     calls: list[CallTelemetry] = field(default_factory=list)
@@ -180,8 +176,6 @@ class RunTelemetry:
             self.page_fetch_count += 1
         elif call.call_type == "browser_page":
             self.browser_page_count += 1
-        elif call.call_type == "browser_action":
-            self.browser_action_count += 1
         if call.status == "error":
             self.error_count += 1
 
@@ -207,17 +201,11 @@ class RunTelemetry:
             "pass_count": self.pass_count,
             "fail_count": self.fail_count,
             "unverified_count": self.unverified_count,
-            "llm_call_count": self.llm_call_count,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "cached_tokens_when_available": self.cached_tokens_when_available,
             "estimated_cost_usd": self.estimated_cost_usd,
             "search_call_count": self.search_call_count,
             "api_call_count": self.api_call_count,
             "page_fetch_count": self.page_fetch_count,
             "browser_page_count": self.browser_page_count,
-            "browser_action_count": self.browser_action_count,
-            "retry_count": self.retry_count,
             "error_count": self.error_count,
             "budget_exhausted_events": self.budget_exhausted_events,
             "calls": [call.to_dict() for call in self.calls],

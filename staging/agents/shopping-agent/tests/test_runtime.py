@@ -46,6 +46,11 @@ class FakePages:
         return PageFetchResult(url=url, html=self.pages[url], checked_at="2026-10-07T00:00:00+00:00")
 
 
+class FailingPages:
+    def fetch(self, url: str, timeout: float) -> PageFetchResult:
+        raise RetailerFetchError("fixture fetch failure")
+
+
 def _config() -> ShoppingConfig:
     return ShoppingConfig(
         serpapi_api_key_env="SHOPPING_TEST_PROVIDER_KEY",
@@ -55,8 +60,6 @@ def _config() -> ShoppingConfig:
             max_api_calls=3,
             max_page_fetches=6,
             max_browser_pages=0,
-            max_browser_actions=0,
-            max_retries=0,
         ),
     )
 
@@ -201,6 +204,11 @@ def test_workflow_rejects_stale_unavailable_zacjac_and_recommends_direct_pass() 
     assert result["telemetry"]["search_call_count"] == 3
     assert result["telemetry"]["api_call_count"] == 3
     assert result["telemetry"]["page_fetch_count"] == 2
+    assert result["telemetry"]["estimated_cost_usd"] is None
+    assert "llm_call_count" not in result["telemetry"]
+    assert "input_tokens" not in result["telemetry"]
+    assert "browser_action_count" not in result["telemetry"]
+    assert "retry_count" not in result["telemetry"]
     assert all(call["run_id"] == "run-test" for call in result["telemetry"]["calls"])
     assert {call["phase_or_node"] for call in result["telemetry"]["calls"]} == {
         "discover",
@@ -264,8 +272,6 @@ def test_search_budget_preserves_candidates_and_records_exhaustion() -> None:
             max_api_calls=1,
             max_page_fetches=6,
             max_browser_pages=0,
-            max_browser_actions=0,
-            max_retries=0,
         ),
     )
     result = run_shopping(
@@ -280,6 +286,85 @@ def test_search_budget_preserves_candidates_and_records_exhaustion() -> None:
         {"metric": "max_api_calls", "limit": 1, "observed": 1}
     ]
     assert len(transport.calls) == 1
+
+
+def test_page_budget_is_fail_closed_and_recorded() -> None:
+    candidate = DiscoveryCandidate(
+        "candidate-page-budget",
+        "Ocean & Earth 7ft Regular Leash",
+        "merchant",
+        None,
+        "https://retailer.example/products/ocean-earth-7ft",
+        None,
+        None,
+        "fixture",
+    )
+    config = replace(
+        _config(),
+        budget=ShoppingBudget(
+            max_search_calls=3,
+            max_api_calls=3,
+            max_page_fetches=0,
+            max_browser_pages=0,
+        ),
+    )
+    telemetry = new_telemetry("request-test", "run-test")
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verified = RetailerVerifier(
+        config,
+        telemetry,
+        fetcher=FakePages({}),
+    ).verify(candidate, parsed.constraints)
+    assert verified.status == "UNVERIFIED"
+    assert telemetry.budget_exhausted_events == [
+        {"metric": "max_page_fetches", "limit": 0, "observed": 0}
+    ]
+
+
+def test_browser_page_budget_is_bounded_and_recorded() -> None:
+    candidate = DiscoveryCandidate(
+        "candidate-browser-budget",
+        "Ocean & Earth 7ft Regular Leash",
+        "merchant",
+        None,
+        "https://retailer.example/products/ocean-earth-7ft",
+        None,
+        None,
+        "fixture",
+    )
+    config = replace(
+        _config(),
+        budget=ShoppingBudget(
+            max_search_calls=3,
+            max_api_calls=3,
+            max_page_fetches=2,
+            max_browser_pages=1,
+        ),
+    )
+    telemetry = new_telemetry("request-test", "run-test")
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verifier = RetailerVerifier(
+        config,
+        telemetry,
+        fetcher=FailingPages(),
+        browser_fallback=FakePages(
+            {
+                candidate.direct_url: _product_page(
+                    name="Ocean & Earth 7ft Regular Leash",
+                    availability="https://schema.org/InStock",
+                    price="20.00",
+                    shipping="5.00",
+                )
+            }
+        ),
+    )
+    assert verifier.verify(candidate, parsed.constraints).status == "PASS"
+    assert verifier.verify(candidate, parsed.constraints).status == "UNVERIFIED"
+    assert telemetry.budget_exhausted_events == [
+        {"metric": "max_browser_pages", "limit": 1, "observed": 1}
+    ]
 
 
 def test_missing_shipping_currency_is_unverified() -> None:

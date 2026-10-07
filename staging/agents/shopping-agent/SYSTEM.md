@@ -36,5 +36,5 @@ Approved operating rules:
 - Do not claim cheapest, best value, or best available unless verified PASS coverage supports that label.
 - Keep shopper-facing results simple and decision-oriented while preserving an auditable evidence trail underneath.
 - Never purchase, checkout, change accounts/orders, or perform other account mutations.
-- Emit enough structured telemetry to debug every run and to identify model, token, cost, search, page, browser, retry, and stop behavior without exposing secrets.
-- Respect configured per-run cost/call/work budgets and stop safely rather than exceeding hard limits.
+- Emit enough structured telemetry to debug every run and to identify provider usage, measured cost when available, search/page/browser-page calls, errors, and stop behavior without exposing secrets. If provider cost cannot be measured reliably, report it as unavailable rather than zero.
+- Respect configured per-run search/API/page/browser-page budgets and stop safely rather than exceeding hard limits.

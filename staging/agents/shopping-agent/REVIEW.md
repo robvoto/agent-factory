@@ -26,10 +26,9 @@ Do not select for: Purchasing or checkout, account/order changes, general non-sh
 - Verify browser/scraping fallback is bounded, auditable, and used only when needed to verify mandatory shopping facts.
 - Verify concise shopper-facing output highlights useful choices such as cheapest verified option, best-value option, and closest match only when evidence supports those labels.
 - Verify purchasing, checkout, account changes, and order changes are refused.
-- Verify each run emits structured debugging telemetry with request/run correlation, workflow phase/node, retries, errors, stop reason, duration, and candidate counts.
-- Verify each LLM call records model ID plus input/output/cached token usage when available and estimated cost; each run aggregates call count, token totals, and estimated total cost.
-- Verify search/API/page/browser calls are counted and logged at run level, with safe domain/URL metadata and no secrets.
-- Verify configurable hard budgets exist for LLM calls/tokens/cost, search/page/browser work, and retries; warning thresholds are surfaced before hard limits.
+- Verify each run emits structured debugging telemetry with request/run correlation, workflow phase/node, errors, stop reason, duration, and candidate counts.
+- Verify provider/search/API/page/browser-page calls are counted and logged at run level, with safe domain/URL metadata and no secrets; measured provider cost is retained when available and otherwise represented as null.
+- Verify configurable hard budgets exist for search/API/page/browser-page work; warning/usage telemetry is surfaced before hard limits where supported.
 - Verify budget exhaustion stops safely, logs the exact stop reason, and returns partial verified results rather than silently overspending.
 - Verify sensitive credentials, cookies, tokens, payment details, and raw private account data are never written to logs.
 - Verify no durable user-memory behavior, shell access, or broad filesystem access is introduced for the MVP.
