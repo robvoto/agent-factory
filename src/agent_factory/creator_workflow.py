@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import logging
 import re
-import shutil
 from pathlib import Path
-from string import Template
 from typing import TypedDict
 
+from .agent_spec import AgentDesignConfig
+from .package_scaffold import copy_standard_workspace
 from .routing_purpose import build_routing_purpose
 
 PROJECT_ROOT = Path.cwd()
@@ -25,6 +25,8 @@ class AgentCreationState(TypedDict, total=False):
     agent_alias: str
     agent_purpose: str
     package_dir: str
+    runtime_pattern: str
+    runtime_pattern_reason: str
     risks: list[str]
     created_files: list[str]
     status: str
@@ -59,16 +61,31 @@ def build_agent_creator_graph():
     return graph.compile()
 
 
-def create_staged_agent_package(request: str) -> AgentCreationState:
+def create_staged_agent_package(
+    request: str,
+    *,
+    runtime_pattern: str,
+    runtime_pattern_reason: str,
+) -> AgentCreationState:
     """Create a staged agent package from a plain-language request."""
 
     clean_request = request.strip()
     if not clean_request:
         raise ValueError("Agent request cannot be empty.")
+    design = AgentDesignConfig(
+        runtime_pattern=runtime_pattern,
+        runtime_pattern_reason=runtime_pattern_reason,
+    )
 
     logger.info("Creating staged agent package from request: %s", clean_request)
     graph = build_agent_creator_graph()
-    result = graph.invoke({"request": clean_request})
+    result = graph.invoke(
+        {
+            "request": clean_request,
+            "runtime_pattern": design.runtime_pattern,
+            "runtime_pattern_reason": design.runtime_pattern_reason,
+        }
+    )
     logger.info("Created staged agent package: %s", result.get("agent_id", "<unknown>"))
     return dict(result)
 
@@ -153,27 +170,15 @@ def scaffold_agent_package(state: AgentCreationState) -> AgentCreationState:
         "project_root_required": "False",
     }
 
-    for template_file in TEMPLATE_DIR.rglob("*"):
-        relative = template_file.relative_to(TEMPLATE_DIR)
-        target = package_dir / relative
-
-        if template_file.is_dir():
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-
-        target.parent.mkdir(parents=True, exist_ok=True)
-
-        if template_file.name == ".gitkeep":
-            shutil.copyfile(template_file, target)
-        else:
-            text = template_file.read_text(encoding="utf-8")
-            file_replacements = dict(replacements)
-            if template_file.name == "agent.json":
-                file_replacements["agent_purpose"] = json.dumps(state["agent_purpose"])[1:-1]
-            rendered = render_template(text, file_replacements)
-            target.write_text(rendered, encoding="utf-8", newline="\n")
-
-        created_files.append(str(target.relative_to(PROJECT_ROOT)))
+    replacements["runtime_pattern"] = state["runtime_pattern"]
+    replacements["runtime_pattern_reason"] = state["runtime_pattern_reason"]
+    replacements["agent_purpose"] = state["agent_purpose"]
+    copy_standard_workspace(TEMPLATE_DIR, package_dir, replacements)
+    created_files.extend(
+        str(path.relative_to(PROJECT_ROOT))
+        for path in sorted(package_dir.rglob("*"))
+        if path.is_file()
+    )
 
     write_review_file(package_dir, state)
     created_files.append(str((package_dir / "REVIEW.md").relative_to(PROJECT_ROOT)))
@@ -204,6 +209,11 @@ This agent is not enabled.
 - Name: `{state['agent_name']}`
 - Alias: `{state['agent_alias']}`
 
+## Runtime design
+
+- Pattern: `{state['runtime_pattern']}`
+- Reason: {state['runtime_pattern_reason']}
+
 ## Risks detected
 
 {risks}
@@ -214,7 +224,9 @@ This agent is not enabled.
 
 ## Approval rule
 
-Do not copy this agent into `config/agents` until approved.
+Do not promote this agent until approved. Promotion releases the full package
+under `agents/<id>/` and writes the Hub-facing registry entry to
+`config/agents/<id>.json` from that released package.
 """
     (package_dir / "REVIEW.md").write_text(content, encoding="utf-8", newline="\n")
     logger.debug("Wrote REVIEW.md for %s.", package_dir.name)
@@ -223,14 +235,6 @@ Do not copy this agent into `config/agents` until approved.
 def finish(state: AgentCreationState) -> AgentCreationState:
     logger.info("Finished staging agent %s.", state.get("agent_id", "<unknown>"))
     return {**state, "status": state.get("status", "staged")}
-
-
-def render_template(text: str, replacements: dict[str, str]) -> str:
-    # Existing templates use {{name}} style, so normalize to Template style.
-    normalized = text
-    for key in replacements:
-        normalized = normalized.replace("{{" + key + "}}", "${" + key + "}")
-    return Template(normalized).safe_substitute(replacements)
 
 
 def to_json(state: AgentCreationState) -> str:

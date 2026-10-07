@@ -1,12 +1,6 @@
 """Tests for factory_tools — bounded tools exposed to the Factory Brain."""
 
 import json
-import tempfile
-from pathlib import Path
-
-import pytest
-
-from agent_factory.agent_spec import AgentPackageSpec
 
 
 def _spec_json(**overrides) -> str:
@@ -15,6 +9,10 @@ def _spec_json(**overrides) -> str:
         "name": "Test Agent",
         "purpose": "Primary responsibility: Perform safe test-agent work.\nSelect for: Requests that exercise the test agent.\nDo not select for: Production work or unrelated agent tasks.",
         "aliases": ["test"],
+        "design": {
+            "runtime_pattern": "deterministic_workflow",
+            "runtime_pattern_reason": "The package lifecycle is fixed and inspectable.",
+        },
     }
     base.update(overrides)
     return json.dumps(base)
@@ -252,10 +250,18 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     assert (pkg / "README.md").exists()
     assert (pkg / "skills" / "INDEX.md").exists()
     assert (pkg / "tests" / ".gitkeep").exists()
+    assert (pkg / "docs" / "INDEX.md").exists()
+    assert (pkg / "data" / "README.md").exists()
+    assert (pkg / "logs" / ".gitkeep").exists()
+    assert (pkg / ".gitignore").exists()
+    assert (pkg / ".env.example").exists()
     assert "Verify before recommending." in (pkg / "SYSTEM.md").read_text(
         encoding="utf-8"
     )
+    assert "\\n" not in (pkg / "README.md").read_text(encoding="utf-8")
     manifest = json.loads((pkg / "agent.json").read_text(encoding="utf-8"))
+    assert manifest["design"]["runtime_pattern"] == "deterministic_workflow"
+    assert manifest["design"]["runtime_pattern_reason"]
     assert manifest["runtime"]["mode"] == "manual"
     assert manifest["output_contract"] is None
     assert manifest["manifest_schema_version"] == 1

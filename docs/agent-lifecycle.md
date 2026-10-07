@@ -22,7 +22,7 @@ rejected or not justified, the agent remains a standard released agent.
 | Level | Meaning and home | Hub visibility | Owner and change authority |
 |---|---|---|---|
 | Prototype / incubating | An unapproved design or package in `staging/agents/<id>/` | Not Hub-callable | Factory owns the package and may redesign or rebuild it within the approved task. |
-| Standard released agent | A validated package promoted into the enabled registry; it may remain entirely Factory-owned | Runnable through the enabled registry after approval and promotion | Factory owns the package, manifest, release contract, permissions, promotion, activation metadata, and governed upgrades. A new release still goes through staging, validation, approval, and promotion. |
+| Standard released agent | A validated package promoted into the enabled registry; it may remain entirely Factory-owned | Runnable through the enabled registry after approval and promotion | Factory owns the package at `agents/<id>/`, manifest, release contract, permissions, promotion, activation metadata, and governed upgrades. A new release still goes through staging, validation, approval, and promotion. |
 | Independent product agent | A product with genuine independent engineering needs, implemented in its own specialist repository after an explicit decision | Runnable only through its Factory-governed released definition | The specialist repository owns implementation, dependencies, product tests, and its implementation release work. Factory continues to gate registration, the release contract, permissions, promotion, activation metadata, and governed upgrades. |
 
 Graduation to an independent product repository is an explicit human and architecture
@@ -54,6 +54,13 @@ Release rollback belongs to release governance: activate a previously validated 
 or version through the normal Factory-controlled registry path. Do not restore arbitrary
 filesystem snapshots or copy random old files. Factory Brain checkpoint rollback, where
 documented, is a conversation-state operation and is not a release rollback.
+
+For a Factory-owned standard agent, promotion copies the full validated staged
+package to `agents/<id>/` and writes `config/agents/<id>.json` from the released
+package. `staging/agents/<id>/` may remain as an audit snapshot, but it is never
+the authoritative released home. Full versioned promotion and rollback remain a
+future release-governance concern; this first release establishes the package
+boundary without implementing that version system.
 
 ## 1. Create
 

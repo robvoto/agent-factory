@@ -14,6 +14,11 @@ def test_agent_package_template_files_exist():
         "README.md",
         "skills/INDEX.md",
         "tests/.gitkeep",
+        "docs/INDEX.md",
+        "data/README.md",
+        "logs/.gitkeep",
+        ".gitignore",
+        ".env.example",
     ]
 
     for relative_path in required_files:
@@ -28,6 +33,7 @@ def test_agent_package_template_manifest_shape():
     assert manifest["permissions"]["requires_approval"] is True
     assert manifest["memory"]["scope"] == "none"
     assert manifest["tools"] == []
+    assert set(manifest["design"]) == {"runtime_pattern", "runtime_pattern_reason"}
 
 
 def test_agent_package_template_instructions_are_seeded():
@@ -43,3 +49,12 @@ def test_agent_package_template_instructions_are_seeded():
     assert "Do not modify manifests, permissions, memory access, tools, runtime authority, or promotion state" in agents
     assert "explicit human approval" in agents
     assert "pass relevant tests before activation" in agents
+    assert agents.count("docs/INDEX.md") == 1
+    data = (template_dir / "data" / "README.md").read_text(encoding="utf-8")
+    assert "small, reviewed source seeds" in data
+    assert "may also live here" in data
+    assert "must never be committed" in data
+    gitignore = (template_dir / ".gitignore").read_text(encoding="utf-8")
+    assert "data/*.json" not in gitignore
+    assert "data/settings.local*.json" in gitignore
+    assert "AGENT_RUNTIME_MODE" not in (template_dir / ".env.example").read_text(encoding="utf-8")

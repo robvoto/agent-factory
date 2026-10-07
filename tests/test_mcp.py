@@ -39,6 +39,10 @@ def _spec(**overrides) -> AgentPackageSpec:
         "name": "MCP Agent",
         "purpose": _purpose(),
         "aliases": ["mcp"],
+        "design": {
+            "runtime_pattern": "simple_agent",
+            "runtime_pattern_reason": "The MCP capability choice is bounded.",
+        },
         "mcp_servers": [_declaration()],
         "permissions": {"filesystem": "read"},
     }
@@ -167,7 +171,7 @@ def test_staging_and_promotion_preserve_mcp_declarations(tmp_path, monkeypatch) 
     assert staged["mcp_servers"][0]["tools"] == ["records.read"]
 
     result = promote_agent("mcp-agent", project_root=tmp_path, db_path=db)
-    assert "promoted" in result
+    assert "released at agents/mcp-agent/" in result
     enabled = json.loads(
         (tmp_path / "config" / "agents" / "mcp-agent.json").read_text(encoding="utf-8")
     )

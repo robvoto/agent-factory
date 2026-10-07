@@ -2,9 +2,10 @@
 
 An agent package describes one runnable specialist agent.
 
-The current enabled registry is `config/agents`.
+The current enabled registry is `config/agents`. Factory-owned released package
+workspaces live under `agents/`; the registry is not the package store.
 
-Future agent package location:
+Factory-owned released agent package location:
 
 ```text
 agents/<agent-id>/
@@ -19,6 +20,8 @@ agents/<agent-id>/
     INDEX.md
   tests/
 ```
+
+Incubating packages remain under `staging/agents/<agent-id>/` until promotion.
 
 Optional future runtime files:
 
@@ -42,6 +45,7 @@ An agent manifest (`agent.json`) must be a JSON object with:
 | `mcp_servers` | No | Explicit MCP server declarations, including tool IDs and requested permission boundaries; Factory never discovers undeclared servers |
 | `permissions` | Yes | Object: `network`, `filesystem`, `shell`, `requires_approval` |
 | `memory` | Yes | Object: `scope`, `retention` |
+| `design` | New Factory packages | Explicit `runtime_pattern` and non-empty `runtime_pattern_reason`; legacy manifests may omit it |
 | `runtime` | Yes | Object: `mode`, `entrypoint`, and optional `progress` — how Agent Hub invokes the agent |
 | `output_contract` | Conditional | Required when `runtime.mode` is `subprocess`; declares the staged status contract Factory validates before staging |
 | `input_contract` | No | Declares the universal `agent-hub.task` envelope this specialist accepts, including which context fields it reads (`accepted_context`) and cannot function without (`required_context`) — see "Universal Agent Hub task boundary" below |

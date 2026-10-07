@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,14 +36,15 @@ def _load_enabled_agents() -> list[dict[str, Any]]:
     agents: list[dict[str, Any]] = []
     if not _AGENTS_DIR.exists():
         return agents
-    for agent_dir in sorted(_AGENTS_DIR.iterdir()):
-        spec_file = agent_dir / "agent.json"
-        if not spec_file.is_file():
-            continue
+    spec_files = sorted(
+        [path for path in _AGENTS_DIR.glob("*.json") if path.is_file()]
+        + [path for path in _AGENTS_DIR.glob("*/agent.json") if path.is_file()]
+    )
+    for spec_file in spec_files:
         try:
             spec = json.loads(spec_file.read_text(encoding="utf-8"))
             agents.append({
-                "id": spec.get("id", agent_dir.name),
+                "id": spec.get("id", spec_file.stem),
                 "name": spec.get("name", ""),
                 "purpose": spec.get("purpose", ""),
                 "aliases": spec.get("aliases", []),
@@ -55,7 +56,7 @@ def _load_enabled_agents() -> list[dict[str, Any]]:
                 "project_context_contract": spec.get("project_context_contract"),
                 "target_project_access": spec.get("target_project_access"),
             })
-        except Exception:
+        except (AttributeError, OSError, TypeError, json.JSONDecodeError):
             logger.warning("Could not read agent spec: %s", spec_file)
     return agents
 
@@ -72,7 +73,7 @@ def _count_pending_approvals() -> int:
     try:
         from .storage import list_pending_approvals
         return len(list_pending_approvals())
-    except Exception:
+    except Exception:  # noqa: BLE001 - doctor/handshake must remain available if storage is unavailable
         return -1
 
 
@@ -145,13 +146,14 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
         "registry": {
             "enabled_agents_dir": "config/agents",
             "staged_agents_dir": "staging/agents",
+            "released_agents_dir": "agents",
             "package_template_dir": "templates/agent-package",
         },
         "backlog_url": _BACKLOG_URL,
         "hub_integration": {
             "handshake_command": MANIFEST_COMMAND,
             "handshake_ttl_seconds": 3600,
-            "discovery": "registry-driven — Agent Hub reads config/agents/<id>/agent.json or calls manifest",
+            "discovery": "registry-driven — Agent Hub reads config/agents/<id>.json or calls manifest",
             "approval_required_before_registry_entry": True,
             "notes": "Agent Hub should call `manifest` once per session or when TTL expires. Never auto-scan the repo.",
         },
@@ -160,7 +162,7 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
     if include_live:
         enabled_agents = _load_enabled_agents()
         manifest["live_registry"] = {
-            "as_of": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "as_of": datetime.now(UTC).isoformat(timespec="seconds"),
             "enabled_agents": enabled_agents,
             "enabled_count": len(enabled_agents),
             "staged_count": _count_staged(),

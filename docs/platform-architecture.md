@@ -60,13 +60,19 @@ Governance:
 ```text
 agent-factory/
   src/agent_factory/          # factory logic only
+  agents/                    # approved Factory-owned released packages
   config/agents/              # enabled release manifests (read by Agent Hub)
-  staging/agents/             # staged (unapproved) drafts
+  staging/agents/             # incubation/review drafts only
   templates/agent-package/    # scaffold template
   # independent product implementations live in their own specialist repositories only after graduation
   docs/
   .agents/skills/
 ```
+
+`staging/` contains draft artefacts only. `agents/<id>/` is the authoritative
+released package home for a Factory-owned standard agent. `config/agents/` is the
+enabled Hub-facing registry and contains registry manifests, not the full package
+store. Agent Hub does not own, move, or version specialist package workspaces.
 
 ## Key rule
 

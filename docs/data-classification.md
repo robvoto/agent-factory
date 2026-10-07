@@ -21,7 +21,8 @@ Decision item: AF-025. Defines what belongs in Git, what is runtime state, and w
 
 - `templates/agent-package/` — committed source templates
 - `staging/agents/<id>/` — **committed**; draft packages staged for review before promotion
-- `config/agents/<id>/agent.json` — **committed** after human-approved promotion
+- `agents/<id>/` — **committed** Factory-owned released package after human-approved promotion
+- `config/agents/<id>.json` — **committed** Hub-facing registry manifest derived from the released package
 
 ### Settings
 
@@ -61,20 +62,21 @@ The following patterns are enforced in `.gitignore`:
 
 ```
 data/*.sqlite3
-data/*.json           # runtime; use setup for seeds
 *.sqlite3
 *.sqlite3-journal
 *.log
 .env
 env/
 data/settings.local*.json
+data/llm_usage.json
 staging/agents/
 ```
 
 Committed exceptions (must be explicit git-add):
 
 ```
-config/agents/<id>/agent.json
+agents/<id>/
+config/agents/<id>.json
 config/factory_settings.json
 data/settings.local.example.json
 templates/

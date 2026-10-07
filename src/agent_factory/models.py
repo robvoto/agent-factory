@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_spec import (
+    AgentDesignConfig,
     AgentPermissions,
     AgentTargetProjectAccess,
     AgentTaskContract,
@@ -14,11 +15,10 @@ from .agent_spec import (
     normalize_output_contract,
     normalize_runtime_config,
 )
-from .specialist_contract import SpecialistInputContract, SpecialistInteractionContract
-from .project_context import ProjectContextContract
 from .errors import ManifestValidationError
+from .project_context import ProjectContextContract
 from .routing_purpose import validate_routing_purpose
-
+from .specialist_contract import SpecialistInputContract, SpecialistInteractionContract
 
 REQUIRED_FIELDS = {"id", "name", "purpose", "aliases", "tools", "permissions", "memory", "runtime"}
 
@@ -34,6 +34,7 @@ class AgentManifest:
     tools: tuple[str, ...]
     permissions: dict[str, Any]
     memory: dict[str, Any]
+    design: dict[str, Any] | None = None
     runtime: dict[str, Any] = None  # type: ignore[assignment]
     mcp_servers: tuple[dict[str, Any], ...] | None = None
     input_contract: dict[str, Any] | None = None
@@ -49,7 +50,7 @@ class AgentManifest:
             object.__setattr__(self, "runtime", {})
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any], source: str | Path | None = None) -> "AgentManifest":
+    def from_dict(cls, data: dict[str, Any], source: str | Path | None = None) -> AgentManifest:
         if not isinstance(data, dict):
             raise ManifestValidationError("Agent manifest must be a JSON object.")
 
@@ -87,6 +88,9 @@ class AgentManifest:
         project_context_contract = data.get("project_context_contract")
         target_project_access = data.get("target_project_access")
         output_contract = data.get("output_contract")
+        design = data.get("design")
+        if design is not None and not isinstance(design, dict):
+            raise ManifestValidationError("design must be an object when present.")
         if input_contract is not None and not isinstance(input_contract, dict):
             raise ManifestValidationError("input_contract must be an object when present.")
         if interaction_contract is not None and not isinstance(interaction_contract, dict):
@@ -102,6 +106,11 @@ class AgentManifest:
 
         try:
             normalized_runtime = normalize_runtime_config(agent_id, runtime)
+            normalized_design = (
+                AgentDesignConfig.model_validate(design).model_dump()
+                if design is not None
+                else None
+            )
             normalized_input_contract = (
                 SpecialistInputContract.model_validate(input_contract).model_dump()
                 if input_contract is not None
@@ -166,6 +175,7 @@ class AgentManifest:
             mcp_servers=normalized_mcp_servers,
             permissions=dict(data["permissions"]),
             memory=dict(data["memory"]),
+            design=normalized_design,
             runtime=normalized_runtime,
             input_contract=normalized_input_contract,
             interaction_contract=normalized_interaction_contract,

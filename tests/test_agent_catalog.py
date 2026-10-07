@@ -117,6 +117,7 @@ def test_build_agent_catalog_merges_staged_and_enabled(tmp_path):
     entry = catalog["alpha-agent"]
 
     assert entry.id == "alpha-agent"
+    assert entry.manifest.design is None  # legacy manifests remain readable
     assert set(entry.statuses) == {"staged", "enabled"}
     assert any(location.endswith("staging/agents/alpha-agent") for location in entry.locations)
     assert any(location.endswith("config/agents/alpha-agent.json") for location in entry.locations)
@@ -168,6 +169,24 @@ def test_plan_package_reuse_reuses_existing_enabled_agent(tmp_path):
     assert decision.entry.id == "alpha-agent"
 
 
+def test_plan_package_reuse_rejects_explicit_design_against_legacy_manifest(tmp_path):
+    enabled = tmp_path / "config" / "agents"
+    enabled.mkdir(parents=True)
+    (enabled / "alpha-agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    spec = AgentPackageSpec.model_validate(
+        {
+            **_spec().model_dump(),
+            "design": {
+                "runtime_pattern": "simple_agent",
+                "runtime_pattern_reason": "The bounded capability choice is sufficient.",
+            },
+        }
+    )
+
+    with pytest.raises(AgentCatalogConflictError, match="different contents"):
+        plan_package_reuse(spec, enabled_dir=enabled, staging_dir=tmp_path / "staging")
+
+
 def test_promote_agent_reuses_existing_enabled_agent(tmp_path):
     staging = tmp_path / "staging" / "agents" / "alpha-agent"
     enabled = tmp_path / "config" / "agents"
@@ -180,8 +199,72 @@ def test_promote_agent_reuses_existing_enabled_agent(tmp_path):
 
     result = promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
 
-    assert "already enabled" in result
+    assert "released at agents/alpha-agent/" in result
     assert (enabled / "alpha-agent.json").read_text(encoding="utf-8") == payload
+    assert (tmp_path / "agents" / "alpha-agent" / "agent.json").read_text(encoding="utf-8") == payload
+
+
+def test_promote_agent_releases_full_package_and_registry_comes_from_release(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest(), indent=2), encoding="utf-8")
+    (staging / "README.md").write_text("released package", encoding="utf-8")
+    (staging / "docs").mkdir()
+    (staging / "docs" / "INDEX.md").write_text("# Docs", encoding="utf-8")
+
+    promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
+
+    released = tmp_path / "agents" / "alpha-agent"
+    registry = tmp_path / "config" / "agents" / "alpha-agent.json"
+    assert (released / "README.md").read_text(encoding="utf-8") == "released package"
+    assert registry.read_text(encoding="utf-8") == (released / "agent.json").read_text(encoding="utf-8")
+
+    # A retained staged snapshot is not authoritative after promotion.
+    (staging / "agent.json").write_text(
+        json.dumps({**_manifest(), "purpose": "Primary responsibility: Changed.\nSelect for: Changed.\nDo not select for: Changed."}),
+        encoding="utf-8",
+    )
+    catalog = build_agent_catalog(
+        enabled_dir=tmp_path / "config" / "agents",
+        staging_dir=tmp_path / "staging" / "agents",
+        released_dir=tmp_path / "agents",
+        db_path=tmp_path / "factory.sqlite3",
+    )
+    assert catalog["alpha-agent"].manifest.purpose == _manifest()["purpose"]
+    assert all("staging/agents/alpha-agent" not in location for location in catalog["alpha-agent"].locations)
+
+
+def test_promote_agent_is_idempotent_for_same_full_package(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    (staging / "README.md").write_text("same package", encoding="utf-8")
+    db_path = tmp_path / "factory.sqlite3"
+
+    first = promote_agent("alpha-agent", project_root=tmp_path, db_path=db_path)
+    released = tmp_path / "agents" / "alpha-agent"
+    before = (released / "README.md").read_bytes()
+    second = promote_agent("alpha-agent", project_root=tmp_path, db_path=db_path)
+
+    assert "released at agents/alpha-agent/" in first
+    assert "released at agents/alpha-agent/" in second
+    assert (released / "README.md").read_bytes() == before
+
+
+def test_promote_agent_fails_when_released_package_conflicts(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    released = tmp_path / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    released.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    (released / "agent.json").write_text(
+        json.dumps({**_manifest(), "name": "Different Agent"}), encoding="utf-8"
+    )
+
+    with pytest.raises(AgentCatalogConflictError, match="released package"):
+        promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
+
+    assert not (tmp_path / "config" / "agents" / "alpha-agent.json").exists()
 
 
 def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):

@@ -9,17 +9,25 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import tool
 
-from .agent_catalog import build_agent_catalog, describe_agent_catalog, plan_package_reuse
+from .agent_catalog import (
+    build_agent_catalog,
+    describe_agent_catalog,
+    plan_package_reuse,
+)
+from .agent_spec import AgentPackageSpec, validate_agent_package_spec_payload
 from .design_research import request_design_research, run_design_research
 from .errors import AgentFactoryError
-from .agent_spec import AgentPackageSpec, validate_agent_package_spec_payload
-from .project_context import ProjectContextConsistencyError, verify_project_context_consistency
+from .package_scaffold import copy_standard_workspace
+from .project_context import (
+    ProjectContextConsistencyError,
+    verify_project_context_consistency,
+)
 
 _PROJECT_ROOT = Path(__file__).parents[2]
 _STAGING_DIR = _PROJECT_ROOT / "staging" / "agents"
@@ -154,6 +162,7 @@ def create_staged_agent_package(spec_json: str) -> str:
       mcp_servers - explicit MCP server/tool declarations and permission boundaries
       permissions - object: network, filesystem, shell, requires_approval
       memory_policy - object: scope, retention
+      design - object: runtime_pattern and runtime_pattern_reason; required for new packages
       runtime    - object: mode plus mode-specific invocation details
       input_contract - universal Hub task-envelope declaration
       interaction_contract - advertised progress/clarification/approval/resume/cancellation support
@@ -242,6 +251,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         "mcp_servers": [server.model_dump(exclude_none=True) for server in spec.mcp_servers],
         "permissions": spec.permissions.model_dump(),
         "memory": spec.memory_policy.model_dump(),
+        "design": spec.design.model_dump() if spec.design is not None else None,
         "runtime": spec.runtime.model_dump(exclude_none=True),
         "input_contract": spec.input_contract.model_dump(),
         "interaction_contract": spec.interaction_contract.model_dump(),
@@ -256,14 +266,26 @@ def create_staged_agent_package(spec_json: str) -> str:
     }
     agent_manifest_data.update(spec.extensions)
 
+    template_dir = _TEMPLATES_DIR / "agent-package"
+    copy_standard_workspace(
+        template_dir,
+        package_dir,
+        {
+            "agent_id": spec.id,
+            "agent_name": spec.name,
+            "agent_alias": spec.aliases[0],
+            "agent_purpose": spec.purpose,
+            "project_root_required": str(spec.project_context_contract.required),
+            "runtime_pattern": spec.design.runtime_pattern if spec.design else "",
+            "runtime_pattern_reason": spec.design.runtime_pattern_reason if spec.design else "",
+        },
+    )
     (package_dir / "agent.json").write_text(
         json.dumps(agent_manifest_data, indent=2) + "\n",
         encoding="utf-8",
     )
 
-    system_text = (_TEMPLATES_DIR / "agent-package" / "SYSTEM.md").read_text(
-        encoding="utf-8"
-    )
+    system_text = (template_dir / "SYSTEM.md").read_text(encoding="utf-8")
     system_text = system_text.replace("{{agent_name}}", spec.name).replace(
         "{{agent_purpose}}", spec.purpose
     )
@@ -272,28 +294,11 @@ def create_staged_agent_package(spec_json: str) -> str:
         system_text += f"\nApproved operating rules:\n\n{approved_rules}\n"
     (package_dir / "SYSTEM.md").write_text(system_text, encoding="utf-8")
 
-    agents_text = (_TEMPLATES_DIR / "agent-package" / "AGENTS.md").read_text(
-        encoding="utf-8"
-    )
+    agents_text = (template_dir / "AGENTS.md").read_text(encoding="utf-8")
     agents_text = agents_text.replace("{{agent_name}}", spec.name).replace(
         "{{agent_purpose}}", spec.purpose
     )
     (package_dir / "AGENTS.md").write_text(agents_text, encoding="utf-8")
-    (package_dir / "LESSONS.md").write_text(
-        (_TEMPLATES_DIR / "agent-package" / "LESSONS.md").read_text(
-            encoding="utf-8"
-        ),
-        encoding="utf-8",
-    )
-    skills_dir = package_dir / "skills"
-    skills_dir.mkdir(exist_ok=True)
-    (skills_dir / "INDEX.md").write_text(
-        (_TEMPLATES_DIR / "agent-package" / "skills" / "INDEX.md").read_text(
-            encoding="utf-8"
-        ),
-        encoding="utf-8",
-    )
-
     (package_dir / "tools.json").write_text(
         json.dumps({"tools": spec.tools}, indent=2) + "\n", encoding="utf-8"
     )
@@ -311,7 +316,9 @@ def create_staged_agent_package(spec_json: str) -> str:
         "**Status:** staged draft — not enabled.\n\n"
         f"**Purpose:** {spec.purpose}\n\n"
         f"**Aliases:** {', '.join(spec.aliases)}\n\n"
-        "Do not move to `config/agents` without human approval.\n",
+        "Do not promote this agent until human approval. Promotion releases the "
+        "full package under `agents/<id>/` and writes `config/agents/<id>.json` "
+        "from that released package.\n",
         encoding="utf-8",
     )
 
@@ -339,10 +346,15 @@ def create_staged_agent_package(spec_json: str) -> str:
         f"- ID: `{spec.id}`\n"
         f"- Name: {spec.name}\n"
         f"- Purpose: {spec.purpose}\n\n"
+        f"## Runtime design\n\n"
+        f"- Pattern: `{spec.design.runtime_pattern if spec.design else 'legacy/unspecified'}`\n"
+        f"- Reason: {spec.design.runtime_pattern_reason if spec.design else 'Legacy manifest; select explicitly before a new staging release.'}\n\n"
         f"## Risks\n\n{risks_text}\n\n"
         f"## Tests\n\n{tests_text}\n\n"
         "## Approval rule\n\n"
-        "Do not copy this agent into `config/agents` until a human approves it.\n",
+        "Do not promote this agent until a human approves it. Promotion releases "
+        "the full package under `agents/<id>/` and writes `config/agents/<id>.json` "
+        "from that released package.\n",
         encoding="utf-8",
     )
     if progress is not None and progress.enabled:
@@ -414,7 +426,7 @@ def record_decision(note: str) -> str:
     """
     _MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     decisions_file = _MEMORY_DIR / "decisions.md"
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%d")
     entry = f"\n## {timestamp}\n\n{note.strip()}\n"
     logger.info("Recording decision in %s.", decisions_file)
     with decisions_file.open("a", encoding="utf-8") as f:

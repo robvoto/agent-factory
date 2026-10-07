@@ -40,6 +40,10 @@ def _spec(adapter: str, agent_id: str) -> dict:
         "name": f"{adapter} Agent",
         "purpose": "Primary responsibility: Test optional progress generation.\nSelect for: Tests of generated progress adapters.\nDo not select for: Unrelated runtime behavior.",
         "aliases": [agent_id.replace("-agent", "")],
+        "design": {
+            "runtime_pattern": adapter,
+            "runtime_pattern_reason": "The selected progress adapter matches the approved pattern.",
+        },
         "runtime": {
             "mode": "subprocess",
             "entrypoint": f"uv run {agent_id} run-agent-task",
@@ -147,6 +151,10 @@ def test_manual_short_agent_does_not_receive_progress_adapter(tmp_path, monkeypa
                     "name": "Manual Agent",
                     "purpose": "Primary responsibility: Perform short standalone work.\nSelect for: Small bounded standalone requests.\nDo not select for: Long-running or unrelated work.",
                     "aliases": ["manual"],
+                    "design": {
+                        "runtime_pattern": "deterministic_workflow",
+                        "runtime_pattern_reason": "The short workflow is fixed and inspectable.",
+                    },
                 }
             )
         }

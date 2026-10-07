@@ -35,8 +35,9 @@ runs or orchestrates it; it is not the development home.
 ```text
 agent-factory/
   src/agent_factory/       # factory logic only
+  agents/                  # approved Factory-owned released packages
   config/agents/           # enabled release manifests (read by Agent Hub)
-  staging/agents/          # unapproved drafts
+  staging/agents/          # incubation/review drafts only
   templates/agent-package/ # base scaffold template
   templates/progress-adapter/ # optional Hub progress capability
   # independent product implementations live in their own specialist repositories after graduation
@@ -46,8 +47,9 @@ agent-factory/
 
 ## Registry contract
 
-Factory writes and activates `config/agents/<id>/agent.json` for a released version.
-Agent Hub reads it. Required fields:
+Factory releases the validated package under `agents/<id>/`, then writes and
+activates `config/agents/<id>.json` from that released package. Agent Hub reads
+the registry entry. Required fields:
 
 | Field | Written by | Read by |
 |-------|-----------|---------|

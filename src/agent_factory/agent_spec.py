@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import re
 import types
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Mapping, Union, get_args, get_origin
+from typing import Any, ClassVar, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -22,6 +23,16 @@ from .specialist_contract import (
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 TASK_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 SUPPORTED_RUNTIME_MODES = {"manual", "subprocess", "factory_brain"}
+SUPPORTED_RUNTIME_PATTERNS = (
+    "deterministic_workflow",
+    "simple_agent",
+    "deep_agent",
+)
+RuntimePattern = Literal[
+    "deterministic_workflow",
+    "simple_agent",
+    "deep_agent",
+]
 AGENT_MANIFEST_SCHEMA_VERSION = 1
 SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS = {1}
 SUBPROCESS_OUTPUT_STATUS_VALUES = (
@@ -64,16 +75,12 @@ class AgentProgressConfig(BaseModel):
     enabled: bool = False
     hub_callable: bool = False
     long_running: bool = False
-    adapter: Literal[
-        "deterministic_workflow",
-        "simple_agent",
-        "deep_agent",
-    ] | None = None
+    adapter: RuntimePattern | None = None
     schema_version: int = 1
     transport: Literal["stdout_jsonl"] = "stdout_jsonl"
 
     @model_validator(mode="after")
-    def validate_enabled_progress(self) -> "AgentProgressConfig":
+    def validate_enabled_progress(self) -> AgentProgressConfig:
         if not self.enabled:
             return self
         if not (self.hub_callable or self.long_running):
@@ -112,7 +119,7 @@ class AgentRuntimeConfig(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_mode_specific_fields(self) -> "AgentRuntimeConfig":
+    def validate_mode_specific_fields(self) -> AgentRuntimeConfig:
         if self.progress is not None and self.progress.enabled and self.mode != "subprocess":
             raise ValueError(
                 "Enabled progress is supported only for subprocess agents."
@@ -144,6 +151,23 @@ class AgentRuntimeConfig(BaseModel):
                 "manifest_command",
             )
         return self
+
+
+class AgentDesignConfig(BaseModel):
+    """Operator-selected architectural pattern for a newly staged agent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    runtime_pattern: RuntimePattern
+    runtime_pattern_reason: str
+
+    @field_validator("runtime_pattern_reason")
+    @classmethod
+    def validate_runtime_pattern_reason(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("design.runtime_pattern_reason must be a non-empty string.")
+        return normalized
 
 
 class AgentStatusMeaning(BaseModel):
@@ -180,7 +204,7 @@ class AgentOutputContract(BaseModel):
         return list(SUBPROCESS_OUTPUT_STATUS_VALUES)
 
     @model_validator(mode="after")
-    def validate_status_contract(self) -> "AgentOutputContract":
+    def validate_status_contract(self) -> AgentOutputContract:
         expected = set(SUBPROCESS_OUTPUT_STATUS_VALUES)
         if set(self.status_contract) != expected:
             raise ValueError(
@@ -246,7 +270,7 @@ class AgentTaskContract(BaseModel):
         return normalized_value
 
     @model_validator(mode="after")
-    def validate_contract_consistency(self) -> "AgentTaskContract":
+    def validate_contract_consistency(self) -> AgentTaskContract:
         if self.default_task_kind is not None and self.default_task_kind not in self.task_kinds:
             raise ValueError(
                 "task_contract.default_task_kind must be included in task_contract.task_kinds."
@@ -307,7 +331,7 @@ class AgentTargetProjectAccess(BaseModel):
         return normalized
 
     @model_validator(mode="after")
-    def validate_consistency(self) -> "AgentTargetProjectAccess":
+    def validate_consistency(self) -> AgentTargetProjectAccess:
         if (
             "registered_target" in self.authorization_modes
             and self.registry_source is None
@@ -406,6 +430,9 @@ class AgentPackageSpec(BaseModel):
     mcp_servers: list[McpServer] = Field(default_factory=list)
     permissions: AgentPermissions = Field(default_factory=AgentPermissions)
     memory_policy: AgentMemoryPolicy = Field(default_factory=AgentMemoryPolicy)
+    # Optional for reading legacy/in-progress specs; staging validation below
+    # requires it so new packages never silently choose an architecture.
+    design: AgentDesignConfig | None = None
     runtime: AgentRuntimeConfig = Field(default_factory=AgentRuntimeConfig)
     input_contract: SpecialistInputContract = Field(default_factory=SpecialistInputContract)
     interaction_contract: SpecialistInteractionContract = Field(
@@ -457,6 +484,7 @@ class AgentPackageSpec(BaseModel):
             "permissions",
             "memory",
             "runtime",
+            "design",
             "input_contract",
             "interaction_contract",
             "task_contract",
@@ -523,17 +551,16 @@ class AgentPackageSpec(BaseModel):
         return normalized
 
     @model_validator(mode="after")
-    def auto_flag_risky_permissions(self) -> "AgentPackageSpec":
+    def auto_flag_risky_permissions(self) -> AgentPackageSpec:
         for flag in self.permissions.risk_flags():
             if flag not in self.risks:
                 self.risks.append(flag)
-        if self.mcp_servers:
-            if "mcp_servers" not in self.risks:
-                self.risks.append("mcp_servers")
+        if self.mcp_servers and "mcp_servers" not in self.risks:
+            self.risks.append("mcp_servers")
         return self
 
     @model_validator(mode="after")
-    def validate_runtime_contract(self) -> "AgentPackageSpec":
+    def validate_runtime_contract(self) -> AgentPackageSpec:
         runtime_progress_enabled = bool(
             self.runtime.progress is not None and self.runtime.progress.enabled
         )
@@ -589,9 +616,15 @@ def validate_agent_package_spec_payload(raw: Any) -> AgentPackageSpec:
     before normal Pydantic validation and recurses through nested core models.
     """
     if not isinstance(raw, dict):
-        raise ValueError("Agent package spec must be a JSON object.")
+        raise ValueError("Agent package spec must be a JSON object.")  # noqa: TRY004 - public validation contract
     _reject_unknown_model_fields(raw, AgentPackageSpec, path="")
-    return AgentPackageSpec.model_validate(raw)
+    spec = AgentPackageSpec.model_validate(raw)
+    if spec.design is None:
+        raise ValueError(
+            "New staged agent specs must declare design.runtime_pattern and "
+            "design.runtime_pattern_reason explicitly."
+        )
+    return spec
 
 
 def _reject_unknown_model_fields(

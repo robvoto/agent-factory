@@ -11,10 +11,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from .agent_spec import SUPPORTED_RUNTIME_PATTERNS
 from .cli import load_allowed_tools
 from .creator_workflow import create_staged_agent_package
-from .logging_utils import configure_logging
 from .loader import load_registry
+from .logging_utils import configure_logging
 from .router import AgentRouter
 
 PROJECT_ROOT = Path.cwd()
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 class AgentFactoryApp(BaseHTTPRequestHandler):
     server_version = "AgentFactoryPlatform/0.2"
 
-    def do_GET(self) -> None:  # noqa: N802 - http.server convention
+    def do_GET(self) -> None:
         parsed = urlparse(self.path)
         logger.debug("HTTP GET %s from %s", parsed.path, self.client_address[0])
 
@@ -53,8 +54,16 @@ class AgentFactoryApp(BaseHTTPRequestHandler):
         if parsed.path == "/create-agent":
             params = parse_qs(parsed.query)
             request = params.get("request", [""])[0].strip()
+            runtime_pattern = params.get("runtime_pattern", [""])[0].strip()
+            runtime_pattern_reason = params.get("runtime_pattern_reason", [""])[0].strip()
             logger.info("Rendering staged agent creation request: %s", request or "<empty>")
-            self._send_html(self._create_agent_page(request))
+            self._send_html(
+                self._create_agent_page(
+                    request,
+                    runtime_pattern=runtime_pattern,
+                    runtime_pattern_reason=runtime_pattern_reason,
+                )
+            )
             return
 
         if parsed.path in {"/", "/index.html"}:
@@ -132,6 +141,10 @@ class AgentFactoryApp(BaseHTTPRequestHandler):
                 "</tr>"
             )
         staged_table = "".join(staged_rows) if staged_rows else "<tr><td colspan='3'>No staged agent drafts yet.</td></tr>"
+        runtime_pattern_options = "".join(
+            f'<option value="{html.escape(pattern)}">{html.escape(pattern)}</option>'
+            for pattern in SUPPORTED_RUNTIME_PATTERNS
+        )
 
         return f"""
 <!doctype html>
@@ -168,6 +181,11 @@ class AgentFactoryApp(BaseHTTPRequestHandler):
     <h2>Factory: create staged agent</h2>
     <form action="/create-agent" method="get">
       <input type="text" name="request" placeholder="Create an agent that researches LangChain docs safely">
+      <select name="runtime_pattern" required>
+        <option value="">Select runtime pattern</option>
+        {runtime_pattern_options}
+      </select>
+      <input type="text" name="runtime_pattern_reason" placeholder="Why this pattern fits" required>
       <button type="submit">Create staged draft</button>
     </form>
     <p>This uses the bounded LangGraph creator workflow. It creates a staged package only. It does not enable the agent.</p>
@@ -202,14 +220,24 @@ class AgentFactoryApp(BaseHTTPRequestHandler):
 </html>
 """
 
-    def _create_agent_page(self, request: str) -> str:
+    def _create_agent_page(
+        self,
+        request: str,
+        *,
+        runtime_pattern: str,
+        runtime_pattern_reason: str,
+    ) -> str:
         if not request:
             result = "No request entered."
             status = "Not created"
             logger.info("No agent request supplied to the web form.")
         else:
             try:
-                state = create_staged_agent_package(request)
+                state = create_staged_agent_package(
+                    request,
+                    runtime_pattern=runtime_pattern,
+                    runtime_pattern_reason=runtime_pattern_reason,
+                )
                 status = "Created staged agent draft"
                 result = json.dumps(state, indent=2)
                 logger.info("Created staged agent draft %s from web request.", state.get("agent_id", "<unknown>"))

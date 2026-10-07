@@ -47,9 +47,9 @@ stateDiagram-v2
 | Idea → Designing | You + Factory Brain | Conversation in Telegram |
 | Staged | Factory Brain | `staging/agents/<id>/` |
 | Under Review | You | Admin UI or Telegram `/staged` |
-| Standard released | Factory (after validation, approval, and promotion) | Factory-owned package plus `config/agents/<id>/agent.json` |
-| Independent product | Specialist repository implements; Factory validates and activates | Specialist repository plus Factory-owned `config/agents/<id>/agent.json` |
-| Enabled | Agent Hub consumes the Factory-activated release definition | `config/agents/<id>/agent.json` |
+| Standard released | Factory (after validation, approval, and promotion) | Factory-owned package at `agents/<id>/` plus `config/agents/<id>.json` |
+| Independent product | Specialist repository implements; Factory validates and activates | Specialist repository plus Factory-owned `config/agents/<id>.json` |
+| Enabled | Agent Hub consumes the Factory-activated release definition | `config/agents/<id>.json` |
 | Running | Agent Hub Orchestrator | Live, called via subprocess |
 | Learning | The agent itself | `knowledge_store.sqlite3` |
 | Improving | Factory Brain (reads logs) | New staging draft |

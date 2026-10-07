@@ -8,6 +8,7 @@ This package is a template for a new agent. It is not enabled until approved.
 
 - `docs/INDEX.md` is the single documentation entry point when this agent becomes a project.
 - `agent.json` defines the staged agent contract.
+- `data/README.md` defines the approved seed/runtime data boundary.
 - `specialist_contract.py` adapts the universal Agent Hub task envelope into this specialist.
 - `skills/INDEX.md` lists reusable skills if skills exist.
 

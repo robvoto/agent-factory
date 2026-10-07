@@ -2,7 +2,9 @@
 
 Status: staged draft.
 
-This package is not live until approved and enabled in `config/agents`.
+This package is not live until approved and released under `agents/<id>/`. The
+Hub-facing registry entry is written to `config/agents/<id>.json` from that
+released package.
 
 ## Local instructions
 
@@ -20,7 +22,9 @@ See `skills/INDEX.md` for runtime agent skills if this agent needs them. Reposit
 
 ## Run mode
 
-Manual by default.
+The selected architectural runtime pattern and reason are recorded in
+`agent.json` under `design`. `runtime.mode` remains the transport/execution
+mode used by the caller.
 
 ## Approval required before
 

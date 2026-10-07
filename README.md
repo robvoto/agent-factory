@@ -85,8 +85,9 @@ An LLM-generated draft is not trusted merely because it was generated successful
 .
 ├── src/agent_factory/          # Factory services, validation, tools, and interfaces
 ├── templates/agent-package/    # Canonical package template
-├── staging/agents/             # Unapproved agent drafts
-├── config/agents/              # Enabled agent registry
+├── staging/agents/             # Incubation/review drafts and audit snapshots
+├── agents/                     # Factory-owned approved released packages
+├── config/agents/              # Enabled Hub-facing registry manifests
 ├── docs/                       # Contracts, lifecycle, permissions, and architecture
 └── tests/                      # Automated validation and behaviour tests
 ```

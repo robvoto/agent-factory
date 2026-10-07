@@ -13,13 +13,15 @@ in `config/agents/`.
 
 ```
 config/agents/
-  <agent-id>/
-    agent.json        ← agent spec (committed, version-controlled)
-    AGENTS.md         ← agent-specific instructions (optional)
+  <agent-id>.json      ← enabled registry manifest (committed)
 ```
 
-Every enabled agent has exactly one `agent.json`. The file is committed by Factory
-during promotion. Agent Hub reads it directly or via the manifest.
+The full Factory-owned released package lives at `agents/<agent-id>/`. The
+registry is not the package store. `staging/agents/<agent-id>/` is incubation
+and review only; it may remain as an audit snapshot after promotion.
+
+Every enabled agent has exactly one registry manifest. The file is committed by
+Factory during promotion. Agent Hub reads it directly or via the manifest.
 
 ## agent.json required fields
 
@@ -33,6 +35,7 @@ during promotion. Agent Hub reads it directly or via the manifest.
 | `mcp_servers` | Explicit MCP server/tool declarations and requested permission boundaries; no implicit discovery |
 | `permissions` | `network`, `filesystem`, `shell`, `requires_approval`, `allowed_roots` |
 | `memory` | `scope`, `retention` |
+| `design` | Explicit architectural runtime pattern and non-empty reason |
 | `runtime` | `mode`, `entrypoint`, `working_directory`, `input_arg`, `output_arg` |
 | `output_contract` | Required for `runtime.mode = "subprocess"`; declares the validated subprocess status contract |
 | `input_contract` / `interaction_contract` | Universal Hub task-envelope declaration and advertised lifecycle capabilities (optional; see `agent-contract.md`) |
@@ -59,10 +62,10 @@ every enabled agent. Cache for up to `hub_integration.handshake_ttl_seconds`
 ### Option B — read registry files directly (preferred for local/trusted use)
 
 ```
-config/agents/<id>/agent.json
+config/agents/<id>.json
 ```
 
-Agent Hub reads each `agent.json` for full spec details. Suitable when Agent Hub runs
+Agent Hub reads each registry manifest for full spec details. Suitable when Agent Hub runs
 on the same machine and can access the factory repo.
 
 ## Lifecycle gate
@@ -71,7 +74,7 @@ An agent enters the registry only after:
 
 1. Factory creates a staged package in `staging/agents/`
 2. Human approval is granted (via `uv run agent-factory approve <id>`)
-3. Factory promotes the package to `config/agents/` via `agent-catalog`
+3. Factory releases the package under `agents/<id>/` and writes `config/agents/<id>.json` via `agent-catalog`
 
 Agent Hub **must not** use staged agents or read from `staging/agents/`.
 
@@ -111,7 +114,7 @@ not restore arbitrary filesystem snapshots or copy random old files.
 | Agent Hub starts | Call `manifest` to warm the cache |
 | Agent not found in cache | Re-call `manifest` |
 | New agent promoted | Factory re-runs `manifest`; Agent Hub re-caches on next call or TTL |
-| Agent Hub needs full spec | Read `config/agents/<id>/agent.json` directly |
+| Agent Hub needs full spec | Read `config/agents/<id>.json` directly |
 | Agent Hub wants to create an agent | Route request to Factory via CLI or Telegram |
 
 ## Constraints

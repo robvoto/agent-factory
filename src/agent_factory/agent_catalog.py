@@ -13,9 +13,11 @@ entry. Different agent IDs cannot claim the same alias.
 from __future__ import annotations
 
 import json
+import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .agent_spec import AgentPackageSpec
 from .errors import AgentFactoryError, DuplicateAliasError
@@ -26,6 +28,7 @@ from .storage import list_staged_agent_records
 _PROJECT_ROOT = Path(__file__).parents[2]
 _ENABLED_AGENTS_DIR = _PROJECT_ROOT / "config" / "agents"
 _STAGING_AGENTS_DIR = _PROJECT_ROOT / "staging" / "agents"
+_RELEASED_AGENTS_DIR = _PROJECT_ROOT / "agents"
 
 
 class AgentCatalogConflictError(AgentFactoryError):
@@ -57,6 +60,7 @@ def build_agent_catalog(
     *,
     enabled_dir: Path | None = None,
     staging_dir: Path | None = None,
+    released_dir: Path | None = None,
     db_path: Path | None = None,
     allowed_tool_ids: Iterable[str] | None = None,
 ) -> dict[str, AgentCatalogEntry]:
@@ -85,6 +89,17 @@ def build_agent_catalog(
             location=_relative_path(manifest.source),
         )
 
+    resolved_enabled_dir = enabled_dir or _ENABLED_AGENTS_DIR
+    resolved_released_dir = released_dir or (
+        resolved_enabled_dir.parent.parent / "agents"
+        if enabled_dir is not None
+        else _RELEASED_AGENTS_DIR
+    )
+    _merge_released_packages(
+        catalog,
+        released_dir=resolved_released_dir,
+    )
+
     _merge_staged_packages(
         catalog,
         staging_dir=staging_dir or _STAGING_AGENTS_DIR,
@@ -99,12 +114,14 @@ def describe_agent_catalog(
     *,
     enabled_dir: Path | None = None,
     staging_dir: Path | None = None,
+    released_dir: Path | None = None,
     db_path: Path | None = None,
 ) -> str:
     """Render the merged inventory as a readable text summary."""
     catalog = build_agent_catalog(
         enabled_dir=enabled_dir,
         staging_dir=staging_dir,
+        released_dir=released_dir,
         db_path=db_path,
     )
     if not catalog:
@@ -134,6 +151,11 @@ def plan_package_reuse(
     catalog = build_agent_catalog(
         enabled_dir=enabled_dir,
         staging_dir=staging_dir,
+        released_dir=(
+            enabled_dir.parent.parent / "agents"
+            if enabled_dir is not None
+            else None
+        ),
         db_path=db_path,
     )
 
@@ -154,18 +176,24 @@ def promote_agent(
     project_root: Path | None = None,
     db_path: Path | None = None,
 ) -> str:
-    """Promote a staged agent into config/agents without duplicating it."""
+    """Release a staged package and register its manifest without conflicts."""
     root = project_root or _PROJECT_ROOT
     staging_dir = root / "staging" / "agents" / agent_id
     staged_manifest_path = staging_dir / "agent.json"
     if not staged_manifest_path.exists():
         return f"Cannot promote {agent_id}: agent.json not found in staging."
 
+    released_dir = root / "agents" / agent_id
+    released_manifest_path = released_dir / "agent.json"
     enabled_dir = root / "config" / "agents"
-    enabled_dir.mkdir(parents=True, exist_ok=True)
     enabled_manifest_path = enabled_dir / f"{agent_id}.json"
 
     staged_manifest = _load_manifest_from_path(staged_manifest_path)
+    if released_dir.exists() and not _same_package(staging_dir, released_dir):
+        raise AgentCatalogConflictError(
+            f"Cannot promote {agent_id}: released package already contains different "
+            f"contents at {released_dir}."
+        )
     if enabled_manifest_path.exists():
         enabled_manifest = _load_manifest_from_path(enabled_manifest_path)
         if not _same_manifest(enabled_manifest, staged_manifest):
@@ -173,15 +201,60 @@ def promote_agent(
                 f"Cannot promote {agent_id}: config/agents already contains a different "
                 f"manifest at {enabled_manifest_path}."
             )
-        _mark_staged_agent_enabled(agent_id, db_path=db_path)
-        return f"Agent {agent_id} is already enabled; reused config/agents/{agent_id}.json."
+    if not released_dir.exists():
+        released_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(staging_dir, released_dir)
 
-    enabled_manifest_path.write_text(
-        staged_manifest_path.read_text(encoding="utf-8"),
-        encoding="utf-8",
+    if not released_manifest_path.exists():
+        raise AgentCatalogConflictError(
+            f"Cannot promote {agent_id}: released package is missing agent.json."
+        )
+    released_manifest = _load_manifest_from_path(released_manifest_path)
+    if not _same_manifest(released_manifest, staged_manifest):
+        raise AgentCatalogConflictError(
+            f"Cannot promote {agent_id}: released agent.json differs from staging."
+        )
+
+    if not enabled_manifest_path.exists():
+        enabled_dir.mkdir(parents=True, exist_ok=True)
+        enabled_manifest_path.write_text(
+            released_manifest_path.read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+    _mark_staged_agent_enabled(agent_id, staging_dir=staging_dir.parent, db_path=db_path)
+    return (
+        f"Agent {agent_id} released at agents/{agent_id}/ and enabled via "
+        f"config/agents/{agent_id}.json."
     )
-    _mark_staged_agent_enabled(agent_id, db_path=db_path)
-    return f"Agent {agent_id} promoted to config/agents/{agent_id}.json and is now enabled."
+
+
+def _merge_released_packages(
+    catalog: dict[str, AgentCatalogEntry],
+    *,
+    released_dir: Path,
+) -> None:
+    if not released_dir.exists():
+        return
+    for path in sorted(released_dir.glob("*/agent.json")):
+        manifest = _load_manifest_from_path(path)
+        _merge_entry(
+            catalog,
+            manifest,
+            status="released",
+            location=_relative_path(path.parent),
+        )
+
+
+def _same_package(left: Path, right: Path) -> bool:
+    """Compare package file paths and bytes without mutating either package."""
+    left_files = {path.relative_to(left) for path in left.rglob("*") if path.is_file()}
+    right_files = {path.relative_to(right) for path in right.rglob("*") if path.is_file()}
+    if left_files != right_files:
+        return False
+    return all(
+        (left / relative).read_bytes() == (right / relative).read_bytes()
+        for relative in left_files
+    )
 
 
 def _merge_staged_packages(
@@ -195,6 +268,10 @@ def _merge_staged_packages(
 
     for path in sorted(staging_dir.rglob("agent.json")):
         if path in seen_paths:
+            continue
+        staged_id = path.parent.name
+        if staged_records.get(staged_id, {}).get("status") == "enabled" and staged_id in catalog:
+            seen_paths.add(path)
             continue
         seen_paths.add(path)
         manifest = _load_manifest_from_path(path)
@@ -231,12 +308,21 @@ def _merge_staged_packages(
         )
 
 
-def _mark_staged_agent_enabled(agent_id: str, *, db_path: Path | None = None) -> None:
-    from .storage import get_staged_agent_record, record_staged_agent, update_staged_agent_status
+def _mark_staged_agent_enabled(
+    agent_id: str,
+    *,
+    staging_dir: Path | None = None,
+    db_path: Path | None = None,
+) -> None:
+    from .storage import (
+        get_staged_agent_record,
+        record_staged_agent,
+        update_staged_agent_status,
+    )
 
     record = get_staged_agent_record(agent_id, db_path=db_path)
     if record is None:
-        package_dir = _STAGING_AGENTS_DIR / agent_id
+        package_dir = (staging_dir or _STAGING_AGENTS_DIR) / agent_id
         if package_dir.exists():
             record_staged_agent(agent_id, package_dir, db_path=db_path)
         else:
@@ -316,6 +402,7 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
             "mcp_servers": [server.model_dump(exclude_none=True) for server in spec.mcp_servers],
             "permissions": permissions,
             "memory": memory,
+            "design": spec.design.model_dump() if spec.design is not None else None,
             "runtime": spec.runtime.model_dump(exclude_none=True),
             "input_contract": input_contract,
             "interaction_contract": interaction_contract,
@@ -337,6 +424,10 @@ def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
         and _compatible_optional_contract(lhs.mcp_servers, rhs.mcp_servers)
         and lhs.permissions == rhs.permissions
         and lhs.memory == rhs.memory
+        # A legacy manifest without design remains readable and reusable only
+        # by another legacy-shaped spec; an explicit new design must not be
+        # silently treated as equivalent to an unknown old pattern.
+        and lhs.design == rhs.design
         and lhs.runtime == rhs.runtime
         and _compatible_optional_contract(lhs.input_contract, rhs.input_contract)
         and _compatible_optional_contract(lhs.interaction_contract, rhs.interaction_contract)

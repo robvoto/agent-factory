@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from agent_factory import cli, creator_workflow
 
 
@@ -16,7 +14,11 @@ def point_workflow_at_tmp(monkeypatch, tmp_path):
 def test_create_staged_agent_package_writes_files(monkeypatch, tmp_path):
     point_workflow_at_tmp(monkeypatch, tmp_path)
 
-    state = creator_workflow.create_staged_agent_package("Create a docs reviewer agent")
+    state = creator_workflow.create_staged_agent_package(
+        "Create a docs reviewer agent",
+        runtime_pattern="deterministic_workflow",
+        runtime_pattern_reason="The review steps are fixed and inspectable.",
+    )
 
     package_dir = tmp_path / "staging" / "agents" / state["agent_id"]
     manifest = json.loads((package_dir / "agent.json").read_text(encoding="utf-8"))
@@ -30,9 +32,15 @@ def test_create_staged_agent_package_writes_files(monkeypatch, tmp_path):
     assert manifest["name"] == state["agent_name"]
     assert manifest["permissions"]["requires_approval"] is True
     assert manifest["runtime"]["mode"] == "manual"
+    assert manifest["design"] == {
+        "runtime_pattern": "deterministic_workflow",
+        "runtime_pattern_reason": "The review steps are fixed and inspectable.",
+    }
     assert "Status: staged draft only." in review
-    assert "Do not copy this agent into `config/agents` until approved." in review
-    assert "Read `AGENTS.md`" in (package_dir / "README.md").read_text(encoding="utf-8")
+    assert "Promotion releases the full package\nunder `agents/<id>/`" in review
+    readme = (package_dir / "README.md").read_text(encoding="utf-8")
+    assert "Read `AGENTS.md`" in readme
+    assert "\\n" not in readme
     assert "smallest change" in agents
     assert "does not define agent-specific skills yet" in skills_index
     assert any("staging/agents/" in path for path in state["created_files"])
@@ -45,8 +53,12 @@ def test_create_staged_agent_package_writes_files(monkeypatch, tmp_path):
 def test_create_staged_agent_package_reuses_existing_package(monkeypatch, tmp_path):
     point_workflow_at_tmp(monkeypatch, tmp_path)
 
-    first = creator_workflow.create_staged_agent_package("Create a docs reviewer agent")
-    second = creator_workflow.create_staged_agent_package("Create a docs reviewer agent")
+    kwargs = {
+        "runtime_pattern": "deterministic_workflow",
+        "runtime_pattern_reason": "The review steps are fixed and inspectable.",
+    }
+    first = creator_workflow.create_staged_agent_package("Create a docs reviewer agent", **kwargs)
+    second = creator_workflow.create_staged_agent_package("Create a docs reviewer agent", **kwargs)
 
     assert first["agent_id"] == second["agent_id"]
     assert first["package_dir"] == second["package_dir"]
@@ -58,7 +70,16 @@ def test_create_staged_agent_package_reuses_existing_package(monkeypatch, tmp_pa
 def test_create_command_outputs_json(monkeypatch, tmp_path, capsys):
     point_workflow_at_tmp(monkeypatch, tmp_path)
 
-    exit_code = cli.main(["create", "Create a docs reviewer agent"])
+    exit_code = cli.main(
+        [
+            "create",
+            "Create a docs reviewer agent",
+            "--runtime-pattern",
+            "simple_agent",
+            "--runtime-pattern-reason",
+            "The bounded tool choice is simple and does not need planning.",
+        ]
+    )
     output = capsys.readouterr().out
     state = json.loads(output)
 

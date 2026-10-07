@@ -119,10 +119,15 @@ Validation, approval, and promotion live in `agent-lifecycle.md`.
 Use the terminal command:
 
 ```bash
-PYTHONPATH=src python -m agent_factory create "Create an agent that researches docs safely"
+PYTHONPATH=src python -m agent_factory create "Create an agent that researches docs safely" \
+  --runtime-pattern simple_agent \
+  --runtime-pattern-reason "Bounded tool choice is sufficient for this research workflow."
 ```
 
-The direct `create` command remains a bounded developer staging action. The Factory Brain design conversation is the preferred path when requirements are incomplete or architecture decisions are still open.
+The direct `create` command remains a bounded developer staging action and
+requires the operator to declare the runtime pattern and a short reason. The
+Factory Brain design conversation is the preferred path when requirements are
+incomplete or architecture decisions are still open.
 
 ## Risk review
 

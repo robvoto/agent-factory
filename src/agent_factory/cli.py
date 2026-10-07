@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import json
+import logging
 import sys
 from pathlib import Path
 
 from .agent_manifest import render_factory_manifest
-from .loader import load_registry
-from .router import AgentRouter
+from .agent_spec import SUPPORTED_RUNTIME_PATTERNS
 from .factory_settings import get_model_defaults, list_model_aliases
+from .loader import load_registry
 from .logging_utils import configure_logging
-
+from .router import AgentRouter
 
 PROJECT_ROOT = Path(__file__).parents[2]
 DEFAULT_AGENTS_DIR = PROJECT_ROOT / "config" / "agents"
@@ -48,6 +48,17 @@ def main(argv: list[str] | None = None) -> int:
 
     create_parser = subparsers.add_parser("create", help="Create a staged agent package (deterministic)")
     create_parser.add_argument("request", help="Plain-language agent request")
+    create_parser.add_argument(
+        "--runtime-pattern",
+        required=True,
+        choices=SUPPORTED_RUNTIME_PATTERNS,
+        help="Operator-selected architectural runtime pattern",
+    )
+    create_parser.add_argument(
+        "--runtime-pattern-reason",
+        required=True,
+        help="Short non-empty reason for the selected runtime pattern",
+    )
 
     factory_parser = subparsers.add_parser("factory", help="Invoke the Factory Brain (requires OPENAI_API_KEY)")
     factory_parser.add_argument("request", help="Plain-language factory request")
@@ -111,7 +122,11 @@ def main(argv: list[str] | None = None) -> int:
         from .creator_workflow import create_staged_agent_package, to_json
 
         logger.info("Creating a staged agent package from CLI request.")
-        result = create_staged_agent_package(args.request)
+        result = create_staged_agent_package(
+            args.request,
+            runtime_pattern=args.runtime_pattern,
+            runtime_pattern_reason=args.runtime_pattern_reason,
+        )
         logger.info("Created staged agent draft: %s", result.get("agent_id", "<unknown>"))
         print(to_json(result))
         return 0

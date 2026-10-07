@@ -3,7 +3,10 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from agent_factory.agent_spec import AgentPackageSpec
+from agent_factory.agent_spec import (
+    AgentPackageSpec,
+    validate_agent_package_spec_payload,
+)
 
 
 def _subprocess_output_contract() -> dict:
@@ -41,6 +44,42 @@ def test_agent_package_spec_defaults_to_manual_runtime() -> None:
 
     assert spec.runtime.mode == "manual"
     assert spec.output_contract is None
+
+
+def test_new_staged_spec_requires_explicit_runtime_pattern_and_reason() -> None:
+    payload = {
+        "id": "alpha-agent",
+        "name": "Alpha Agent",
+        "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
+        "aliases": ["alpha"],
+    }
+
+    with pytest.raises(ValueError, match="design.runtime_pattern"):
+        validate_agent_package_spec_payload(payload)
+
+    payload["design"] = {
+        "runtime_pattern": "simple_agent",
+        "runtime_pattern_reason": "Bounded tool choice is sufficient.",
+    }
+    spec = validate_agent_package_spec_payload(payload)
+    assert spec.design is not None
+    assert spec.design.runtime_pattern == "simple_agent"
+
+
+def test_runtime_pattern_reason_must_be_non_empty() -> None:
+    with pytest.raises(ValidationError, match="runtime_pattern_reason"):
+        AgentPackageSpec.model_validate(
+            {
+                "id": "alpha-agent",
+                "name": "Alpha Agent",
+                "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
+                "aliases": ["alpha"],
+                "design": {
+                    "runtime_pattern": "deterministic_workflow",
+                    "runtime_pattern_reason": "   ",
+                },
+            }
+        )
 
 
 def test_subprocess_runtime_requires_output_contract() -> None:

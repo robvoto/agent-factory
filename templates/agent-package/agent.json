@@ -19,6 +19,10 @@
     "scope": "none",
     "retention": "none"
   },
+  "design": {
+    "runtime_pattern": "{{runtime_pattern}}",
+    "runtime_pattern_reason": "{{runtime_pattern_reason}}"
+  },
   "runtime": {
     "mode": "manual",
     "entrypoint": null

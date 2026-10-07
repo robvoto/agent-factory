@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from agent_factory import telegram_gateway
 
 
@@ -84,3 +86,15 @@ def test_reject_design_research_uses_generic_approval_path(monkeypatch):
 
     assert ("decide", 18, "rejected", "Not needed") in calls
     assert ("send", "Approval 18 rejected. Reason: Not needed") in calls
+
+
+def test_delete_does_not_remove_released_package(monkeypatch, tmp_path: Path):
+    released = tmp_path / "agents" / "alpha-agent"
+    released.mkdir(parents=True)
+    (released / "agent.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(telegram_gateway, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(telegram_gateway, "delete_staged_agent_record", lambda agent_id: False)
+
+    telegram_gateway._delete_agent("alpha-agent")
+
+    assert released.exists()
