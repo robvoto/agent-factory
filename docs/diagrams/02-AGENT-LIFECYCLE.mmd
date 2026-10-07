@@ -12,14 +12,14 @@ stateDiagram-v2
 
     Approved --> StandardReleased : Factory promotion<br/>validated + human-approved release
     StandardReleased --> Enabled : Factory activates<br/>config/agents/ release definition
-    StandardReleased --> GraduationReview : Optional explicit human /<br/>architecture proposal
-
-    GraduationReview --> StandardReleased : Not justified<br/>remain Factory-owned
-    GraduationReview --> ProductRepo : Genuine independent<br/>engineering needs only
-    ProductRepo --> IndependentRelease : Specialist repo owns<br/>implementation release
-    IndependentRelease --> Enabled : Factory validates + activates<br/>registry release definition
 
     Enabled --> Running : Agent Hub Orchestrator<br/>routes tasks to it
+    Enabled --> GraduationReview : Optional later human /<br/>architecture proposal
+
+    GraduationReview --> Enabled : Not justified<br/>remain Factory-owned
+    GraduationReview --> ProductRepo : Genuine independent<br/>engineering needs only
+    ProductRepo --> IndependentRelease : Specialist repo owns<br/>implementation release
+    IndependentRelease --> Enabled : Factory validates + activates<br/>new registry release definition
 
     Running --> Learning : Agent writes outcomes<br/>to shared knowledge store
 

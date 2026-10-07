@@ -7,7 +7,7 @@ Agents should become runnable and improvable, but not uncontrolled.
 The lifecycle is:
 
 ```text
-Create → Validate → Approve → Run → Observe → Improve → Test → Promote
+Create → Validate → Approve → Promote/Enable → Run → Observe → Improve → Test → Approve → Promote/Enable
 ```
 
 ## Lifecycle levels and ownership
@@ -89,7 +89,23 @@ Approval is especially important for:
 - memory retention
 - higher cost limits
 
-## 4. Run
+## 4. Promote
+
+Promotion is the Factory-controlled release step that makes a validated version the
+active approved registry version. For a standard released agent, promotion does not
+graduate it to another repository. For an independent product agent, promotion activates
+the released definition supplied by its specialist repository; it does not transfer
+implementation ownership to Factory or Hub.
+
+Promotion requires:
+
+- successful validation
+- clear summary of changes
+- explicit human approval before activation when permissions, tools or capability
+  declarations, runtime contract, manifest-governed model or cost limits, or the active
+  release version changes
+
+## 5. Run
 
 The Runtime runs only approved agents.
 
@@ -104,13 +120,13 @@ It should track:
 - cost
 - stop reason
 
-## 5. Observe
+## 6. Observe
 
 Failures and user feedback become improvement evidence.
 
 Do not hide failures behind retries.
 
-## 6. Improve
+## 7. Improve
 
 The Improver proposes changes from evidence.
 
@@ -131,7 +147,7 @@ tests. Approved skills are registered in the relevant skill index and validated
 before reuse. Agent Factory owns the canonical templates, release governance, and
 upgrade path; Agent Hub may route proposals but cannot bypass Factory governance.
 
-## 7. Test
+## 8. Test
 
 Every change needs validation evidence before promotion.
 
@@ -143,21 +159,9 @@ python -m pytest -q
 
 Additional agent-specific tests can be added later.
 
-## 8. Promote
-
-Promotion is the Factory-controlled release step that makes a validated version the
-active approved registry version. For a standard released agent, promotion does not
-graduate it to another repository. For an independent product agent, promotion activates
-the released definition supplied by its specialist repository; it does not transfer
-implementation ownership to Factory or Hub.
-
-Promotion requires:
-
-- successful validation
-- clear summary of changes
-- explicit human approval before activation when permissions, tools or capability
-  declarations, runtime contract, manifest-governed model or cost limits, or the active
-  release version changes
+After an improvement is tested, it returns through approval and promotion before the
+new release becomes active. The previously active validated release remains active until
+that promotion succeeds.
 
 ## Non-goals
 
