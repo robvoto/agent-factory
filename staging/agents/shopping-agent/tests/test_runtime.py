@@ -5,16 +5,25 @@ import os
 import subprocess
 import sys
 from collections.abc import Mapping
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import pytest
 from shopping_agent.constraints import parse_request
 from shopping_agent.models import DiscoveryCandidate
 from shopping_agent.providers import SerpApiDiscovery
 from shopping_agent.settings import ShoppingBudget, ShoppingConfig
-from shopping_agent.verification import PageFetchResult, RetailerVerifier
+from shopping_agent.urls import safe_hostname, safe_url
+from shopping_agent.verification import (
+    HttpRetailerPageFetcher,
+    PageFetchResult,
+    RetailerFetchError,
+    RetailerVerifier,
+)
 from shopping_agent.workflow import WorkflowDependencies, new_telemetry, run_shopping
+from specialist_contract import adapt_universal_task
 
 
 class FakeTransport:
@@ -58,6 +67,7 @@ def _product_page(
     availability: str,
     price: str = "20.00",
     shipping: str | None = "5.00",
+    shipping_currency: str | None = "AUD",
 ) -> str:
     document = {
         "@context": "https://schema.org",
@@ -71,8 +81,11 @@ def _product_page(
         },
     }
     if shipping is not None:
+        shipping_rate: dict[str, Any] = {"value": float(shipping)}
+        if shipping_currency is not None:
+            shipping_rate["currency"] = shipping_currency
         document["offers"]["shippingDetails"] = {
-            "shippingRate": {"value": float(shipping), "currency": "AUD"},
+            "shippingRate": shipping_rate,
             "shippingDestination": {"postalCode": "2155", "addressCountry": "AU"},
         }
     encoded = json.dumps(document)
@@ -107,8 +120,9 @@ def _dependencies(
     pages: Mapping[str, str],
     payload: Mapping[str, Any] | None = None,
     env: dict[str, str] | None = None,
+    budget: ShoppingBudget | None = None,
 ) -> tuple[WorkflowDependencies, FakeTransport, FakePages]:
-    config = _config()
+    config = replace(_config(), budget=budget) if budget is not None else _config()
     telemetry = new_telemetry("request-test", "run-test")
     transport = FakeTransport(payload or _candidate_payload())
     provider_env = {"SHOPPING_TEST_PROVIDER_KEY": "fixture-key"} if env is None else env
@@ -126,6 +140,7 @@ def test_parser_requires_postcode_and_preserves_explicit_constraints() -> None:
     assert parsed.constraints is not None
     assert parsed.constraints.exact_length_feet == Decimal(7)
     assert parsed.constraints.max_delivered_price_aud == Decimal(30)
+    assert parsed.constraints.budget_operator == "lt"
     assert parsed.constraints.destination_postcode == "2155"
 
     missing_postcode = parse_request(
@@ -186,6 +201,11 @@ def test_workflow_rejects_stale_unavailable_zacjac_and_recommends_direct_pass() 
     assert result["telemetry"]["search_call_count"] == 3
     assert result["telemetry"]["api_call_count"] == 3
     assert result["telemetry"]["page_fetch_count"] == 2
+    assert all(call["run_id"] == "run-test" for call in result["telemetry"]["calls"])
+    assert {call["phase_or_node"] for call in result["telemetry"]["calls"]} == {
+        "discover",
+        "verify",
+    }
     assert len(transport.calls) == 3
     assert set(pages_client.calls) == set(pages)
 
@@ -222,6 +242,106 @@ def test_missing_shipping_is_unverified_and_never_recommended() -> None:
     assert "shipping" in " ".join(result["unverified_candidates"][0]["reasons"]).lower()
 
 
+def test_search_budget_preserves_candidates_and_records_exhaustion() -> None:
+    pages = {
+        "https://zacjac.example/products/7ft-leash": _product_page(
+            name="ZacJac 7ft Surfboard Leash Cord",
+            availability="https://schema.org/OutOfStock",
+            price="16.00",
+            shipping="0.00",
+        ),
+        "https://retailer.example/products/ocean-earth-7ft": _product_page(
+            name="Ocean & Earth 7ft Regular Leash",
+            availability="https://schema.org/InStock",
+            price="20.00",
+            shipping="5.00",
+        ),
+    }
+    dependencies, transport, _ = _dependencies(
+        pages=pages,
+        budget=ShoppingBudget(
+            max_search_calls=3,
+            max_api_calls=1,
+            max_page_fetches=6,
+            max_browser_pages=0,
+            max_browser_actions=0,
+            max_retries=0,
+        ),
+    )
+    result = run_shopping(
+        "Find me a 7-foot surf leash under $30 delivered to my house.",
+        dependencies=dependencies,
+        destination_postcode="2155",
+    )
+    assert result["status"] == "success"
+    assert result["shortlist"][0]["title"] == "Ocean & Earth 7ft Regular Leash"
+    assert result["telemetry"]["stop_reason"] == "budget_exhausted"
+    assert result["telemetry"]["budget_exhausted_events"] == [
+        {"metric": "max_api_calls", "limit": 1, "observed": 1}
+    ]
+    assert len(transport.calls) == 1
+
+
+def test_missing_shipping_currency_is_unverified() -> None:
+    page = _product_page(
+        name="Ocean & Earth 7ft Regular Leash",
+        availability="https://schema.org/InStock",
+        shipping_currency=None,
+    )
+    candidate = DiscoveryCandidate(
+        "candidate-currency",
+        "Ocean & Earth 7ft Regular Leash",
+        "merchant",
+        None,
+        "https://retailer.example/products/ocean-earth-7ft",
+        None,
+        None,
+        "fixture",
+    )
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verified = RetailerVerifier(
+        _config(),
+        new_telemetry("request-test", "run-test"),
+        fetcher=FakePages({candidate.direct_url: page}),
+    ).verify(candidate, parsed.constraints)
+    assert verified.status == "UNVERIFIED"
+
+
+def test_negative_item_price_is_unverified() -> None:
+    page = _product_page(
+        name="Ocean & Earth 7ft Regular Leash",
+        availability="https://schema.org/InStock",
+        price="-1.00",
+    )
+    candidate = DiscoveryCandidate(
+        "candidate-negative",
+        "Ocean & Earth 7ft Regular Leash",
+        "merchant",
+        None,
+        "https://retailer.example/products/ocean-earth-7ft",
+        None,
+        None,
+        "fixture",
+    )
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verified = RetailerVerifier(
+        _config(),
+        new_telemetry("request-test", "run-test"),
+        fetcher=FakePages({candidate.direct_url: page}),
+    ).verify(candidate, parsed.constraints)
+    assert verified.status == "UNVERIFIED"
+
+
+def test_private_retailer_urls_are_rejected_before_fetch() -> None:
+    assert safe_url("http://127.0.0.1:8080/internal") is None
+    assert safe_url("http://[::1") is None
+    assert safe_hostname("https://user:password@example.com/path") == "example.com"
+    with pytest.raises(RetailerFetchError, match="non-public"):
+        HttpRetailerPageFetcher().fetch("http://127.0.0.1:8080/internal", timeout=1)
+
+
 def test_direct_length_mismatch_is_fail_not_unverified() -> None:
     page = _product_page(
         name="Ocean & Earth 6ft Regular Leash",
@@ -249,6 +369,72 @@ def test_direct_length_mismatch_is_fail_not_unverified() -> None:
     assert "different product length" in " ".join(verified.reasons)
 
 
+def test_under_budget_rejects_exact_boundary() -> None:
+    page = _product_page(
+        name="Ocean & Earth 7ft Regular Leash",
+        availability="https://schema.org/InStock",
+        price="30.00",
+        shipping="0.00",
+    )
+    candidate = DiscoveryCandidate(
+        candidate_id="candidate-boundary",
+        title="Ocean & Earth 7ft Regular Leash",
+        merchant="Australian Surf Shop",
+        discovery_url=None,
+        direct_url="https://retailer.example/products/ocean-earth-7ft",
+        discovery_price_text=None,
+        discovery_delivery_text=None,
+        source="fixture",
+    )
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verified = RetailerVerifier(
+        _config(),
+        new_telemetry("request-test", "run-test"),
+        fetcher=FakePages({candidate.direct_url: page}),
+    ).verify(candidate, parsed.constraints)
+    assert verified.status == "FAIL"
+
+
+def test_product_group_without_exact_variant_offer_is_unverified() -> None:
+    document = {
+        "@context": "https://schema.org",
+        "@type": "ProductGroup",
+        "name": "7ft Surf Leash",
+        "hasVariant": [{"@type": "Product", "name": "6ft Surf Leash"}],
+        "offers": {
+            "@type": "Offer",
+            "price": "20.00",
+            "priceCurrency": "AUD",
+            "availability": "https://schema.org/InStock",
+        },
+    }
+    page = f'<script type="application/ld+json">{json.dumps(document)}</script>'
+    candidate = DiscoveryCandidate(
+        "candidate-group",
+        "7ft Surf Leash",
+        "merchant",
+        None,
+        "https://retailer.example/products/leash",
+        None,
+        None,
+        "fixture",
+    )
+    parsed = parse_request("7ft surf leash under $30 Australia", destination_postcode="2155")
+    assert parsed.constraints is not None
+    verified = RetailerVerifier(
+        _config(),
+        new_telemetry("request-test", "run-test"),
+        fetcher=FakePages({candidate.direct_url: page}),
+    ).verify(candidate, parsed.constraints)
+    assert verified.status == "UNVERIFIED"
+
+
+def test_universal_task_adapter_rejects_unsupported_fields() -> None:
+    with pytest.raises(ValueError, match="Unsupported task fields"):
+        adapt_universal_task({"task": "7ft leash", "agent_id": "shopping-agent"})
+
+
 def test_missing_provider_key_stops_before_any_search() -> None:
     dependencies, transport, _ = _dependencies(pages={}, env={})
     result = run_shopping(
@@ -266,7 +452,7 @@ def test_subprocess_entrypoint_returns_protocol_result_without_a_key(tmp_path: P
     output_path = tmp_path / "result.json"
     env = dict(os.environ)
     env.pop("SERPAPI_API_KEY", None)
-    env["PYTHONPATH"] = "staging/agents/shopping-agent/runtime"
+    env["PYTHONPATH"] = "staging/agents/shopping-agent:staging/agents/shopping-agent/runtime"
     completed = subprocess.run(
         [
             sys.executable,

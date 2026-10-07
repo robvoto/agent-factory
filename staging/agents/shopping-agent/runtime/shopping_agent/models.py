@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Any, Literal
 
 CandidateStatus = Literal["PASS", "FAIL", "UNVERIFIED"]
+BudgetOperator = Literal["lt", "lte"]
 
 
 def money(value: Decimal | None) -> str | None:
@@ -24,6 +25,7 @@ class ShoppingConstraints:
     product_terms: str
     exact_length_feet: Decimal
     max_delivered_price_aud: Decimal
+    budget_operator: BudgetOperator
     destination_country: str
     destination_postcode: str
     requires_delivery: bool = True
@@ -34,6 +36,7 @@ class ShoppingConstraints:
             "product_terms": self.product_terms,
             "exact_length_feet": str(self.exact_length_feet),
             "max_delivered_price_aud": money(self.max_delivered_price_aud),
+            "budget_operator": self.budget_operator,
             "destination_country": self.destination_country,
             "destination_postcode": self.destination_postcode,
             "requires_delivery": self.requires_delivery,
@@ -120,9 +123,13 @@ class CallTelemetry:
     duration_ms: int
     safe_domain_or_url: str | None = None
     error_type: str | None = None
+    run_id: str | None = None
+    phase_or_node: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "run_id": self.run_id,
+            "phase_or_node": self.phase_or_node,
             "call_type": self.call_type,
             "provider_or_tool": self.provider_or_tool,
             "status": self.status,
@@ -157,9 +164,12 @@ class RunTelemetry:
     browser_action_count: int = 0
     retry_count: int = 0
     error_count: int = 0
+    budget_exhausted_events: list[dict[str, int | str]] = field(default_factory=list)
     calls: list[CallTelemetry] = field(default_factory=list)
 
     def record_call(self, call: CallTelemetry) -> None:
+        if call.run_id is None:
+            call.run_id = self.run_id
         self.calls.append(call)
         if call.call_type == "search":
             self.search_call_count += 1
@@ -174,6 +184,11 @@ class RunTelemetry:
             self.browser_action_count += 1
         if call.status == "error":
             self.error_count += 1
+
+    def record_budget_exhausted(self, metric: str, limit: int, observed: int) -> None:
+        self.budget_exhausted_events.append(
+            {"metric": metric, "limit": limit, "observed": observed}
+        )
 
     def finish(self, *, stop_reason: str, now_iso: str, monotonic_now: float) -> None:
         self.finished_at = now_iso
@@ -204,5 +219,6 @@ class RunTelemetry:
             "browser_action_count": self.browser_action_count,
             "retry_count": self.retry_count,
             "error_count": self.error_count,
+            "budget_exhausted_events": self.budget_exhausted_events,
             "calls": [call.to_dict() for call in self.calls],
         }

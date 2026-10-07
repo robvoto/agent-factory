@@ -11,6 +11,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from specialist_contract import adapt_universal_task
+
 from .settings import ShoppingConfig
 from .workflow import default_dependencies, new_telemetry, run_shopping
 
@@ -46,24 +48,37 @@ def _failure_result(message: str, *, request_id: str, run_id: str) -> dict[str, 
 def main() -> int:
     args = _args()
     payload: dict[str, Any] = {}
+    result: dict[str, Any] | None = None
+    request_id = str(uuid.uuid4())
+    run_id = str(uuid.uuid4())
     if args.input_json:
-        payload = json.loads(args.input_json.read_text(encoding="utf-8"))
-        task = payload.get("task")
-        request_id = payload.get("request_id") or str(uuid.uuid4())
-        run_id = payload.get("run_id") or str(uuid.uuid4())
+        try:
+            payload = json.loads(args.input_json.read_text(encoding="utf-8"))
+            adapted = adapt_universal_task(payload)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            result = _failure_result(
+                f"Invalid universal task envelope: {type(exc).__name__}.",
+                request_id=request_id,
+                run_id=run_id,
+            )
+            task = None
+        else:
+            task = adapted["task"]
+            request_id = adapted.get("request_id") or request_id
+            run_id = adapted.get("run_id") or run_id
         postcode = args.postcode or os.environ.get("SHOPPING_DESTINATION_POSTCODE")
     else:
         task = args.task
         request_id = str(uuid.uuid4())
         run_id = str(uuid.uuid4())
         postcode = args.postcode or os.environ.get("SHOPPING_DESTINATION_POSTCODE")
-    if not isinstance(task, str) or not task.strip():
+    if result is None and (not isinstance(task, str) or not task.strip()):
         result = _failure_result(
             "A non-empty shopping task is required.",
             request_id=request_id,
             run_id=run_id,
         )
-    else:
+    elif result is None:
         config = ShoppingConfig.from_env()
         if postcode and postcode != config.destination_postcode:
             config = replace(config, destination_postcode=postcode)

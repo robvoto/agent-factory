@@ -18,8 +18,8 @@ _LENGTH_RE = re.compile(
     r"(?<!\w)(\d+(?:\.\d+)?)\s*(?:-\s*)?(?:foot|feet|ft|')\b", re.IGNORECASE
 )
 _BUDGET_RE = re.compile(
-    r"\b(?:under|below|less\s+than|up\s+to|max(?:imum)?(?:\s+of)?)\s*"
-    r"(?:AUD\s*)?\$?\s*(\d+(?:\.\d{1,2})?)\b",
+    r"\b(?P<operator>under|below|less\s+than|up\s+to|max(?:imum)?(?:\s+of)?)\s*"
+    r"(?:AUD\s*)?\$?\s*(?P<value>\d+(?:\.\d{1,2})?)\b",
     re.IGNORECASE,
 )
 _POSTCODE_RE = re.compile(
@@ -42,7 +42,8 @@ def _unique_decimal_matches(pattern: re.Pattern[str], text: str) -> list[Decimal
     values: list[Decimal] = []
     for match in pattern.finditer(text):
         try:
-            value = Decimal(match.group(1))
+            raw_value = match.groupdict().get("value") or match.group(1)
+            value = Decimal(raw_value)
         except InvalidOperation as exc:
             raise ConstraintClarification("A numeric constraint could not be read safely.") from exc
         if value not in values:
@@ -77,6 +78,7 @@ def parse_request(
         return ParsedRequest(None, "What product, exact variant, and delivered budget should I use?")
 
     lengths = _unique_decimal_matches(_LENGTH_RE, text)
+    budget_matches = list(_BUDGET_RE.finditer(text))
     budgets = _unique_decimal_matches(_BUDGET_RE, text)
     postcode_matches = [match.group(1) for match in _POSTCODE_RE.finditer(text)]
     if postcode_matches and len(set(postcode_matches)) > 1:
@@ -85,7 +87,11 @@ def parse_request(
 
     if len(lengths) != 1:
         return ParsedRequest(None, "What exact product length should I verify?")
-    if len(budgets) != 1:
+    budget_operators = {
+        "lt" if match.group("operator").lower() in {"under", "below", "less than"} else "lte"
+        for match in budget_matches
+    }
+    if len(budgets) != 1 or len(budget_operators) != 1:
         return ParsedRequest(None, "What is the maximum delivered price?")
     if not postcode:
         return ParsedRequest(None, "What destination postcode should I use for delivery verification?")
@@ -104,6 +110,7 @@ def parse_request(
             product_terms=terms,
             exact_length_feet=lengths[0],
             max_delivered_price_aud=budgets[0],
+            budget_operator=next(iter(budget_operators)),
             destination_country=destination_country.upper(),
             destination_postcode=postcode,
         )

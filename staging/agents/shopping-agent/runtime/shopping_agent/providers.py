@@ -14,10 +14,11 @@ from http.client import HTTPException
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse, urlunparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .models import CallTelemetry, DiscoveryCandidate, RunTelemetry, ShoppingConstraints
 from .settings import ShoppingConfig
+from .urls import safe_hostname, safe_url, validate_http_url
 
 
 class ProviderError(RuntimeError):
@@ -27,6 +28,17 @@ class ProviderError(RuntimeError):
 class SearchBudgetExceeded(ProviderError):
     """The configured search/API budget was reached."""
 
+    def __init__(self, message: str, *, metric: str, limit: int, observed: int) -> None:
+        super().__init__(message)
+        self.metric = metric
+        self.limit = limit
+        self.observed = observed
+
+
+class _RejectRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
 
 class JsonTransport(Protocol):
     def get_json(self, url: str, params: Mapping[str, str], timeout: float) -> Mapping[str, Any]:
@@ -35,6 +47,10 @@ class JsonTransport(Protocol):
 
 class UrllibJsonTransport:
     def get_json(self, url: str, params: Mapping[str, str], timeout: float) -> Mapping[str, Any]:
+        try:
+            validate_http_url(url, resolve_dns=True)
+        except ValueError as exc:
+            raise ProviderError("SerpApi endpoint is not a safe public URL.") from exc
         query = urlencode(params)
         parsed = urlparse(url)
         request = Request(
@@ -43,7 +59,7 @@ class UrllibJsonTransport:
             method="GET",
         )
         try:
-            with urlopen(request, timeout=timeout) as response:
+            with build_opener(_RejectRedirectHandler()).open(request, timeout=timeout) as response:
                 payload = json.loads(response.read())
         except (HTTPError, URLError, HTTPException, TimeoutError, OSError, ValueError) as exc:
             raise ProviderError(f"SerpApi request failed: {type(exc).__name__}.") from exc
@@ -58,25 +74,9 @@ class DiscoveryCall:
     candidates: tuple[DiscoveryCandidate, ...]
 
 
-def _safe_url(value: Any) -> str | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    parsed = urlparse(value.strip())
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return None
-    return value.strip()
-
-
-def _safe_domain(value: str | None) -> str | None:
-    if not value:
-        return None
-    parsed = urlparse(value)
-    return parsed.netloc.lower() or None
-
-
 def _direct_url(result: Mapping[str, Any]) -> str | None:
     for key in ("link", "merchant_link", "url", "product_url"):
-        direct = _safe_url(result.get(key))
+        direct = safe_url(result.get(key))
         if direct:
             return direct
     return None
@@ -86,7 +86,7 @@ def _candidate_from_result(result: Mapping[str, Any], position: int) -> Discover
     title = result.get("title")
     if not isinstance(title, str) or not title.strip():
         return None
-    discovery_url = _safe_url(result.get("product_link"))
+    discovery_url = safe_url(result.get("product_link"))
     source = result.get("source") or result.get("merchant")
     merchant = source.strip() if isinstance(source, str) and source.strip() else None
     price = result.get("price")
@@ -138,9 +138,19 @@ class SerpApiDiscovery:
     def search(self, query: str, constraints: ShoppingConstraints) -> DiscoveryCall:
         budget = self.config.budget
         if self.telemetry.search_call_count >= budget.max_search_calls:
-            raise SearchBudgetExceeded("Shopping search-call budget exhausted.")
+            raise SearchBudgetExceeded(
+                "Shopping search-call budget exhausted.",
+                metric="max_search_calls",
+                limit=budget.max_search_calls,
+                observed=self.telemetry.search_call_count,
+            )
         if self.telemetry.api_call_count >= budget.max_api_calls:
-            raise SearchBudgetExceeded("Shopping API-call budget exhausted.")
+            raise SearchBudgetExceeded(
+                "Shopping API-call budget exhausted.",
+                metric="max_api_calls",
+                limit=budget.max_api_calls,
+                observed=self.telemetry.api_call_count,
+            )
         api_key = self.config.api_key(self.env)
 
         params = {
@@ -166,8 +176,9 @@ class SerpApiDiscovery:
                     provider_or_tool="serpapi.google_shopping",
                     status="error",
                     duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
-                    safe_domain_or_url=_safe_domain(self.config.serpapi_endpoint),
+                    safe_domain_or_url=safe_hostname(self.config.serpapi_endpoint),
                     error_type=type(exc).__name__,
+                    phase_or_node="discover",
                 )
             )
             raise ProviderError("SerpApi discovery failed.") from exc
@@ -179,8 +190,9 @@ class SerpApiDiscovery:
                     provider_or_tool="serpapi.google_shopping",
                     status="error",
                     duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
-                    safe_domain_or_url=_safe_domain(self.config.serpapi_endpoint),
+                    safe_domain_or_url=safe_hostname(self.config.serpapi_endpoint),
                     error_type="ProviderResponseError",
+                    phase_or_node="discover",
                 )
             )
             raise ProviderError("SerpApi returned an error response.")
@@ -190,7 +202,8 @@ class SerpApiDiscovery:
                 provider_or_tool="serpapi.google_shopping",
                 status="success",
                 duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
-                safe_domain_or_url=_safe_domain(self.config.serpapi_endpoint),
+                safe_domain_or_url=safe_hostname(self.config.serpapi_endpoint),
+                phase_or_node="discover",
             )
         )
         raw_results = payload.get("shopping_results", [])

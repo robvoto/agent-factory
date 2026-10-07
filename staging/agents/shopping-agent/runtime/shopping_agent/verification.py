@@ -18,8 +18,8 @@ from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.parse import urljoin
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .models import (
     CallTelemetry,
@@ -30,10 +30,16 @@ from .models import (
     VerifiedCandidate,
 )
 from .settings import ShoppingConfig
+from .urls import UnsafeRetailerUrlError, safe_hostname, validate_http_url
 
 
 class RetailerFetchError(RuntimeError):
     """A retailer page could not be retrieved safely."""
+
+
+class _RejectRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
 
 
 @dataclass(frozen=True)
@@ -54,36 +60,54 @@ class BrowserFallback(Protocol):
 
 
 class HttpRetailerPageFetcher:
-    def __init__(self, *, max_bytes: int = 2_000_000) -> None:
+    def __init__(self, *, max_bytes: int = 2_000_000, max_redirects: int = 3) -> None:
         self.max_bytes = max_bytes
+        self.max_redirects = max_redirects
 
     def fetch(self, url: str, timeout: float) -> PageFetchResult:
-        parsed = urlparse(url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise RetailerFetchError("Retailer URL is not an HTTP(S) URL.")
-        if parsed.username or parsed.password:
-            raise RetailerFetchError("Retailer URL must not contain credentials.")
-        request = Request(
-            url,
-            headers={"Accept": "text/html,application/xhtml+xml", "User-Agent": "shopping-agent-mvp/0.1"},
-            method="GET",
-        )
         try:
-            with urlopen(request, timeout=timeout) as response:
+            current_url = validate_http_url(url, resolve_dns=True).geturl()
+        except UnsafeRetailerUrlError as exc:
+            raise RetailerFetchError(str(exc)) from exc
+        opener = build_opener(_RejectRedirectHandler())
+        for _ in range(self.max_redirects + 1):
+            request = Request(
+                current_url,
+                headers={
+                    "Accept": "text/html,application/xhtml+xml",
+                    "User-Agent": "shopping-agent-mvp/0.1",
+                },
+                method="GET",
+            )
+            try:
+                response = opener.open(request, timeout=timeout)
+            except HTTPError as exc:
+                if 300 <= exc.code < 400:
+                    location = exc.headers.get("Location")
+                    if not location:
+                        raise RetailerFetchError("Retailer redirect had no location.") from exc
+                    try:
+                        current_url = validate_http_url(
+                            urljoin(current_url, location), resolve_dns=True
+                        ).geturl()
+                    except UnsafeRetailerUrlError as redirect_exc:
+                        raise RetailerFetchError(str(redirect_exc)) from redirect_exc
+                    continue
+                raise RetailerFetchError("Retailer page fetch failed: HTTPError.") from exc
+            except (URLError, TimeoutError, OSError) as exc:
+                raise RetailerFetchError(f"Retailer page fetch failed: {type(exc).__name__}.") from exc
+            with response:
                 body = response.read(self.max_bytes + 1)
-        except (HTTPError, URLError, TimeoutError, OSError) as exc:
-            raise RetailerFetchError(f"Retailer page fetch failed: {type(exc).__name__}.") from exc
-        if len(body) > self.max_bytes:
-            raise RetailerFetchError("Retailer page exceeded the configured size limit.")
-        try:
+                final_url = response.geturl()
+            if len(body) > self.max_bytes:
+                raise RetailerFetchError("Retailer page exceeded the configured size limit.")
             html = body.decode("utf-8", errors="replace")
-        except Exception as exc:
-            raise RetailerFetchError("Retailer page could not be decoded.") from exc
-        return PageFetchResult(
-            url=url,
-            html=html,
-            checked_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
+            return PageFetchResult(
+                url=final_url,
+                html=html,
+                checked_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            )
+        raise RetailerFetchError("Retailer redirect limit was exceeded.")
 
 
 class _JsonLdParser(HTMLParser):
@@ -147,14 +171,6 @@ def _types(value: Mapping[str, Any]) -> set[str]:
     return {str(item).split("/")[-1].lower() for item in values if item}
 
 
-def _find_product(documents: list[Any]) -> Mapping[str, Any] | None:
-    for document in documents:
-        for obj in _objects(document):
-            if "product" in _types(obj) or "productgroup" in _types(obj):
-                return obj
-    return None
-
-
 def _as_list(value: Any) -> list[Any]:
     if value is None:
         return []
@@ -164,18 +180,22 @@ def _as_list(value: Any) -> list[Any]:
 def _parse_decimal(value: Any) -> Decimal | None:
     if isinstance(value, (int, float, Decimal)):
         try:
-            return Decimal(str(value))
+            parsed = Decimal(str(value))
         except InvalidOperation:
             return None
-    if not isinstance(value, str):
+    elif isinstance(value, str):
+        cleaned = re.sub(r"[^0-9.,-]", "", value).replace(",", "")
+        if not cleaned:
+            return None
+        try:
+            parsed = Decimal(cleaned)
+        except InvalidOperation:
+            return None
+    else:
         return None
-    cleaned = re.sub(r"[^0-9.,-]", "", value).replace(",", "")
-    if not cleaned:
+    if not parsed.is_finite() or parsed < 0:
         return None
-    try:
-        return Decimal(cleaned)
-    except InvalidOperation:
-        return None
+    return parsed
 
 
 def _explicit_lengths(values: list[str]) -> set[Decimal]:
@@ -252,7 +272,9 @@ def _shipping_details(
                 destination_country = destination_country.get("value") or destination_country.get("name")
             if str(destination_postcode or "") != postcode:
                 continue
-            if str(destination_country or country).upper() not in {country.upper(), "AU"}:
+            if not isinstance(destination_country, str):
+                continue
+            if destination_country.strip().upper() != country.upper():
                 continue
             rate = detail.get("shippingRate")
             if isinstance(rate, Mapping):
@@ -261,7 +283,11 @@ def _shipping_details(
             else:
                 amount = _parse_decimal(detail.get("shippingCost"))
                 currency = detail.get("currency")
-            if amount is not None and str(currency or "AUD").upper() == "AUD":
+            if (
+                amount is not None
+                and isinstance(currency, str)
+                and currency.strip().upper() == "AUD"
+            ):
                 return amount, postcode, country.upper()
     return None, None, None
 
@@ -271,13 +297,15 @@ def _retailer_evidence(
     page: PageFetchResult,
     constraints: ShoppingConstraints,
 ) -> RetailerEvidence:
-    product = _find_product(_json_ld_documents(page.html))
+    product = _select_product(
+        _json_ld_documents(page.html), constraints.exact_length_feet
+    )
     if product is None:
         return RetailerEvidence(
             retailer_url=page.url,
             checked_at=page.checked_at,
             evidence_quality="retailer_page_without_product_json_ld",
-            limitation="No structured Product evidence was available on the retailer page.",
+            limitation="No unambiguous structured Product evidence proved the requested variant.",
         )
     lengths = _explicit_lengths(_product_text_fields(product))
     exact_length = next(iter(lengths)) if len(lengths) == 1 else None
@@ -304,6 +332,27 @@ def _retailer_evidence(
         delivered_price_aud=delivered,
         evidence_quality="retailer_json_ld",
     )
+
+
+def _select_product(
+    documents: list[Any], requested_length: Decimal
+) -> Mapping[str, Any] | None:
+    matches: list[Mapping[str, Any]] = []
+    for document in documents:
+        for obj in _objects(document):
+            types = _types(obj)
+            if "productgroup" in types:
+                variants = [
+                    item for item in _as_list(obj.get("hasVariant")) if isinstance(item, Mapping)
+                ]
+                matches.extend(
+                    variant
+                    for variant in variants
+                    if _explicit_lengths(_product_text_fields(variant)) == {requested_length}
+                )
+            elif "product" in types and len(_explicit_lengths(_product_text_fields(obj))) == 1:
+                matches.append(obj)
+    return matches[0] if len(matches) == 1 else None
 
 
 class RetailerVerifier:
@@ -333,6 +382,11 @@ class RetailerVerifier:
                 ),
             )
         if self.telemetry.page_fetch_count >= self.config.budget.max_page_fetches:
+            self.telemetry.record_budget_exhausted(
+                "max_page_fetches",
+                self.config.budget.max_page_fetches,
+                self.telemetry.page_fetch_count,
+            )
             return VerifiedCandidate(
                 candidate,
                 "UNVERIFIED",
@@ -349,7 +403,8 @@ class RetailerVerifier:
                     provider_or_tool="direct_retailer_page",
                     status="success",
                     duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
-                    safe_domain_or_url=urlparse(candidate.direct_url).netloc.lower(),
+                    safe_domain_or_url=safe_hostname(candidate.direct_url),
+                    phase_or_node="verify",
                 )
             )
         except (RetailerFetchError, TimeoutError, URLError, OSError, TypeError, ValueError) as exc:
@@ -359,8 +414,9 @@ class RetailerVerifier:
                     provider_or_tool="direct_retailer_page",
                     status="error",
                     duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
-                    safe_domain_or_url=urlparse(candidate.direct_url).netloc.lower(),
+                    safe_domain_or_url=safe_hostname(candidate.direct_url),
                     error_type=type(exc).__name__,
+                    phase_or_node="verify",
                 )
             )
             if (
@@ -387,8 +443,9 @@ class RetailerVerifier:
                             provider_or_tool="bounded_browser_fallback",
                             status="error",
                             duration_ms=max(0, int((time.perf_counter() - browser_started) * 1000)),
-                            safe_domain_or_url=urlparse(candidate.direct_url).netloc.lower(),
+                            safe_domain_or_url=safe_hostname(candidate.direct_url),
                             error_type=type(browser_exc).__name__,
+                            phase_or_node="browser_fallback",
                         )
                     )
                     return VerifiedCandidate(
@@ -407,10 +464,20 @@ class RetailerVerifier:
                         provider_or_tool="bounded_browser_fallback",
                         status="success",
                         duration_ms=max(0, int((time.perf_counter() - browser_started) * 1000)),
-                        safe_domain_or_url=urlparse(candidate.direct_url).netloc.lower(),
+                        safe_domain_or_url=safe_hostname(candidate.direct_url),
+                        phase_or_node="browser_fallback",
                     )
                 )
             else:
+                if (
+                    self.browser_fallback is not None
+                    and self.telemetry.browser_page_count >= self.config.budget.max_browser_pages
+                ):
+                    self.telemetry.record_budget_exhausted(
+                        "max_browser_pages",
+                        self.config.budget.max_browser_pages,
+                        self.telemetry.browser_page_count,
+                    )
                 return VerifiedCandidate(
                     candidate,
                     "UNVERIFIED",
@@ -438,12 +505,20 @@ class RetailerVerifier:
             reasons.append("Shipping cost to the requested postcode is not explicitly proven.")
         if evidence.delivered_price_aud is None:
             reasons.append("Delivered AUD price cannot be calculated from direct evidence.")
-        elif evidence.delivered_price_aud > constraints.max_delivered_price_aud:
+        elif (
+            evidence.delivered_price_aud >= constraints.max_delivered_price_aud
+            if constraints.budget_operator == "lt"
+            else evidence.delivered_price_aud > constraints.max_delivered_price_aud
+        ):
             reasons.append("Direct delivered price exceeds the maximum budget.")
 
         if evidence.stock is False or (
             evidence.delivered_price_aud is not None
-            and evidence.delivered_price_aud > constraints.max_delivered_price_aud
+            and (
+                evidence.delivered_price_aud >= constraints.max_delivered_price_aud
+                if constraints.budget_operator == "lt"
+                else evidence.delivered_price_aud > constraints.max_delivered_price_aud
+            )
         ) or (
             evidence.exact_length_feet is not None
             and evidence.exact_length_feet != constraints.exact_length_feet

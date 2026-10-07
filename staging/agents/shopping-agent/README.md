@@ -26,7 +26,7 @@ From the Agent Factory repository root:
 ```bash
 # Provide SERPAPI_API_KEY through the local secret environment; do not commit it.
 export SHOPPING_DESTINATION_POSTCODE=2155
-PYTHONPATH=staging/agents/shopping-agent/runtime \
+PYTHONPATH=staging/agents/shopping-agent:staging/agents/shopping-agent/runtime \
   uv run python -m shopping_agent \
   --task 'Find me a 7-foot surf leash under $30 delivered to my house.' \
   --postcode 2155

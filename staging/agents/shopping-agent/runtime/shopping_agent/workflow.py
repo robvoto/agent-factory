@@ -88,25 +88,24 @@ def _build_graph(dependencies: WorkflowDependencies):
         constraints = state["constraints"]
         assert constraints is not None
         candidates: list[DiscoveryCandidate] = []
+        budget_stop: SearchBudgetExceeded | None = None
         try:
             queries = query_plan(
                 constraints,
                 max_queries=dependencies.config.budget.max_search_calls,
             )
             for query in queries:
-                call = dependencies.discovery.search(query, constraints)
+                try:
+                    call = dependencies.discovery.search(query, constraints)
+                except SearchBudgetExceeded as exc:
+                    budget_stop = exc
+                    break
                 candidates.extend(call.candidates)
         except MissingCredentialError:
             return {
                 "status": "failed",
                 "stop_reason": "missing_provider_credential",
                 "summary": "SerpApi is not configured; no discovery request was sent.",
-            }
-        except SearchBudgetExceeded:
-            return {
-                "status": "failed",
-                "stop_reason": "budget_exhausted",
-                "summary": "The configured SerpApi search budget was exhausted.",
             }
         except ProviderError:
             return {
@@ -127,15 +126,23 @@ def _build_graph(dependencies: WorkflowDependencies):
                 seen.add(key)
                 unique.append(candidate)
         telemetry = state["telemetry"]
+        if budget_stop is not None:
+            telemetry.record_budget_exhausted(
+                budget_stop.metric, budget_stop.limit, budget_stop.observed
+            )
         telemetry.candidate_discovered_count = len(unique)
         if not unique:
             return {
                 "discovered": [],
                 "status": "success",
-                "stop_reason": "no_candidates",
+                "stop_reason": "budget_exhausted" if budget_stop else "no_candidates",
                 "summary": "SerpApi returned no product candidates for the bounded query plan.",
             }
-        return {"discovered": unique, "status": "running", "stop_reason": ""}
+        return {
+            "discovered": unique,
+            "status": "running",
+            "stop_reason": "budget_exhausted" if budget_stop else "",
+        }
 
     def route_after_discover(state: ShoppingState) -> str:
         return "render" if state.get("status") != "running" else "verify"
@@ -151,7 +158,11 @@ def _build_graph(dependencies: WorkflowDependencies):
         telemetry.pass_count = sum(item.status == "PASS" for item in verified)
         telemetry.fail_count = sum(item.status == "FAIL" for item in verified)
         telemetry.unverified_count = sum(item.status == "UNVERIFIED" for item in verified)
-        return {"verified": verified, "status": "running", "stop_reason": ""}
+        return {
+            "verified": verified,
+            "status": "running",
+            "stop_reason": state.get("stop_reason", ""),
+        }
 
     def rank_node(state: ShoppingState) -> dict[str, Any]:
         verified = state.get("verified", [])
@@ -163,11 +174,14 @@ def _build_graph(dependencies: WorkflowDependencies):
                 item.candidate.title.lower(),
             )
         )
+        stop_reason = state.get("stop_reason") or (
+            "budget_exhausted" if state["telemetry"].budget_exhausted_events else "completed"
+        )
         return {
             "shortlist": passes[:3],
             "unverified": [item for item in verified if item.status == "UNVERIFIED"][:3],
             "status": "success",
-            "stop_reason": "completed",
+            "stop_reason": stop_reason,
         }
 
     def render_node(state: ShoppingState) -> dict[str, Any]:
