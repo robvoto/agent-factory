@@ -2,7 +2,20 @@
 
 Current technical shape of agent-factory. For product direction, read `platform-architecture.md`.
 
-> **Role:** agent-factory is a specialist agent — it creates, configures, and stages agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
+> **Role:** agent-factory is the lifecycle service — it creates, validates, stages, and governs released agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
+
+## Lifecycle placement
+
+Factory-owned standard agents may remain in this repository after promotion. An agent
+is implemented in a separate specialist repository only after an explicit human and
+architecture decision that it has genuine independent engineering needs. Graduation is
+not automatic, and promotion means release and enablement rather than graduation.
+
+For an independent product agent, the specialist repository owns implementation,
+dependencies, implementation tests, and implementation release work. Factory continues
+to own and gate the registry entry, release contract, permissions, promotion, activation
+metadata, and governed upgrades. Agent Hub consumes the enabled release definition and
+runs or orchestrates it; it is not the development home.
 
 ## Implemented pieces
 
@@ -22,17 +35,19 @@ Current technical shape of agent-factory. For product direction, read `platform-
 ```text
 agent-factory/
   src/agent_factory/       # factory logic only
-  config/agents/           # enabled agents (read by Agent Hub)
+  config/agents/           # enabled release manifests (read by Agent Hub)
   staging/agents/          # unapproved drafts
   templates/agent-package/ # base scaffold template
   templates/progress-adapter/ # optional Hub progress capability
+  # independent product implementations live in their own specialist repositories after graduation
   docs/
   skills/
 ```
 
 ## Registry contract
 
-Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fields:
+Factory writes and activates `config/agents/<id>/agent.json` for a released version.
+Agent Hub reads it. Required fields:
 
 | Field | Written by | Read by |
 |-------|-----------|---------|
@@ -47,6 +62,14 @@ Factory writes `config/agents/<id>/agent.json`. Agent Hub reads it. Required fie
 ## Current boundary
 
 `src/agent_factory` is factory logic only. Do not put orchestration, routing, or runtime dispatch code here — those belong in `agent-hub`.
+
+Factory may modify or rebuild incubating packages and may propose upgrades, but it must
+not silently self-modify a released independent product implementation. Changes to
+permissions, tools or capability declarations, the runtime contract, manifest-governed
+model or cost limits, or the active release version require Factory validation and
+explicit human approval before activation. Release rollback reactivates a previously
+validated release through the registry; it does not restore arbitrary filesystem
+snapshots.
 
 ## Hub progress boundary
 

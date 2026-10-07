@@ -10,7 +10,14 @@ stateDiagram-v2
 
     Rejected --> Designing : Factory Brain refines
 
-    Approved --> Enabled : Promoted to config/agents/<br/>Agent Hub registry picks it up
+    Approved --> StandardReleased : Factory promotion<br/>validated + human-approved release
+    StandardReleased --> Enabled : Factory activates<br/>config/agents/ release definition
+    StandardReleased --> GraduationReview : Optional explicit human /<br/>architecture proposal
+
+    GraduationReview --> StandardReleased : Not justified<br/>remain Factory-owned
+    GraduationReview --> ProductRepo : Genuine independent<br/>engineering needs only
+    ProductRepo --> IndependentRelease : Specialist repo owns<br/>implementation release
+    IndependentRelease --> Enabled : Factory validates + activates<br/>registry release definition
 
     Enabled --> Running : Agent Hub Orchestrator<br/>routes tasks to it
 
@@ -20,7 +27,7 @@ stateDiagram-v2
 
     Running --> Improving : Factory Brain reads<br/>agent outcomes,<br/>proposes v2 spec
 
-    Improving --> Staged : New version staged<br/>old version archived on approval
+    Improving --> Staged : New version staged<br/>prior validated release remains available
 
     Running --> Retired : /delete or superseded by v2
 

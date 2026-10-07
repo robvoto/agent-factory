@@ -75,6 +75,35 @@ An agent enters the registry only after:
 
 Agent Hub **must not** use staged agents or read from `staging/agents/`.
 
+## Release and graduation boundary
+
+The registry publishes released definitions, not development ownership. A released
+definition may refer to either:
+
+- a standard agent whose package remains owned and maintained by Factory; or
+- an independent product agent whose implementation is owned by a separate specialist
+  repository after an explicit human and architecture decision.
+
+Promotion makes the validated version released, runnable, and eligible for the enabled
+registry. The default path is approval, promotion, and enablement; it does not require a
+graduation decision. Promotion does not automatically graduate a Factory-owned package.
+Only a concrete proposal enters optional graduation review. Graduation is not an
+executable threshold or heuristic; it is a deliberate architecture decision based on
+genuine independent engineering needs. If the proposal is rejected or not justified,
+the agent remains a standard released agent. Shopping Agent can therefore remain
+Factory-owned initially and graduate only if those needs later justify it.
+
+For an independent product agent, the specialist repository owns implementation,
+dependencies, implementation tests, and implementation release work. Factory still owns
+and gates registration, the registry and release contract, permission and capability
+validation, promotion, activation metadata, and governed upgrades. Agent Hub only
+consumes the enabled definition and runs or orchestrates the released agent; it is not
+the development home and must not modify the registry directly.
+
+When a released version must be rolled back, release governance activates a previously
+validated release/version through the Factory-controlled registry path. The process does
+not restore arbitrary filesystem snapshots or copy random old files.
+
 ## Agent Hub ↔ Factory communication protocol
 
 | Event | Action |
