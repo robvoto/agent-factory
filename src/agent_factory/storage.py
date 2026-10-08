@@ -19,7 +19,27 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).parents[2]
 _DEFAULT_DB_PATH = _PROJECT_ROOT / "data" / "agent_factory.sqlite3"
 logger = logging.getLogger(__name__)
-BUILD_TASK_STATUSES = frozenset({"prepared", "approved", "rejected", "stale", "superseded"})
+BUILD_TASK_STATUSES = frozenset(
+    {"prepared", "approved", "validated", "failed", "rejected", "stale", "superseded"}
+)
+_BUILD_TASK_STATUS_SQL = "'prepared', 'approved', 'validated', 'failed', 'rejected', 'stale', 'superseded'"
+
+
+def _build_tasks_table_sql() -> str:
+    return f"""CREATE TABLE build_tasks (
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        thread_id           TEXT NOT NULL,
+        artifact_reference  TEXT NOT NULL,
+        correlation_id      TEXT NOT NULL,
+        agent_id            TEXT NOT NULL,
+        agent_version       TEXT NOT NULL,
+        manifest_sha256     TEXT NOT NULL,
+        status              TEXT NOT NULL,
+        created_at          TEXT NOT NULL,
+        updated_at          TEXT NOT NULL,
+        decision_reason     TEXT,
+        CHECK (status IN ({_BUILD_TASK_STATUS_SQL}))
+    )"""
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS staged_agents (
@@ -63,7 +83,7 @@ CREATE TABLE IF NOT EXISTS build_tasks (
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL,
     decision_reason     TEXT,
-    CHECK (status IN ('prepared', 'approved', 'rejected', 'stale', 'superseded'))
+    CHECK (status IN ('prepared', 'approved', 'validated', 'failed', 'rejected', 'stale', 'superseded'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_tasks_thread_id ON build_tasks(thread_id);
@@ -107,27 +127,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
         if [column[2] for column in columns] == ["artifact_reference"]:
             unique_artifact_reference = True
             break
-    if unique_artifact_reference:
-        # AF-048 originally made the stable artifact path unique. Preserve every
-        # old row while replacing only that schema constraint.
+    table_sql_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'build_tasks'"
+    ).fetchone()
+    table_sql = (table_sql_row[0] or "") if table_sql_row else ""
+    needs_status_migration = not all(
+        f"'{status}'" in table_sql for status in ("validated", "failed")
+    )
+    if unique_artifact_reference or needs_status_migration:
+        # AF-048 changed both the stable artifact-path constraint and the
+        # lifecycle CHECK. Rebuild only this table, copying every historical row.
         conn.execute("DROP INDEX IF EXISTS idx_build_tasks_thread_id")
         conn.execute("ALTER TABLE build_tasks RENAME TO build_tasks_legacy")
-        conn.execute(
-            """CREATE TABLE build_tasks (
-                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-                thread_id           TEXT NOT NULL,
-                artifact_reference  TEXT NOT NULL,
-                correlation_id      TEXT NOT NULL,
-                agent_id            TEXT NOT NULL,
-                agent_version       TEXT NOT NULL,
-                manifest_sha256     TEXT NOT NULL,
-                status              TEXT NOT NULL,
-                created_at          TEXT NOT NULL,
-                updated_at          TEXT NOT NULL,
-                decision_reason     TEXT,
-                CHECK (status IN ('prepared', 'approved', 'rejected', 'stale', 'superseded'))
-            )"""
-        )
+        conn.execute(_build_tasks_table_sql())
         conn.execute(
             "INSERT INTO build_tasks (id, thread_id, artifact_reference, correlation_id, agent_id,"
             " agent_version, manifest_sha256, status, created_at, updated_at, decision_reason)"
@@ -512,6 +524,47 @@ def list_build_tasks_for_thread(thread_id: str, *, db_path: Path | None = None) 
     return [dict(row) for row in rows]
 
 
+def list_build_tasks_for_agent_manifest(
+    agent_id: str,
+    manifest_sha256: str,
+    *,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Return task history for the exact staged agent manifest identity."""
+
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return []
+    with _connect(resolved) as conn:
+        rows = conn.execute(
+            "SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks WHERE agent_id = ? AND manifest_sha256 = ? ORDER BY id",
+            (agent_id, manifest_sha256),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_build_tasks_for_agent(
+    agent_id: str,
+    *,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Return all build-task history for one agent, newest row last."""
+
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return []
+    with _connect(resolved) as conn:
+        rows = conn.execute(
+            "SELECT id, thread_id, artifact_reference, correlation_id, agent_id, agent_version,"
+            " manifest_sha256, status, created_at, updated_at, decision_reason"
+            " FROM build_tasks WHERE agent_id = ? ORDER BY id",
+            (agent_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def mark_build_task_approved(
     *,
     thread_id: str,
@@ -547,11 +600,17 @@ def mark_build_task_status(
     if status not in BUILD_TASK_STATUSES:
         raise ValueError(f"Unknown build-task status: {status!r}")
     now = _now_iso()
+    if status in {"validated", "failed"}:
+        current_status_clause = "status = 'approved'"
+    else:
+        current_status_clause = (
+            "status NOT IN ('rejected', 'stale', 'superseded', 'validated', 'failed')"
+        )
     with _connect(db_path or _DEFAULT_DB_PATH) as conn:
         cur = conn.execute(
             "UPDATE build_tasks SET status = ?, updated_at = ?, decision_reason = ?"
             " WHERE artifact_reference = ? AND correlation_id = ? AND thread_id = ?"
-            " AND status NOT IN ('rejected', 'stale', 'superseded')",
+            f" AND {current_status_clause}",
             (status, now, reason, artifact_reference, correlation_id, thread_id),
         )
         conn.commit()

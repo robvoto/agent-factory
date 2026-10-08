@@ -158,6 +158,17 @@ upgrade path; Agent Hub may route proposals but cannot bypass Factory governance
 
 Every change needs validation evidence before promotion.
 
+For a Factory implementation handoff, Agent Hub returns AI Tech Lead's structured
+BuildResult v1 under the originating Factory thread/correlation. Factory validates
+the result against the exact approved `AgentBuildTask` and the current staged
+manifest, then leaves successful work staged with a Factory-owned `BUILD_RESULT.json`
+and task status `validated`. Failed, unapproved, stale, unvalidated, or over-budget
+work is not promotable. The token budget covers metered ATL orchestrator usage;
+coding-backend token/cost usage is explicitly unknown when unavailable, and the time
+budget covers measured coding-agent execution duration. Separate human promotion
+approval remains required. The Hub return relay is a cross-project boundary and is
+not implied by Factory's local validation.
+
 At minimum:
 
 ```bash

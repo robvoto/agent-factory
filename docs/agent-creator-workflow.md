@@ -168,10 +168,22 @@ purpose, permissions, budgets, lifecycle state, or acceptance criteria.
 
 If AI Tech Lead discovers implementation evidence that invalidates a Factory design assumption, the conflict returns to Factory/operator review rather than being silently replaced during coding.
 
-This AF-048 slice does not dispatch to Agent Hub or invoke AI Tech Lead. Hub/ATL
-consumption is the next cross-project bridge change. It also does not promote the
-package: `agents/<id>/` and `config/agents/<id>.json` appear only after the separate
-Factory promotion approval.
+When Hub returns ATL's structured BuildResult v1 through the same Factory thread and
+correlation, Factory consumes it through `consume_agent_build_result`. The Factory
+consumer strictly validates the wire fields, exact approved task, staged manifest
+hash/design identity, permitted changed paths, required passed test commands, and
+metered budgets. A successful result is persisted as the Factory-owned
+`staging/agents/<id>/BUILD_RESULT.json` control artifact and moves the exact task to
+`validated`; failed or incomplete evidence moves only that approved task to
+`failed`. `BUILD_TASK.json` and `BUILD_RESULT.json` are never runtime package files.
+
+The v1 token budget covers metered `ai_tech_lead_orchestrator` usage. A separate
+coding backend's token and cost usage is explicitly unknown when it exposes no
+measurements, not zero. The time budget covers measured coding-agent execution
+duration; cost scope and source remain explicit and do not invent backend spend.
+Validation leaves the package staged. Existing separate human promotion approval is
+still required before release or registry update. The Hub relay that returns the
+BuildResult is a cross-project integration remaining outside this repository.
 
 ## Promotion rule
 

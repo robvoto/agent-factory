@@ -63,6 +63,9 @@ flowchart TD
 - Semantic search — current store uses keyword matching, not embeddings
 
 The AF-048 build task remains inside the staged package and is not runtime or
-promotion evidence. Factory never dispatches it or calls a coding backend in this
-slice; `agents/<id>/` and `config/agents/<id>.json` appear only after separate
-promotion approval.
+promotion evidence. Hub returns ATL BuildResult v1 under the same Factory
+thread/correlation; Factory validates it deterministically and persists
+`BUILD_RESULT.json` only after all checks pass. Factory never dispatches directly to
+ATL or a coding backend. Both control artifacts stay out of released runtime
+packages, and `agents/<id>/` plus `config/agents/<id>.json` appear only after the
+separate human promotion approval. The Hub return relay remains cross-project work.

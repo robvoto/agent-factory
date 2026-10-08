@@ -115,7 +115,7 @@ remains `(response_text, interrupted)`, so AF-012 does not make Factory Brain em
 dispatch a follow-on specialist. Hub separately requires an enclosing result with `status="success"`
 and validates `task_kind` against its current eligible registry.
 
-## Factory implementation handoff artifact (AF-048 first slice)
+## Factory implementation handoff and return validation (AF-048)
 
 When an approved staged design needs substantive implementation, Factory may prepare
 one bounded `AgentBuildTask` artifact at:
@@ -137,7 +137,7 @@ absolute paths, other-agent paths, and arbitrary repository paths fail closed.
 Factory persists the task's `thread_id` and `correlation_id` in SQLite. The artifact
 path is stable, but regenerated logical tasks retain historical rows distinguished by
 correlation and lifecycle status (`prepared`, `approved`, `rejected`, `stale`, or
-`superseded`). A current task cannot be hijacked by another Factory thread. The
+`superseded`, `validated`, or `failed`). A current task cannot be hijacked by another Factory thread. The
 correlation is derived from every caller-controlled task field and the staged manifest
 hash, so editing an approved `BUILD_TASK.json` body fails closed. The control artifact
 itself is never an allowed implementation path, even though it remains inside the
@@ -149,10 +149,28 @@ rejection only changes currently prepared tasks for that same thread.
 The structured Factory result emits `next_task` only after one current, non-stale
 approved correlation is found. It deterministically emits the AF-012 minimal shape
 with `task_kind="coding_task"`, a bounded implementation instruction, and the
-artifact/reference paths; it never parses prose. `BUILD_TASK.json` is not promotion
-evidence. This slice stops before the Agent Hub -> AI Tech Lead bridge, direct coding
-execution, promotion, or registry mutation. The next cross-project step is a Hub-side
-bridge that consumes this structured result and routes the artifact to AI Tech Lead.
+artifact/reference paths; it never parses prose. Hub returns ATL's BuildResult v1
+under that same thread/correlation, and Factory's deterministic consumer validates
+the result against the exact approved task and rechecks the staged manifest after
+implementation. Required tests must be represented as `passed`; changed files must
+be normalized descendants of permitted staged paths; failed, stopped, unvalidated,
+over-budget, or unapproved results cannot be promoted.
+
+Successful evidence is persisted only after validation at:
+
+```text
+staging/agents/<agent-id>/BUILD_RESULT.json
+```
+
+The result artifact records the canonical validated BuildResult, Factory thread,
+correlation, task reference, manifest identity, and a digest. Re-consuming the same
+validated correlation is idempotent; a different result fails closed. The latest
+current-manifest task must be `validated` for promotion, while packages with no
+build-task history retain the existing config-only promotion path. Both control
+artifacts are excluded from released runtime packages.
+
+Factory does not call an LLM or dispatch directly to ATL/Codex. The Hub relay that
+routes the task and returns BuildResult is the remaining cross-project integration.
 Until a separate promotion approval, the released home `agents/<id>/` and registry
 entry `config/agents/<id>.json` do not appear.
 

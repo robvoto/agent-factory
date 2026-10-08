@@ -29,7 +29,7 @@ runs or orchestrates it; it is not the development home.
 8. **Storage** — SQLite persistence for staged agents and approvals (`storage.py`)
 9. **Knowledge store** — factory-scoped knowledge for docs ingestion (`knowledge_store.py`)
 10. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
-11. **AF-048 build-task boundary** — strict staged `BUILD_TASK.json` artifacts, SQLite thread/correlation persistence, and a structured specialist-result wrapper (`build_task.py`, `storage.py`, `factory_brain.py`)
+11. **AF-048 build-task/build-result boundary** — strict staged `BUILD_TASK.json` and Factory-owned `BUILD_RESULT.json` artifacts, SQLite thread/correlation lifecycle persistence, deterministic ATL BuildResult v1 validation, promotion gating, and a structured specialist-result wrapper (`build_task.py`, `build_result.py`, `storage.py`, `agent_catalog.py`, `factory_brain.py`)
 
 ## What lives where
 
@@ -74,12 +74,15 @@ explicit human approval before activation. Release rollback reactivates a previo
 validated release through the registry; it does not restore arbitrary filesystem
 snapshots.
 
-The first AF-048 manufacturing slice stops at an approved, current structured build
-handoff. Factory does not dispatch the task, call AI Tech Lead/Codex/Claude, promote
-the staged package, or update `config/agents`. The next cross-project change belongs
-in Agent Hub: consume the Factory structured result and route its stable artifact
-reference to AI Tech Lead's existing coding workflow. Only separate promotion
-approval creates the released `agents/<id>/` package home and registry entry.
+Factory does not dispatch the task, call AI Tech Lead/Codex/Claude, or make a direct
+Factory-to-ATL call. Agent Hub routes the approved task and returns ATL BuildResult
+v1 under the same Factory thread/correlation. Factory then performs strict schema,
+task, manifest, changed-path, test, budget, and staged-package validation before
+persisting `BUILD_RESULT.json` and marking the exact task `validated`. Promotion
+still requires the existing separate human approval; only that path creates the
+released `agents/<id>/` package home and registry entry. The Hub relay that returns
+BuildResult remains a cross-project integration boundary and is not claimed complete
+by this repository change.
 
 ## Hub progress boundary
 

@@ -20,6 +20,14 @@ from pathlib import Path
 from typing import Any
 
 from .agent_spec import AgentPackageSpec
+from .build_task import (
+    BUILD_TASK_FILENAME,
+    AgentBuildTask,
+    BuildTaskError,
+    assert_task_matches_staged_package,
+    build_task_reference,
+    load_staged_manifest,
+)
 from .errors import AgentFactoryError, DuplicateAliasError
 from .loader import load_agent_manifests
 from .models import AgentManifest
@@ -29,6 +37,7 @@ _PROJECT_ROOT = Path(__file__).parents[2]
 _ENABLED_AGENTS_DIR = _PROJECT_ROOT / "config" / "agents"
 _STAGING_AGENTS_DIR = _PROJECT_ROOT / "staging" / "agents"
 _RELEASED_AGENTS_DIR = _PROJECT_ROOT / "agents"
+_FACTORY_CONTROL_ARTIFACTS = frozenset({BUILD_TASK_FILENAME, "BUILD_RESULT.json"})
 
 
 class AgentCatalogConflictError(AgentFactoryError):
@@ -189,6 +198,17 @@ def promote_agent(
     enabled_manifest_path = enabled_dir / f"{agent_id}.json"
 
     staged_manifest = _load_manifest_from_path(staged_manifest_path)
+    try:
+        _assert_build_result_gate(
+            agent_id,
+            staging_dir=staging_dir,
+            project_root=root,
+            db_path=db_path,
+        )
+    except BuildTaskError as exc:
+        raise AgentCatalogConflictError(
+            f"Cannot promote {agent_id}: current implementation handoff is not validated: {exc}"
+        ) from exc
     if released_dir.exists() and not _same_package(staging_dir, released_dir):
         raise AgentCatalogConflictError(
             f"Cannot promote {agent_id}: released package already contains different "
@@ -203,7 +223,7 @@ def promote_agent(
             )
     if not released_dir.exists():
         released_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(staging_dir, released_dir)
+        shutil.copytree(staging_dir, released_dir, ignore=_ignore_factory_control_artifacts)
 
     if not released_manifest_path.exists():
         raise AgentCatalogConflictError(
@@ -247,14 +267,83 @@ def _merge_released_packages(
 
 def _same_package(left: Path, right: Path) -> bool:
     """Compare package file paths and bytes without mutating either package."""
-    left_files = {path.relative_to(left) for path in left.rglob("*") if path.is_file()}
-    right_files = {path.relative_to(right) for path in right.rglob("*") if path.is_file()}
+    left_files = {
+        path.relative_to(left)
+        for path in left.rglob("*")
+        if path.is_file() and path.name not in _FACTORY_CONTROL_ARTIFACTS
+    }
+    right_files = {
+        path.relative_to(right)
+        for path in right.rglob("*")
+        if path.is_file() and path.name not in _FACTORY_CONTROL_ARTIFACTS
+    }
     if left_files != right_files:
         return False
     return all(
         (left / relative).read_bytes() == (right / relative).read_bytes()
         for relative in left_files
     )
+
+
+def _ignore_factory_control_artifacts(_directory: str, names: list[str]) -> list[str]:
+    """Keep Factory control artifacts out of released runtime packages."""
+
+    return [name for name in names if name in _FACTORY_CONTROL_ARTIFACTS]
+
+
+def _assert_build_result_gate(
+    agent_id: str,
+    *,
+    staging_dir: Path,
+    project_root: Path,
+    db_path: Path | None,
+) -> None:
+    """Require the latest current-manifest task to have validated evidence."""
+
+    from .storage import list_build_tasks_for_agent, list_build_tasks_for_agent_manifest
+
+    if not list_build_tasks_for_agent(agent_id, db_path=db_path):
+        # Legacy/simple config-only packages have no implementation handoff
+        # and retain the existing promotion path.
+        return
+
+    _raw, _manifest, manifest_digest = load_staged_manifest(staging_dir, agent_id)
+
+    history = list_build_tasks_for_agent_manifest(
+        agent_id,
+        manifest_digest,
+        db_path=db_path,
+    )
+    if not history:
+        raise BuildTaskError("build-task history exists, but none matches the current staged manifest")
+    current = history[-1]
+    if current["status"] != "validated":
+        raise BuildTaskError(
+            f"latest build task correlation {current['correlation_id']} is {current['status']!r}"
+        )
+    task_path = (project_root / current["artifact_reference"]).resolve()
+    try:
+        task = AgentBuildTask.model_validate(
+            json.loads(task_path.read_text(encoding="utf-8"))
+        )
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise BuildTaskError("validated build task artifact is invalid") from exc
+    if (
+        task.agent_id != agent_id
+        or task.correlation_id != current["correlation_id"]
+        or task.manifest_sha256 != manifest_digest
+        or build_task_reference(task) != current["artifact_reference"]
+    ):
+        raise BuildTaskError("validated build task identity does not match current staged manifest")
+    assert_task_matches_staged_package(task, project_root)
+    from .build_result import _load_persisted_result, _validate_for_task
+
+    persisted = _load_persisted_result(
+        project_root / f"{task.staging_target}/BUILD_RESULT.json",
+        task,
+        current["artifact_reference"],
+    )
+    _validate_for_task(persisted, task)
 
 
 def _merge_staged_packages(
