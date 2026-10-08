@@ -242,6 +242,39 @@ def test_successful_exact_result_persists_and_validates(tmp_path: Path) -> None:
     )["status"] == "validated"
 
 
+@pytest.mark.parametrize("verification", ["failed", "", "correction_required", "human_verification_required"])
+def test_success_with_incomplete_verification_is_rejected(tmp_path: Path, verification: str) -> None:
+    root, package, task, db = _setup(tmp_path)
+    payload = _result(task)
+    payload["validation_evidence"]["verification_status"] = verification
+    with pytest.raises(BuildResultConsumptionError, match="complete verification"):
+        _consume(root, task, db, payload)
+    assert not (package / "BUILD_RESULT.json").exists()
+    assert get_build_task(build_task_reference(task), thread_id=task.thread_id, correlation_id=task.correlation_id, db_path=db)["status"] == "failed"
+    with pytest.raises(AgentCatalogConflictError, match="not validated"):
+        promote_agent(task.agent_id, project_root=root, db_path=db)
+
+
+@pytest.mark.parametrize("review", ["changes-required", "findings", "findings_unresolved", "failed", "unavailable", "mutated", "unknown"])
+def test_success_with_nonpassing_review_is_rejected(tmp_path: Path, review: str) -> None:
+    root, package, task, db = _setup(tmp_path)
+    payload = _result(task)
+    payload["validation_evidence"]["independent_review"] = {"status": review, "reviewer": "reviewer", "findings": ["Required change remains."]}
+    with pytest.raises(BuildResultConsumptionError, match="passing independent review"):
+        _consume(root, task, db, payload)
+    assert not (package / "BUILD_RESULT.json").exists()
+    with pytest.raises(AgentCatalogConflictError, match="not validated"):
+        promote_agent(task.agent_id, project_root=root, db_path=db)
+
+
+@pytest.mark.parametrize("review", ["clean", "pass"])
+def test_completed_build_with_passing_review_is_validated(tmp_path: Path, review: str) -> None:
+    root, _package, task, db = _setup(tmp_path)
+    payload = _result(task)
+    payload["validation_evidence"]["independent_review"] = {"status": review, "reviewer": "reviewer", "findings": []}
+    assert _consume(root, task, db, payload)["status"] == "validated"
+
+
 def test_identical_result_is_idempotent_and_different_result_rejected(tmp_path: Path) -> None:
     root, _package, task, db = _setup(tmp_path)
     exact = _result(task)
