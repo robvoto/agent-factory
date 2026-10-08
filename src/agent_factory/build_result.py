@@ -456,6 +456,12 @@ def _validate_for_task(result: dict[str, Any], task: AgentBuildTask) -> None:
         )
     if result["validation_evidence"]["validation_passed"] is not True:
         raise BuildResultConsumptionError("BuildResult validation_evidence.validation_passed is not true")
+    evidence = result["validation_evidence"]
+    if evidence["verification_status"] != "complete":
+        raise BuildResultConsumptionError("successful BuildResult requires complete verification")
+    review = evidence["independent_review"]
+    if review is not None and review["status"] not in {"clean", "pass"}:
+        raise BuildResultConsumptionError("successful BuildResult requires a passing independent review")
     if result["validation_evidence"]["out_of_scope_paths"]:
         raise BuildResultConsumptionError("BuildResult reports out-of-scope changed paths")
     if result["errors"]:
