@@ -156,6 +156,13 @@ implementation. Required tests must be represented as `passed`; changed files mu
 be normalized descendants of permitted staged paths; failed, stopped, unvalidated,
 over-budget, or unapproved results cannot be promoted.
 
+The approved token ceiling covers orchestrator and coding-backend tokens together.
+Factory requires measured backend usage for a successful result and checks its sum
+with the orchestrator total. Unavailable backend usage remains valid stopped/failed
+evidence, but cannot validate a successful manufacturing task. Constrained ATL jobs
+report cumulative execution duration, excluding human waiting time, against the
+same approved time allowance.
+
 Successful evidence is persisted only after validation at:
 
 ```text

@@ -309,11 +309,16 @@ def _parse_token_usage(value: Any) -> dict[str, Any]:
         {"availability", "scope", "tokens", "reason"},
         "token_usage.backend_usage",
     )
-    if backend["availability"] != "unavailable" or backend["tokens"] is not None:
-        raise BuildResultValidationError(
-            "coding-backend usage must be explicitly unavailable with tokens=null"
-        )
+    availability = backend["availability"]
+    if availability == "available":
+        backend_tokens = _integer(backend["tokens"], "token_usage.backend_usage.tokens")
+    elif availability == "unavailable" and backend["tokens"] is None:
+        backend_tokens = None
+    else:
+        raise BuildResultValidationError("coding-backend usage availability/tokens are invalid")
     backend_scope = _text(backend["scope"], "token_usage.backend_usage.scope", non_empty=True)
+    if backend_scope != "coding_agent_backend":
+        raise BuildResultValidationError("coding-backend usage has an invalid scope")
     backend_reason = _text(backend["reason"], "token_usage.backend_usage.reason", non_empty=True)
     return {
         "scope": scope,
@@ -323,9 +328,9 @@ def _parse_token_usage(value: Any) -> dict[str, Any]:
         "tokens_out": tokens_out,
         "tokens_total": tokens_total,
         "backend_usage": {
-            "availability": "unavailable",
+            "availability": availability,
             "scope": backend_scope,
-            "tokens": None,
+            "tokens": backend_tokens,
             "reason": backend_reason,
         },
     }
@@ -468,9 +473,12 @@ def _validate_for_task(result: dict[str, Any], task: AgentBuildTask) -> None:
             raise BuildResultConsumptionError(
                 f"required test command was not represented as passed: {required!r}"
             )
-    if result["token_usage"]["tokens_total"] > task.token_budget:
+    backend = result["token_usage"]["backend_usage"]
+    if backend["availability"] != "available":
+        raise BuildResultConsumptionError("Whole-job token usage requires measured coding-backend usage")
+    if result["token_usage"]["tokens_total"] + backend["tokens"] > task.token_budget:
         raise BuildResultConsumptionError(
-            "BuildResult ATL orchestrator token usage exceeds the AgentBuildTask token budget"
+            "BuildResult whole-job token usage exceeds the AgentBuildTask token budget"
         )
     if result["duration_seconds"] > task.time_budget_seconds:
         raise BuildResultConsumptionError(

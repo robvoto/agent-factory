@@ -78,7 +78,9 @@ Factory does not dispatch the task, call AI Tech Lead/Codex/Claude, or make a di
 Factory-to-ATL call. Agent Hub routes the approved task and returns ATL BuildResult
 v1 under the same Factory thread/correlation. Factory then performs strict schema,
 task, manifest, changed-path, test, budget, and staged-package validation before
-persisting `BUILD_RESULT.json` and marking the exact task `validated`. Promotion
+persisting `BUILD_RESULT.json` and marking the exact task `validated`. Successful
+results require measured backend tokens plus orchestrator tokens within the approved
+whole-job ceiling; unavailable backend usage cannot establish success. Promotion
 still requires the existing separate human approval; only that path creates the
 released `agents/<id>/` package home and registry entry. The Hub relay that returns
 BuildResult remains a cross-project integration boundary and is not claimed complete

@@ -197,10 +197,10 @@ def _result(task: AgentBuildTask, **overrides: object) -> dict:
             "tokens_out": 30,
             "tokens_total": 100,
             "backend_usage": {
-                "availability": "unavailable",
+                "availability": "available",
                 "scope": "coding_agent_backend",
-                "tokens": None,
-                "reason": "The coding backend does not expose token or cost counts.",
+                "tokens": 20,
+                "reason": "Measured provider usage in the approved-budget ledger.",
             },
         },
         "estimated_cost_usd": None,
@@ -322,8 +322,19 @@ def test_budget_and_duration_are_enforced_without_fabricating_backend_usage(tmp_
 
     root, _package, task, db = _setup(tmp_path / "backend")
     result = _result(task)
-    assert result["token_usage"]["backend_usage"]["tokens"] is None
-    assert _consume(root, task, db, result)["status"] == "validated"
+    result["token_usage"]["backend_usage"].update(availability="unavailable", tokens=None)
+    with pytest.raises(BuildResultConsumptionError, match="measured coding-backend"):
+        _consume(root, task, db, result)
+
+
+def test_combined_usage_and_exact_budget_boundary(tmp_path: Path) -> None:
+    root, _package, task, db = _setup(tmp_path / "combined")
+    result = _result(task)
+    result["token_usage"]["backend_usage"]["tokens"] = 21
+    with pytest.raises(BuildResultConsumptionError, match="whole-job token usage"):
+        _consume(root, task, db, result)
+    root, _package, task, db = _setup(tmp_path / "boundary")
+    assert _consume(root, task, db, _result(task))["status"] == "validated"
 
 
 def test_wrong_thread_reference_and_stale_manifest_do_not_validate(tmp_path: Path) -> None:
