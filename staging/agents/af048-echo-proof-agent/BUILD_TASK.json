@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "agent_id": "af048-echo-proof-agent",
+  "agent_version": "1.0.0",
+  "manifest_schema_version": 1,
+  "manifest_sha256": "9030d222130ba90b1389cd790d7af342a61fbdefc4a34826c1cc135bf1ca8673",
+  "staging_target": "staging/agents/af048-echo-proof-agent",
+  "permitted_paths": [
+    "staging/agents/af048-echo-proof-agent/src/**",
+    "staging/agents/af048-echo-proof-agent/tests/**"
+  ],
+  "acceptance_criteria": [
+    "Implement a deterministic LangGraph workflow in src/agent.py with a callable run(task) returning exactly Echo: <task> for a non-empty string.",
+    "Reject non-string and whitespace-only inputs with ValueError; preserve the original non-empty task text.",
+    "Tests prove normal, Unicode, whitespace preservation and invalid inputs. No model calls or external tools.",
+    "Do not modify approved agent.json, Factory control artifacts, permissions or lifecycle state. Leave the package staged and unpromoted."
+  ],
+  "test_commands": [
+    "uv run --extra dev --extra langchain pytest staging/agents/af048-echo-proof-agent/tests -q",
+    "uv run python -m compileall -q staging/agents/af048-echo-proof-agent/src"
+  ],
+  "relevant_docs": [
+    "docs/agent-contract.md"
+  ],
+  "relevant_skills": [
+    "skills/agent-authoring/SKILL.md"
+  ],
+  "token_budget": 120000,
+  "time_budget_seconds": 600,
+  "stop_conditions": [
+    "Stop on ambiguity, exhausted token/time allowance, unknown usage, invalid output, failed tests or any write outside the permitted paths.",
+    "No retries with uncertain spend, fallback backend, budget increase, promotion or registry changes."
+  ],
+  "runtime_pattern": "deterministic_workflow",
+  "runtime_pattern_reason": "One fixed validation-and-echo path needs no model planning or tool choice.",
+  "thread_id": "af048-proof-20261008",
+  "correlation_id": "583a93f7cae7bdf15e6849dd07fa32a0"
+}

@@ -1,0 +1,55 @@
+# Af048 Echo Proof Agent Agent Instructions
+
+Status: staged draft only.
+
+This package is a template for a new agent. It is not enabled until approved.
+
+## Read first
+
+- `docs/INDEX.md` is the single documentation entry point when this agent becomes a project.
+- `agent.json` defines the staged agent contract.
+- `data/README.md` defines the approved seed/runtime data boundary.
+- `specialist_contract.py` adapts the universal Agent Hub task envelope into this specialist.
+- `skills/INDEX.md` lists reusable skills if skills exist.
+
+Do not turn `README.md` or `AGENTS.md` into a documentation index.
+
+## Working rules
+
+- Keep context bounded and read the smallest relevant docs first.
+- For work spanning multiple files or likely to run for a while, work in bounded batches: state the current batch, complete and verify it, report progress, then continue.
+- If a patch, exact-text replacement, or expected match fails, reread the current source and diagnose the mismatch before retrying. Do not retry stale input.
+- Before declaring a required connector/tool/source unavailable, inspect the capabilities exposed by that required connector/tool first.
+- Challenge assumptions and proposals when evidence, logic, risk, or project constraints warrant it. Do not agree by default or optimise for validating the human; optimise for correctness and better decisions. Do not be contrarian when the evidence supports agreement.
+- Preserve unknown project/resource references as unknown; ask for clarification instead of guessing.
+- Before introducing or relying on heuristic or approximate inference, apply the platform heuristic-review guardrail: assistive heuristics may narrow/rank candidates when they cannot determine the final result; a heuristic that decides semantic meaning, business outcome, target, permission, or action requires explicit human approval.
+- Change only files required for the task.
+- If you are writing code, make the smallest change that solves the task.
+- Update tests and docs when behavior changes.
+- Remove replaced code; do not leave dead code or unused shims behind.
+- Validate before claiming completion.
+- Before any semantic/product/UX/business-rule/default/workflow/data-interpretation/classification/heuristic/fallback/persistent-data behaviour change: investigate, explain the current finding and exact proposed effect, then wait for Rob's explicit approval. Treat uncertain changes as semantic; mechanical no-behaviour changes may proceed.
+- Never claim a preference, rule, memory, or instruction is persisted unless the authoritative persistent source was actually updated and verified.
+- Use `apply_patch` for manual edits.
+- Do not use destructive commands unless explicitly requested.
+
+## Governed self-improvement
+
+- Record reusable, verified operational lessons in `LESSONS.md`; do not use it for one-off incidents or chat history.
+- This agent may improve its own reusable skills or `AGENTS.md` without separate approval when evidence from completed work shows a repeatable problem, recurring correction, avoidable rework, or stable procedure.
+- When the evidence points beyond skills or `AGENTS.md`, propose one of: a bounded code change, a new skill, an update to an existing skill, or an `AGENTS.md` change.
+- Keep every improvement bounded to the demonstrated problem. Do not broaden purpose, permissions, memory access, tool access, runtime authority, repository scope, or promotion status.
+- Before editing, record the evidence, target file, expected reusable benefit, risk, and validation method in the task trace or final report.
+- Approved runtime agent skills live in `skills/<name>/SKILL.md` or the package's configured skill directory and must be registered in the package skill index. If the generated package later becomes a code repository, repository coding-agent instructions belong separately under `.agents/skills/`.
+- Keep skills concise, procedural, and task-specific. Do not duplicate policy that belongs in `AGENTS.md` or architecture rationale that belongs in docs.
+- Validate every skill or `AGENTS.md` improvement with the smallest relevant test or deterministic check.
+- Code or runtime self-modification still requires the normal approved bounded coding workflow and relevant validation.
+- Stop without changing anything when the evidence, target, ownership, or validation method is unclear.
+
+## Boundaries
+
+- Do not enable, promote, grant permissions to, or silently widen the scope of this agent from inside the agent.
+- Do not modify manifests, permissions, memory access, tools, runtime authority, or promotion state without explicit human approval.
+- Approved self-code changes must use the normal bounded coding workflow, target the correct repository, and pass relevant tests before activation.
+- Do not expand permissions or memory without approval.
+- Stop when evidence is insufficient, the target is unclear, validation fails, or the proposed change would exceed the approved scope.

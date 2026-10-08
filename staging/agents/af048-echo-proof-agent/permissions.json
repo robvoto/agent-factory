@@ -1,0 +1,11 @@
+{
+  "network": false,
+  "filesystem": "none",
+  "shell": false,
+  "external_apis": [],
+  "requires_approval": true,
+  "cost_limit": {
+    "currency": "USD",
+    "per_run": 0.0
+  }
+}
