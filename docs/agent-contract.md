@@ -148,11 +148,15 @@ rejection only changes currently prepared tasks for that same thread.
 
 The structured Factory result emits `next_task` only after one current, non-stale
 approved correlation is found. It deterministically emits the AF-012 minimal shape
-with `task_kind="coding_task"`, a bounded implementation instruction, and the
-artifact/reference paths; it never parses prose. Hub returns ATL's BuildResult v1
-under that same thread/correlation, and Factory's deterministic consumer validates
-the result against the exact approved task and rechecks the staged manifest after
-implementation. Required tests must be represented as `passed`; changed files must
+with `task_kind="coding_task"`, a self-contained implementation instruction, and the
+artifact/reference paths; it never parses prose. The instruction carries the exact
+approved acceptance criteria, permitted paths, validation commands, token/time
+limits, stop conditions, runtime pattern/reason, and permissions from the validated
+staged manifest, plus the staged-only/no-promotion boundary. This lets Hub route the
+approved task without relying on Factory conversation context. Hub returns ATL's
+BuildResult v1 under that same thread/correlation. Factory's deterministic consumer
+validates the result against the exact approved task and rechecks the staged manifest
+after implementation. Required tests must be represented as `passed`; changed files must
 be normalized descendants of permitted staged paths; failed, stopped, unvalidated,
 over-budget, or unapproved results cannot be promoted.
 

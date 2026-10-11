@@ -23,6 +23,7 @@ from .build_task import (
     BuildTaskError,
     assert_task_matches_staged_package,
     build_task_reference,
+    load_staged_manifest,
 )
 from .progress_events import ProgressReporter, run_agent_with_progress
 from .specialist_result import (
@@ -586,16 +587,36 @@ def build_factory_specialist_result(
 
     row, task = current_approved[0]
     artifact_reference = row["artifact_reference"]
+    raw_manifest, _manifest, _manifest_digest = load_staged_manifest(
+        _PROJECT_ROOT / task.staging_target,
+        task.agent_id,
+    )
 
     references: list[str] = [artifact_reference, *task.relevant_docs, *task.relevant_skills]
     references = list(dict.fromkeys(references))
+    permissions = json.dumps(raw_manifest["permissions"], sort_keys=True)
+    task_instructions = "\n".join(
+        [
+            f"Implement the approved staged agent package '{task.agent_id}' version {task.agent_version}.",
+            f"Approved artifact: {artifact_reference}",
+            f"Runtime pattern: {task.runtime_pattern}",
+            f"Runtime pattern reason: {task.runtime_pattern_reason}",
+            "Acceptance criteria:",
+            *(f"- {criterion}" for criterion in task.acceptance_criteria),
+            "Permitted paths:",
+            *(f"- {path}" for path in task.permitted_paths),
+            f"Agent permissions from the validated staged manifest: {permissions}",
+            "Required validation commands:",
+            *(f"- {command}" for command in task.test_commands),
+            f"Execution limits: at most {task.token_budget} tokens and {task.time_budget_seconds} seconds.",
+            "Stop conditions:",
+            *(f"- {condition}" for condition in task.stop_conditions),
+            "Keep the package staged. Do not modify the Factory control artifact, promote or enable the agent, or update the agent registry.",
+        ]
+    )
     next_task_value = {
         "task_kind": "coding_task",
-        "task": (
-            f"Implement the approved staged agent package '{task.agent_id}' within the permitted "
-            f"paths and controls recorded in {artifact_reference}. Stop after implementation "
-            "validation; do not promote the package or update config/agents."
-        ),
+        "task": task_instructions,
         "references": references,
     }
     next_task = validate_next_task_contract(next_task_value)
