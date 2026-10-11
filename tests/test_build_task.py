@@ -413,6 +413,26 @@ def test_approval_is_required_before_next_task_and_approval_is_deterministic(tmp
     assert set(result.next_task.model_dump()) == {"task_kind", "task", "references"}
     assert result.next_task.references[0] == prepared["artifact_reference"]
     assert result.artifact_reference == approved["artifact_reference"]
+    task_text = result.next_task.task
+    assert prepared["artifact_reference"] in task_text
+    for required in [
+        "test-agent",
+        "1.0.0",
+        "deterministic_workflow",
+        "The staged workflow is fixed and inspectable.",
+        "The staged package implements the approved capability.",
+        "staging/agents/test-agent/src/**",
+        '"filesystem": "none"',
+        '"network": false',
+        '"requires_approval": true',
+        '"shell": false',
+        "uv run pytest staging/agents/test-agent/tests -q",
+        "at most 12000 tokens and 1800 seconds",
+        "Stop when acceptance criteria or test commands cannot be satisfied.",
+        "Keep the package staged.",
+        "Do not modify the Factory control artifact, promote or enable the agent, or update the agent registry.",
+    ]:
+        assert required in task_text
 
 
 def test_rejected_task_cannot_emit_or_mutate_release_locations(tmp_path, monkeypatch) -> None:
