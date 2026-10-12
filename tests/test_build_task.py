@@ -139,6 +139,7 @@ def test_build_task_is_strict_and_requires_positive_budgets() -> None:
         AgentBuildTask.model_validate({**payload, "unknown": True})
     with pytest.raises(ValidationError):
         AgentBuildTask.model_validate({**payload, "token_budget": 0})
+    assert AgentBuildTask.model_validate({**payload, "token_budget": None}).token_budget is None
     with pytest.raises(ValidationError):
         AgentBuildTask.model_validate({**payload, "time_budget_seconds": -1})
     with pytest.raises(ValidationError, match="control artifact"):

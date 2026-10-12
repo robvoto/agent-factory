@@ -482,7 +482,10 @@ def _validate_for_task(result: dict[str, Any], task: AgentBuildTask) -> None:
     backend = result["token_usage"]["backend_usage"]
     if backend["availability"] != "available":
         raise BuildResultConsumptionError("Whole-job token usage requires measured coding-backend usage")
-    if result["token_usage"]["tokens_total"] + backend["tokens"] > task.token_budget:
+    if (
+        task.token_budget is not None
+        and result["token_usage"]["tokens_total"] + backend["tokens"] > task.token_budget
+    ):
         raise BuildResultConsumptionError(
             "BuildResult whole-job token usage exceeds the AgentBuildTask token budget"
         )

@@ -608,7 +608,13 @@ def build_factory_specialist_result(
             f"Agent permissions from the validated staged manifest: {permissions}",
             "Required validation commands:",
             *(f"- {command}" for command in task.test_commands),
-            f"Execution limits: at most {task.token_budget} tokens and {task.time_budget_seconds} seconds.",
+            (
+                f"Execution limits: no aggregate token ceiling; measure and report usage, "
+                f"and stop after {task.time_budget_seconds} seconds."
+                if task.token_budget is None
+                else f"Execution limits: at most {task.token_budget} tokens and "
+                f"{task.time_budget_seconds} seconds."
+            ),
             "Stop conditions:",
             *(f"- {condition}" for condition in task.stop_conditions),
             "Keep the package staged. Do not modify the Factory control artifact, promote or enable the agent, or update the agent registry.",

@@ -50,7 +50,7 @@ class AgentBuildTask(BaseModel):
     test_commands: list[StrictStr]
     relevant_docs: list[StrictStr]
     relevant_skills: list[StrictStr]
-    token_budget: StrictInt
+    token_budget: StrictInt | None
     time_budget_seconds: StrictInt
     stop_conditions: list[StrictStr]
     runtime_pattern: Literal["deterministic_workflow", "simple_agent", "deep_agent"]
@@ -114,9 +114,16 @@ class AgentBuildTask(BaseModel):
             raise ValueError(f"unsupported manifest schema version: {value}")
         return value
 
-    @field_validator("token_budget", "time_budget_seconds")
+    @field_validator("token_budget")
     @classmethod
-    def validate_positive_budget(cls, value: int) -> int:
+    def validate_positive_token_budget(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("must be greater than zero when supplied")
+        return value
+
+    @field_validator("time_budget_seconds")
+    @classmethod
+    def validate_positive_time_budget(cls, value: int) -> int:
         if value <= 0:
             raise ValueError("must be greater than zero")
         return value

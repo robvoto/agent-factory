@@ -151,7 +151,8 @@ Factory writes that handoff as `staging/agents/<agent-id>/BUILD_TASK.json` and r
 its thread and correlation in Factory SQLite. The task is strict and versioned: it
 contains the staged `agent.json` identity/hash, explicit acceptance criteria and test
 commands, permitted paths, relevant `docs/`/`skills/` references (including only the
-same package's local references), token/time budgets, stop conditions, and the
+same package's local references), an optional aggregate token ceiling, required
+time limit, stop conditions, and the
 manifest's explicit runtime pattern and reason. Preparation has no hidden defaults.
 Regeneration reuses the stable artifact path while preserving superseded/stale history.
 The correlation covers all caller-controlled task fields and the manifest hash, so a
@@ -177,9 +178,10 @@ metered budgets. A successful result is persisted as the Factory-owned
 `validated`; failed or incomplete evidence moves only that approved task to
 `failed`. `BUILD_TASK.json` and `BUILD_RESULT.json` are never runtime package files.
 
-The v1 token budget covers metered `ai_tech_lead_orchestrator` usage. A separate
-coding backend's token and cost usage is explicitly unknown when it exposes no
-measurements, not zero. The time budget covers measured coding-agent execution
+When a v1 token budget is supplied, it covers measured ATL and coding-backend
+usage together; null means there is no aggregate token ceiling. Usage must still
+be measured and reported, and unknown usage cannot validate a successful result.
+The time budget covers measured coding-agent execution
 duration; cost scope and source remain explicit and do not invent backend spend.
 Validation leaves the package staged. Existing separate human promotion approval is
 still required before release or registry update. The Hub relay that returns the
