@@ -86,7 +86,11 @@ def _manifest() -> dict:
 
 
 def _setup(
-    tmp_path: Path, *, status: str = "approved", token_budget: int | None = 120
+    tmp_path: Path,
+    *,
+    status: str = "approved",
+    token_budget: int | None = 120,
+    time_budget_seconds: int | None = 180,
 ) -> tuple[Path, Path, AgentBuildTask, Path]:
     root = tmp_path
     package = root / "staging" / "agents" / "test-agent"
@@ -103,7 +107,7 @@ def _setup(
         "relevant_docs": ["docs/agent-contract.md"],
         "relevant_skills": ["skills/agent-authoring/SKILL.md"],
         "token_budget": token_budget,
-        "time_budget_seconds": 180,
+        "time_budget_seconds": time_budget_seconds,
         "stop_conditions": ["Stop when evidence is unavailable."],
     }
     task = AgentBuildTask.model_validate(
@@ -372,15 +376,17 @@ def test_combined_usage_and_exact_budget_boundary(tmp_path: Path) -> None:
     assert _consume(root, task, db, _result(task))["status"] == "validated"
 
 
-def test_unbounded_task_accepts_large_measured_usage_and_keeps_time_limit(tmp_path: Path) -> None:
-    root, _package, task, db = _setup(tmp_path / "usage", token_budget=None)
-    result = _result(task)
+def test_unbounded_task_accepts_large_measured_usage_and_no_task_time_cutoff(tmp_path: Path) -> None:
+    root, _package, task, db = _setup(
+        tmp_path / "usage", token_budget=None, time_budget_seconds=None
+    )
+    result = _result(task, duration_seconds=86_400)
     result["token_usage"].update(tokens_in=700_000, tokens_out=300_000, tokens_total=1_000_000)
     result["token_usage"]["backend_usage"]["tokens"] = 200_000
 
     assert _consume(root, task, db, result)["status"] == "validated"
 
-    root, _package, task, db = _setup(tmp_path / "time", token_budget=None)
+    root, _package, task, db = _setup(tmp_path / "bounded-time", token_budget=None)
     too_long = _result(task, duration_seconds=task.time_budget_seconds + 0.1)
     with pytest.raises(BuildResultConsumptionError, match="duration"):
         _consume(root, task, db, too_long)

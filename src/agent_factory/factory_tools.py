@@ -463,7 +463,7 @@ def prepare_agent_build_task(
     relevant_docs: list[str],
     relevant_skills: list[str],
     token_budget: int | None,
-    time_budget_seconds: int,
+    time_budget_seconds: int | None,
     stop_conditions: list[str],
     config: RunnableConfig,
 ) -> str:

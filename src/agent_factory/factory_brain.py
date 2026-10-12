@@ -609,11 +609,21 @@ def build_factory_specialist_result(
             "Required validation commands:",
             *(f"- {command}" for command in task.test_commands),
             (
-                f"Execution limits: no aggregate token ceiling; measure and report usage, "
-                f"and stop after {task.time_budget_seconds} seconds."
-                if task.token_budget is None
-                else f"Execution limits: at most {task.token_budget} tokens and "
-                f"{task.time_budget_seconds} seconds."
+                "Execution controls: no aggregate token ceiling or task-wide elapsed-time cutoff; "
+                "measure and report cumulative usage and progress. Enforce configured provider-call "
+                "timeouts, and stop or escalate on the approved stop conditions."
+                if task.token_budget is None and task.time_budget_seconds is None
+                else "Execution controls: "
+                + (
+                    f"at most {task.token_budget} aggregate tokens; "
+                    if task.token_budget is not None
+                    else "no aggregate token ceiling; measure and report cumulative usage; "
+                )
+                + (
+                    f"at most {task.time_budget_seconds} task seconds."
+                    if task.time_budget_seconds is not None
+                    else "no task-wide elapsed-time cutoff; enforce configured provider-call timeouts."
+                )
             ),
             "Stop conditions:",
             *(f"- {condition}" for condition in task.stop_conditions),

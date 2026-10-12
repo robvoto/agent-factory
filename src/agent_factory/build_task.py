@@ -51,7 +51,7 @@ class AgentBuildTask(BaseModel):
     relevant_docs: list[StrictStr]
     relevant_skills: list[StrictStr]
     token_budget: StrictInt | None
-    time_budget_seconds: StrictInt
+    time_budget_seconds: StrictInt | None
     stop_conditions: list[StrictStr]
     runtime_pattern: Literal["deterministic_workflow", "simple_agent", "deep_agent"]
     runtime_pattern_reason: StrictStr
@@ -123,9 +123,9 @@ class AgentBuildTask(BaseModel):
 
     @field_validator("time_budget_seconds")
     @classmethod
-    def validate_positive_time_budget(cls, value: int) -> int:
-        if value <= 0:
-            raise ValueError("must be greater than zero")
+    def validate_positive_time_budget(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("must be greater than zero when supplied")
         return value
 
     @model_validator(mode="after")

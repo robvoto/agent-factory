@@ -97,6 +97,7 @@ def _prepare(
     acceptance_criteria: list[str] | None = None,
     relevant_docs: list[str] | None = None,
     relevant_skills: list[str] | None = None,
+    time_budget_seconds: int | None = 1800,
 ):
     return factory_tools.prepare_agent_build_task.invoke(
         {
@@ -107,7 +108,7 @@ def _prepare(
             "relevant_docs": relevant_docs or ["docs/agent-contract.md"],
             "relevant_skills": relevant_skills or ["skills/agent-authoring/SKILL.md"],
             "token_budget": 12000,
-            "time_budget_seconds": 1800,
+            "time_budget_seconds": time_budget_seconds,
             "stop_conditions": ["Stop when acceptance criteria or test commands cannot be satisfied."],
         },
         config={"configurable": {"thread_id": thread_id}},
@@ -140,6 +141,7 @@ def test_build_task_is_strict_and_requires_positive_budgets() -> None:
     with pytest.raises(ValidationError):
         AgentBuildTask.model_validate({**payload, "token_budget": 0})
     assert AgentBuildTask.model_validate({**payload, "token_budget": None}).token_budget is None
+    assert AgentBuildTask.model_validate({**payload, "time_budget_seconds": None}).time_budget_seconds is None
     with pytest.raises(ValidationError):
         AgentBuildTask.model_validate({**payload, "time_budget_seconds": -1})
     with pytest.raises(ValidationError, match="control artifact"):
@@ -155,9 +157,10 @@ def test_prepare_writes_only_staged_artifact_and_records_thread(tmp_path, monkey
     from agent_factory import factory_tools
     from agent_factory.storage import list_build_tasks_for_thread
 
-    result = json.loads(_prepare(factory_tools))
+    result = json.loads(_prepare(factory_tools, time_budget_seconds=None))
     artifact = package / "BUILD_TASK.json"
     assert result["artifact_reference"] == "staging/agents/test-agent/BUILD_TASK.json"
+    assert json.loads(artifact.read_text(encoding="utf-8"))["time_budget_seconds"] is None
     assert artifact.is_file()
     assert not (root / "BUILD_TASK.json").exists()
     rows = list_build_tasks_for_thread("thread-1")
@@ -428,7 +431,7 @@ def test_approval_is_required_before_next_task_and_approval_is_deterministic(tmp
         '"requires_approval": true',
         '"shell": false',
         "uv run pytest staging/agents/test-agent/tests -q",
-        "at most 12000 tokens and 1800 seconds",
+        "at most 12000 aggregate tokens; at most 1800 task seconds.",
         "Stop when acceptance criteria or test commands cannot be satisfied.",
         "Keep the package staged.",
         "Do not modify the Factory control artifact, promote or enable the agent, or update the agent registry.",

@@ -489,7 +489,10 @@ def _validate_for_task(result: dict[str, Any], task: AgentBuildTask) -> None:
         raise BuildResultConsumptionError(
             "BuildResult whole-job token usage exceeds the AgentBuildTask token budget"
         )
-    if result["duration_seconds"] > task.time_budget_seconds:
+    if (
+        task.time_budget_seconds is not None
+        and result["duration_seconds"] > task.time_budget_seconds
+    ):
         raise BuildResultConsumptionError(
             "BuildResult measured coding-agent execution duration exceeds the AgentBuildTask time budget"
         )
