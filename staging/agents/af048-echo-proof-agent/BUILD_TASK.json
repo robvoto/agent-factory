@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "agent_id": "af048-echo-proof-agent",
+  "agent_version": "1.0.0",
+  "manifest_schema_version": 1,
+  "manifest_sha256": "9030d222130ba90b1389cd790d7af342a61fbdefc4a34826c1cc135bf1ca8673",
+  "staging_target": "staging/agents/af048-echo-proof-agent",
+  "permitted_paths": [
+    "staging/agents/af048-echo-proof-agent/src/**",
+    "staging/agents/af048-echo-proof-agent/tests/**"
+  ],
+  "acceptance_criteria": [
+    "Implement the correction only in the permitted source and test paths. Preserve the existing staged agent identity and version; do not edit agent.json or any manifest-governed behavior, permissions, runtime, registry, or promotion state.",
+    "For any task input that is not a string, raise ValueError.",
+    "For an empty string or a string containing only whitespace, raise ValueError. Do not trim or otherwise normalize an accepted string.",
+    "For every other string, return exactly \"Echo: \" followed immediately by the original input. Preserve all original characters unchanged, including leading, trailing, repeated whitespace, line breaks, and Unicode.",
+    "Correct or add tests that exercise the full contract, including non-string, empty, whitespace-only, ordinary strings, leading/trailing/repeated whitespace, line breaks, and Unicode cases.",
+    "Run the required command `python -m pytest -q staging/agents/af048-echo-proof-agent/tests`; it must pass exactly 15 tests.",
+    "Report measured implementation token usage and elapsed execution time with the measurement source. The task-wide token and time budgets are null, meaning no aggregate ceiling; do not report estimates as measurements."
+  ],
+  "test_commands": [
+    "python -m pytest -q staging/agents/af048-echo-proof-agent/tests"
+  ],
+  "relevant_docs": [
+    "docs/agent-contract.md",
+    "docs/agent-creator-workflow.md"
+  ],
+  "relevant_skills": [
+    "skills/agent-authoring/SKILL.md"
+  ],
+  "token_budget": null,
+  "time_budget_seconds": null,
+  "stop_conditions": [
+    "Stop without changing files if the staged agent is missing or its identity/version/manifest differs from the existing staged package expected for this correction.",
+    "Stop before editing if implementation requires changing agent.json, any manifest, permissions, runtime, registry, promotion state, or a path outside the two permitted path patterns.",
+    "Stop and return a clarification if the exact echo/validation contract cannot be implemented within the permitted paths or conflicts with the staged runtime design.",
+    "Stop if the required test command cannot be run, does not pass exactly 15 tests, or measured usage cannot be reported; do not claim successful completion or fabricate measurements.",
+    "Do not promote, enable, dispatch, or otherwise change lifecycle state as part of implementation."
+  ],
+  "runtime_pattern": "deterministic_workflow",
+  "runtime_pattern_reason": "One fixed validation-and-echo path needs no model planning or tool choice.",
+  "thread_id": "hub-factory-af048-worker-final-20261013-02",
+  "correlation_id": "c85d59cd3071946f6a38a807dab6912f"
+}

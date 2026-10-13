@@ -1,0 +1,9 @@
+.env
+env/
+*.sqlite3
+*.sqlite3-*
+*.log
+data/settings.local*.json
+data/llm_usage.json
+logs/*
+!logs/.gitkeep
