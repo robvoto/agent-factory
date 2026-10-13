@@ -147,3 +147,10 @@ Reject vague purposes such as:
 ```text
 Handles useful work and helps with agents.
 ```
+
+
+## Prove Hub eligibility and dispatch
+
+A valid manifest or enabled registry entry alone does not prove that Hub can select the agent. Declare the supported Hub task kinds in `task_contract`, implement the manifest command exactly as configured, and verify both outputs from the package. Then test the Hub routing path against the current Hub/Factory revisions and correlate route selection, dispatched run, and the specialist's output.
+
+For literal-input contracts, preserve the exact `task` string. Do not combine caller context into that field if it changes the meaning of the task; use the separate context fields supported by the protocol. Inspect the payload actually received before calling the end-to-end test a pass. Prefer Hub's native specialist dispatch contract over MCP as an agent-to-agent transport.

@@ -83,3 +83,10 @@ This means Agent Hub can detect structural changes without the hash flickering o
 - `docs/agent-registry-contract.md` — full Agent Hub ↔ Factory protocol
 - `config/agents/<id>/agent.json` — individual agent specs
 - `tests/test_agent_manifest.py` — manifest tests
+
+
+## Prove specialist callability
+
+An agent appearing in the enabled registry proves registration only. Before claiming Hub-callable, verify that the current package exposes a working manifest command and declares a `task_contract` with the task kind Hub routes. A valid package that is enabled but has no matching task kind is not eligible for that request.
+
+For a live acceptance test, use the current Hub and Factory source revisions, correlate the routing decision to the dispatched run and specialist result, and inspect the exact `task` field received by the subprocess. Keep caller context separate from literal task input when the acceptance contract requires exact input. A new browser tab alone does not isolate a shared Telegram bot chat; use a distinct supported chat/session when another worker is active.
