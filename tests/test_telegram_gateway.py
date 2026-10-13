@@ -92,9 +92,13 @@ def test_delete_does_not_remove_released_package(monkeypatch, tmp_path: Path):
     released = tmp_path / "agents" / "alpha-agent"
     released.mkdir(parents=True)
     (released / "agent.json").write_text("{}", encoding="utf-8")
+    enabled = tmp_path / "config" / "agents" / "alpha-agent"
+    enabled.mkdir(parents=True)
+    (enabled / "agent.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(telegram_gateway, "_PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(telegram_gateway, "delete_staged_agent_record", lambda agent_id: False)
 
     telegram_gateway._delete_agent("alpha-agent")
 
+    assert not enabled.exists()
     assert released.exists()

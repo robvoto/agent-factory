@@ -226,7 +226,7 @@ This agent is not enabled.
 
 Do not promote this agent until approved. Promotion releases the full package
 under `agents/<id>/` and writes the Hub-facing registry entry to
-`config/agents/<id>.json` from that released package.
+`config/agents/<id>/agent.json` from that released package.
 """
     (package_dir / "REVIEW.md").write_text(content, encoding="utf-8", newline="\n")
     logger.debug("Wrote REVIEW.md for %s.", package_dir.name)

@@ -14,6 +14,7 @@ from .agent_spec import (
     McpServer,
     normalize_output_contract,
     normalize_runtime_config,
+    SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS,
 )
 from .errors import ManifestValidationError
 from .project_context import ProjectContextContract
@@ -34,6 +35,8 @@ class AgentManifest:
     tools: tuple[str, ...]
     permissions: dict[str, Any]
     memory: dict[str, Any]
+    version: str | None = None
+    manifest_schema_version: int | None = None
     design: dict[str, Any] | None = None
     runtime: dict[str, Any] = None  # type: ignore[assignment]
     mcp_servers: tuple[dict[str, Any], ...] | None = None
@@ -59,6 +62,26 @@ class AgentManifest:
             raise ManifestValidationError(f"Missing required manifest fields: {', '.join(missing)}")
 
         agent_id = _required_string(data["id"], "id")
+        version = data.get("version")
+        if version is not None:
+            if not isinstance(version, str) or not version.strip():
+                raise ManifestValidationError("version must be a non-empty semantic version string.")
+            try:
+                from .versioning import version_key
+
+                version_key(version)
+            except ValueError as exc:
+                raise ManifestValidationError(str(exc)) from exc
+        schema_version = data.get("manifest_schema_version")
+        if schema_version is not None and (
+            not isinstance(schema_version, int)
+            or isinstance(schema_version, bool)
+            or schema_version not in SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS
+        ):
+            raise ManifestValidationError(
+                f"Unsupported manifest_schema_version {schema_version!r}. "
+                f"Supported versions: {sorted(SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS)}."
+            )
         name = _required_string(data["name"], "name")
         try:
             purpose = validate_routing_purpose(_required_string(data["purpose"], "purpose"))
@@ -168,6 +191,8 @@ class AgentManifest:
 
         return cls(
             id=agent_id,
+            version=version.strip() if isinstance(version, str) else None,
+            manifest_schema_version=schema_version,
             name=name,
             purpose=purpose,
             aliases=normalized_aliases,

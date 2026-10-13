@@ -13,13 +13,14 @@ entry. Different agent IDs cannot claim the same alias.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .agent_spec import AgentPackageSpec
+from .agent_spec import AgentPackageSpec, VALID_ID_PATTERN, SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS
 from .build_task import (
     BUILD_TASK_FILENAME,
     AgentBuildTask,
@@ -32,6 +33,7 @@ from .errors import AgentFactoryError, DuplicateAliasError
 from .loader import load_agent_manifests
 from .models import AgentManifest
 from .storage import list_staged_agent_records
+from .versioning import package_diff, package_sha256, require_newer_version, version_key
 
 _PROJECT_ROOT = Path(__file__).parents[2]
 _ENABLED_AGENTS_DIR = _PROJECT_ROOT / "config" / "agents"
@@ -63,6 +65,16 @@ class AgentPackageDecision:
 
     action: str
     entry: AgentCatalogEntry | None = None
+
+
+@dataclass(frozen=True)
+class AgentPromotionPreview:
+    agent_id: str
+    staged_version: str
+    active_version: str | None
+    staged_sha256: str
+    active_sha256: str | None
+    diff: str
 
 
 def build_agent_catalog(
@@ -171,81 +183,276 @@ def plan_package_reuse(
     existing = catalog.get(manifest.id)
     if existing is None:
         return AgentPackageDecision(action="create")
-    if not _same_manifest(existing.manifest, manifest):
+    if _same_manifest(existing.manifest, manifest):
+        return AgentPackageDecision(action="reuse", entry=existing)
+    if "enabled" not in existing.statuses:
         raise AgentCatalogConflictError(
-            f"Agent {manifest.id!r} already exists with different contents at "
-            f"{', '.join(existing.locations)}. Reuse the existing agent or redesign it."
+            f"Agent {manifest.id!r} already exists with different staged contents at "
+            f"{', '.join(existing.locations)}. Resolve the staged package before creating another."
         )
-    return AgentPackageDecision(action="reuse", entry=existing)
+    current = existing.manifest
+    if current.version is None or current.manifest_schema_version is None:
+        raise AgentCatalogConflictError(
+            f"Cannot update {manifest.id!r}: enabled manifest has no supported version metadata."
+        )
+    release_root = (
+        enabled_dir.parent.parent / "agents" if enabled_dir is not None else _RELEASED_AGENTS_DIR
+    )
+    if not (release_root / manifest.id / "agent.json").is_file():
+        raise AgentCatalogConflictError(
+            f"Cannot update {manifest.id!r}: Factory's active released package is missing."
+        )
+    if manifest.manifest_schema_version not in SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS:
+        raise AgentCatalogConflictError(
+            f"Cannot update {manifest.id!r}: staged manifest schema "
+            f"{manifest.manifest_schema_version!r} is unsupported."
+        )
+    try:
+        require_newer_version(manifest.version or "", current.version)
+    except ValueError as exc:
+        raise AgentCatalogConflictError(f"Cannot update {manifest.id!r}: {exc}") from exc
+    return AgentPackageDecision(action="upgrade", entry=existing)
 
 
-def promote_agent(
+def preview_agent_promotion(
     agent_id: str,
     *,
     project_root: Path | None = None,
     db_path: Path | None = None,
-) -> str:
-    """Release a staged package and register its manifest without conflicts."""
+) -> AgentPromotionPreview:
+    """Validate and render the exact staged release that needs approval."""
     root = project_root or _PROJECT_ROOT
+    _validate_release_agent_id(agent_id)
     staging_dir = root / "staging" / "agents" / agent_id
-    staged_manifest_path = staging_dir / "agent.json"
-    if not staged_manifest_path.exists():
-        return f"Cannot promote {agent_id}: agent.json not found in staging."
-
+    staged_path = staging_dir / "agent.json"
     released_dir = root / "agents" / agent_id
-    released_manifest_path = released_dir / "agent.json"
-    enabled_dir = root / "config" / "agents"
-    enabled_manifest_path = enabled_dir / agent_id / "agent.json"
-
-    staged_manifest = _load_manifest_from_path(staged_manifest_path)
+    enabled_path = root / "config" / "agents" / agent_id / "agent.json"
+    previous_dir = root / "agents" / ".previous" / agent_id
+    if not staged_path.is_file():
+        raise AgentCatalogConflictError(f"Cannot promote {agent_id}: staged agent.json is missing.")
     try:
         _assert_build_result_gate(
-            agent_id,
-            staging_dir=staging_dir,
-            project_root=root,
-            db_path=db_path,
+            agent_id, staging_dir=staging_dir, project_root=root, db_path=db_path
         )
     except BuildTaskError as exc:
         raise AgentCatalogConflictError(
             f"Cannot promote {agent_id}: current implementation handoff is not validated: {exc}"
         ) from exc
-    if released_dir.exists() and not _same_package(staging_dir, released_dir):
+    staged_raw, staged_manifest = _load_versioned_manifest(staged_path)
+    if staged_manifest.id != agent_id:
+        raise AgentCatalogConflictError("Staged manifest ID does not match the requested agent ID.")
+    if staged_manifest.manifest_schema_version not in SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS:
         raise AgentCatalogConflictError(
-            f"Cannot promote {agent_id}: released package already contains different "
-            f"contents at {released_dir}."
+            f"Staged manifest schema {staged_manifest.manifest_schema_version!r} is unsupported."
         )
-    if enabled_manifest_path.exists():
-        enabled_manifest = _load_manifest_from_path(enabled_manifest_path)
-        if not _same_manifest(enabled_manifest, staged_manifest):
+
+    has_release = released_dir.exists()
+    has_enabled = enabled_path.exists()
+    if has_release != has_enabled:
+        raise AgentCatalogConflictError(
+            f"Cannot promote {agent_id}: released package and enabled registry disagree."
+        )
+    if has_release:
+        if not (released_dir / "agent.json").is_file():
+            raise AgentCatalogConflictError(f"Released package for {agent_id} has no agent.json.")
+        active_raw, active_manifest = _load_versioned_manifest(released_dir / "agent.json")
+        enabled_raw, enabled_manifest = _load_versioned_manifest(enabled_path)
+        if active_manifest.id != agent_id or enabled_manifest.id != agent_id:
+            raise AgentCatalogConflictError("Active package or registry has a conflicting agent ID.")
+        if active_raw != enabled_raw:
             raise AgentCatalogConflictError(
-                f"Cannot promote {agent_id}: config/agents already contains a different "
-                f"manifest at {enabled_manifest_path}."
+                f"Cannot promote {agent_id}: enabled manifest differs from Factory's active release."
             )
-    if not released_dir.exists():
-        released_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(staging_dir, released_dir, ignore=_ignore_factory_control_artifacts)
+        if staged_manifest.manifest_schema_version != active_manifest.manifest_schema_version:
+            raise AgentCatalogConflictError(
+                "Cannot promote across manifest schema versions; the staged manifest is incompatible with the active release."
+            )
+        try:
+            require_newer_version(staged_manifest.version or "", active_manifest.version or "")
+        except ValueError as exc:
+            raise AgentCatalogConflictError(f"Cannot promote {agent_id}: {exc}") from exc
+        active_version = active_manifest.version
+        active_sha = package_sha256(released_dir)
+        diff = package_diff(released_dir, staging_dir)
+    else:
+        if previous_dir.exists():
+            raise AgentCatalogConflictError(
+                f"Cannot promote {agent_id}: an orphaned previous release exists without an active release."
+            )
+        active_version = None
+        active_sha = None
+        diff = package_diff(None, staging_dir)
 
-    if not released_manifest_path.exists():
-        raise AgentCatalogConflictError(
-            f"Cannot promote {agent_id}: released package is missing agent.json."
-        )
-    released_manifest = _load_manifest_from_path(released_manifest_path)
-    if not _same_manifest(released_manifest, staged_manifest):
-        raise AgentCatalogConflictError(
-            f"Cannot promote {agent_id}: released agent.json differs from staging."
-        )
-
-    if not enabled_manifest_path.exists():
-        enabled_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        enabled_manifest_path.write_text(
-            released_manifest_path.read_text(encoding="utf-8"),
-            encoding="utf-8",
-        )
-    _mark_staged_agent_enabled(agent_id, staging_dir=staging_dir.parent, db_path=db_path)
-    return (
-        f"Agent {agent_id} released at agents/{agent_id}/ and enabled via "
-        f"config/agents/{agent_id}/agent.json."
+    return AgentPromotionPreview(
+        agent_id=agent_id,
+        staged_version=staged_manifest.version or "",
+        active_version=active_version,
+        staged_sha256=package_sha256(staging_dir),
+        active_sha256=active_sha,
+        diff=diff,
     )
+
+
+def promote_agent(
+    agent_id: str,
+    *,
+    expected_staged_sha256: str,
+    expected_active_sha256: str | None,
+    project_root: Path | None = None,
+    db_path: Path | None = None,
+) -> str:
+    """Activate an approved staged version while retaining one prior release."""
+    root = project_root or _PROJECT_ROOT
+    preview = preview_agent_promotion(agent_id, project_root=root, db_path=db_path)
+    if preview.staged_sha256 != expected_staged_sha256:
+        raise AgentCatalogConflictError("Staged package changed after approval; request promotion approval again.")
+    if preview.active_sha256 != expected_active_sha256:
+        raise AgentCatalogConflictError("Active release changed after approval; request promotion approval again.")
+
+    staging_dir = root / "staging" / "agents" / agent_id
+    released_dir = root / "agents" / agent_id
+    previous_dir = root / "agents" / ".previous" / agent_id
+    enabled_path = root / "config" / "agents" / agent_id / "agent.json"
+    temporary_dir = root / "agents" / f".release-{agent_id}.tmp"
+    temporary_manifest = enabled_path.with_name("agent.json.tmp")
+    had_active = released_dir.exists()
+    temporary_dir.parent.mkdir(parents=True, exist_ok=True)
+    if temporary_dir.exists():
+        shutil.rmtree(temporary_dir)
+    shutil.copytree(staging_dir, temporary_dir, ignore=_ignore_factory_control_artifacts)
+    if package_sha256(temporary_dir) != expected_staged_sha256:
+        shutil.rmtree(temporary_dir)
+        raise AgentCatalogConflictError("Staged package changed while preparing its release.")
+
+    previous_dir.parent.mkdir(parents=True, exist_ok=True)
+    if previous_dir.exists():
+        shutil.rmtree(previous_dir)
+    try:
+        if had_active:
+            os.replace(released_dir, previous_dir)
+        os.replace(temporary_dir, released_dir)
+        enabled_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_manifest.write_bytes((released_dir / "agent.json").read_bytes())
+        os.replace(temporary_manifest, enabled_path)
+    except Exception:
+        if released_dir.exists():
+            shutil.rmtree(released_dir)
+        if previous_dir.exists():
+            os.replace(previous_dir, released_dir)
+        temporary_manifest.unlink(missing_ok=True)
+        temporary_dir_safe_remove(temporary_dir)
+        raise
+    _mark_staged_agent_enabled(agent_id, staging_dir=staging_dir.parent, db_path=db_path)
+    old_text = preview.active_version or "none"
+    return (
+        f"Agent {agent_id} promoted from {old_text} to {preview.staged_version}; "
+        f"Factory retained the prior release at agents/.previous/{agent_id}/."
+        if had_active
+        else f"Agent {agent_id} first release {preview.staged_version} is active at agents/{agent_id}/."
+    )
+
+
+def preview_agent_rollback(
+    agent_id: str, *, project_root: Path | None = None
+) -> dict[str, str]:
+    root = project_root or _PROJECT_ROOT
+    _validate_release_agent_id(agent_id)
+    active_dir = root / "agents" / agent_id
+    previous_dir = root / "agents" / ".previous" / agent_id
+    enabled_path = root / "config" / "agents" / agent_id / "agent.json"
+    if not (active_dir / "agent.json").is_file() or not (previous_dir / "agent.json").is_file() or not enabled_path.is_file():
+        raise AgentCatalogConflictError(f"Cannot roll back {agent_id}: active or previous release is missing.")
+    active_raw, active = _load_versioned_manifest(active_dir / "agent.json")
+    previous_raw, previous = _load_versioned_manifest(previous_dir / "agent.json")
+    enabled_raw, _enabled = _load_versioned_manifest(enabled_path)
+    if active_raw != enabled_raw or active.id != agent_id or previous.id != agent_id:
+        raise AgentCatalogConflictError("Rollback blocked: active release and enabled registry conflict.")
+    if active.manifest_schema_version != previous.manifest_schema_version:
+        raise AgentCatalogConflictError("Rollback blocked: previous manifest schema is incompatible.")
+    if version_key(previous.version or "") >= version_key(active.version or ""):
+        raise AgentCatalogConflictError("Rollback blocked: previous release is not older than the active release.")
+    return {
+        "active_version": active.version or "",
+        "previous_version": previous.version or "",
+        "active_sha256": package_sha256(active_dir),
+        "previous_sha256": package_sha256(previous_dir),
+    }
+
+
+def rollback_agent(
+    agent_id: str,
+    *,
+    expected_active_sha256: str,
+    expected_previous_sha256: str,
+    project_root: Path | None = None,
+) -> str:
+    """Reactivate the last approved version and keep the displaced version available."""
+    root = project_root or _PROJECT_ROOT
+    preview = preview_agent_rollback(agent_id, project_root=root)
+    if preview["active_sha256"] != expected_active_sha256 or preview["previous_sha256"] != expected_previous_sha256:
+        raise AgentCatalogConflictError("Release state changed after rollback approval; request rollback again.")
+    active_dir = root / "agents" / agent_id
+    previous_dir = root / "agents" / ".previous" / agent_id
+    enabled_path = root / "config" / "agents" / agent_id / "agent.json"
+    displaced_dir = root / "agents" / f".rollback-active-{agent_id}.tmp"
+    temporary_manifest = enabled_path.with_name("agent.json.tmp")
+    if displaced_dir.exists():
+        shutil.rmtree(displaced_dir)
+    old_registry_bytes = enabled_path.read_bytes()
+    active_moved = False
+    previous_moved = False
+    registry_updated = False
+    try:
+        os.replace(active_dir, displaced_dir)
+        active_moved = True
+        os.replace(previous_dir, active_dir)
+        previous_moved = True
+        temporary_manifest.write_bytes((active_dir / "agent.json").read_bytes())
+        os.replace(temporary_manifest, enabled_path)
+        registry_updated = True
+        os.replace(displaced_dir, previous_dir)
+    except Exception:
+        if previous_moved and active_dir.exists():
+            os.replace(active_dir, previous_dir)
+        if active_moved and displaced_dir.exists():
+            os.replace(displaced_dir, active_dir)
+        if registry_updated:
+            temporary_manifest.write_bytes(old_registry_bytes)
+            os.replace(temporary_manifest, enabled_path)
+        temporary_manifest.unlink(missing_ok=True)
+        raise
+    return f"Agent {agent_id} rolled back from {preview['active_version']} to {preview['previous_version']}."
+
+
+def _load_versioned_manifest(path: Path) -> tuple[dict[str, Any], AgentManifest]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise AgentCatalogConflictError(f"Invalid release manifest at {path}: {exc}") from exc
+    if not isinstance(raw, dict) or "version" not in raw or "manifest_schema_version" not in raw:
+        raise AgentCatalogConflictError(f"Release manifest at {path} lacks version metadata.")
+    schema_version = raw["manifest_schema_version"]
+    if (
+        not isinstance(schema_version, int)
+        or isinstance(schema_version, bool)
+        or schema_version not in SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS
+    ):
+        raise AgentCatalogConflictError(f"Release manifest at {path} uses an incompatible schema version.")
+    try:
+        manifest = AgentManifest.from_dict(raw, source=path)
+    except Exception as exc:
+        raise AgentCatalogConflictError(f"Incompatible release manifest at {path}: {exc}") from exc
+    return raw, manifest
+
+
+def _validate_release_agent_id(agent_id: str) -> None:
+    if not VALID_ID_PATTERN.fullmatch(agent_id):
+        raise AgentCatalogConflictError(f"Invalid agent ID for release operation: {agent_id!r}.")
+
+
+def temporary_dir_safe_remove(path: Path) -> None:
+    if path.exists():
+        shutil.rmtree(path)
 
 
 def _merge_released_packages(
@@ -263,27 +470,6 @@ def _merge_released_packages(
             status="released",
             location=_relative_path(path.parent),
         )
-
-
-def _same_package(left: Path, right: Path) -> bool:
-    """Compare package file paths and bytes without mutating either package."""
-    left_files = {
-        path.relative_to(left)
-        for path in left.rglob("*")
-        if path.is_file() and path.name not in _FACTORY_CONTROL_ARTIFACTS
-    }
-    right_files = {
-        path.relative_to(right)
-        for path in right.rglob("*")
-        if path.is_file() and path.name not in _FACTORY_CONTROL_ARTIFACTS
-    }
-    if left_files != right_files:
-        return False
-    return all(
-        (left / relative).read_bytes() == (right / relative).read_bytes()
-        for relative in left_files
-    )
-
 
 def _ignore_factory_control_artifacts(_directory: str, names: list[str]) -> list[str]:
     """Keep Factory control artifacts out of released runtime packages."""
@@ -484,6 +670,8 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
     return AgentManifest.from_dict(
         {
             "id": spec.id,
+            "version": spec.version,
+            "manifest_schema_version": spec.manifest_schema_version,
             "name": spec.name,
             "purpose": spec.purpose,
             "aliases": list(spec.aliases),
@@ -506,6 +694,8 @@ def _manifest_from_spec(spec: AgentPackageSpec) -> AgentManifest:
 def _same_manifest(lhs: AgentManifest, rhs: AgentManifest) -> bool:
     return (
         lhs.id == rhs.id
+        and lhs.version == rhs.version
+        and lhs.manifest_schema_version == rhs.manifest_schema_version
         and lhs.name == rhs.name
         and lhs.purpose == rhs.purpose
         and lhs.aliases == rhs.aliases

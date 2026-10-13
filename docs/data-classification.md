@@ -22,7 +22,8 @@ Decision item: AF-025. Defines what belongs in Git, what is runtime state, and w
 - `templates/agent-package/` — committed source templates
 - `staging/agents/<id>/` — **committed**; draft packages staged for review before promotion
 - `agents/<id>/` — **committed** Factory-owned released package after human-approved promotion
-- `config/agents/<id>.json` — **committed** Hub-facing registry manifest derived from the released package
+- `agents/.previous/<id>/` — **committed** single previous approved package retained for Factory-governed rollback
+- `config/agents/<id>/agent.json` — **committed** Hub-facing registry manifest derived from the active released package
 
 ### Settings
 
@@ -76,7 +77,7 @@ Committed exceptions (must be explicit git-add):
 
 ```
 agents/<id>/
-config/agents/<id>.json
+config/agents/<id>/agent.json
 config/factory_settings.json
 data/settings.local.example.json
 templates/

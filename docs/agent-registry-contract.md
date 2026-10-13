@@ -13,7 +13,7 @@ in `config/agents/`.
 
 ```
 config/agents/
-  <agent-id>.json      ← enabled registry manifest (committed)
+  <agent-id>/agent.json      ← enabled registry manifest (committed)
 ```
 
 The full Factory-owned released package lives at `agents/<agent-id>/`. The
@@ -62,7 +62,7 @@ every enabled agent. Cache for up to `hub_integration.handshake_ttl_seconds`
 ### Option B — read registry files directly (preferred for local/trusted use)
 
 ```
-config/agents/<id>.json
+config/agents/<id>/agent.json
 ```
 
 Agent Hub reads each registry manifest for full spec details. Suitable when Agent Hub runs
@@ -74,7 +74,7 @@ An agent enters the registry only after:
 
 1. Factory creates a staged package in `staging/agents/`
 2. Human approval is granted (via `uv run agent-factory approve <id>`)
-3. Factory releases the package under `agents/<id>/` and writes `config/agents/<id>.json` via `agent-catalog`
+3. Factory releases the package under `agents/<id>/` and writes `config/agents/<id>/agent.json` via `agent-catalog`
 
 Agent Hub **must not** use staged agents or read from `staging/agents/`.
 
@@ -114,7 +114,7 @@ not restore arbitrary filesystem snapshots or copy random old files.
 | Agent Hub starts | Call `manifest` to warm the cache |
 | Agent not found in cache | Re-call `manifest` |
 | New agent promoted | Factory re-runs `manifest`; Agent Hub re-caches on next call or TTL |
-| Agent Hub needs full spec | Read `config/agents/<id>.json` directly |
+| Agent Hub needs full spec | Read `config/agents/<id>/agent.json` directly |
 | Agent Hub wants to create an agent | Route request to Factory via CLI or Telegram |
 
 ## Constraints

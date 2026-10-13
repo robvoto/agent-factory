@@ -67,5 +67,5 @@ promotion evidence. Hub returns ATL BuildResult v1 under the same Factory
 thread/correlation; Factory validates it deterministically and persists
 `BUILD_RESULT.json` only after all checks pass. Factory never dispatches directly to
 ATL or a coding backend. Both control artifacts stay out of released runtime
-packages, and `agents/<id>/` plus `config/agents/<id>.json` appear only after the
+packages, and `agents/<id>/` plus `config/agents/<id>/agent.json` appear only after the
 separate human promotion approval. The Hub return relay remains cross-project work.

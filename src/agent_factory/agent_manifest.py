@@ -153,7 +153,7 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
         "hub_integration": {
             "handshake_command": MANIFEST_COMMAND,
             "handshake_ttl_seconds": 3600,
-            "discovery": "registry-driven — Agent Hub reads config/agents/<id>.json or calls manifest",
+            "discovery": "registry-driven — Agent Hub reads config/agents/<id>/agent.json or calls manifest",
             "approval_required_before_registry_entry": True,
             "notes": "Agent Hub should call `manifest` once per session or when TTL expires. Never auto-scan the repo.",
         },

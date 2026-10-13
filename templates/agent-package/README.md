@@ -3,7 +3,7 @@
 Status: staged draft.
 
 This package is not live until approved and released under `agents/<id>/`. The
-Hub-facing registry entry is written to `config/agents/<id>.json` from that
+Hub-facing registry entry is written to `config/agents/<id>/agent.json` from that
 released package.
 
 ## Local instructions

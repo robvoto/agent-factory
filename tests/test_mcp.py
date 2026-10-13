@@ -150,7 +150,7 @@ def test_manifest_loader_rejects_mcp_permission_escalation() -> None:
 def test_staging_and_promotion_preserve_mcp_declarations(tmp_path, monkeypatch) -> None:
     import agent_factory.storage as storage_module
     from agent_factory import factory_tools
-    from agent_factory.agent_catalog import promote_agent
+    from agent_factory.agent_catalog import preview_agent_promotion, promote_agent
 
     staging = tmp_path / "staging" / "agents"
     staging.mkdir(parents=True)
@@ -170,8 +170,15 @@ def test_staging_and_promotion_preserve_mcp_declarations(tmp_path, monkeypatch) 
     assert staged["mcp_servers"][0]["name"] == "approved.server"
     assert staged["mcp_servers"][0]["tools"] == ["records.read"]
 
-    result = promote_agent("mcp-agent", project_root=tmp_path, db_path=db)
-    assert "released at agents/mcp-agent/" in result
+    preview = preview_agent_promotion("mcp-agent", project_root=tmp_path, db_path=db)
+    result = promote_agent(
+        "mcp-agent",
+        expected_staged_sha256=preview.staged_sha256,
+        expected_active_sha256=preview.active_sha256,
+        project_root=tmp_path,
+        db_path=db,
+    )
+    assert "active at agents/mcp-agent/" in result
     enabled = json.loads(
         (tmp_path / "config" / "agents" / "mcp-agent" / "agent.json").read_text(encoding="utf-8")
     )

@@ -56,11 +56,19 @@ filesystem snapshots or copy random old files. Factory Brain checkpoint rollback
 documented, is a conversation-state operation and is not a release rollback.
 
 For a Factory-owned standard agent, promotion copies the full validated staged
-package to `agents/<id>/` and writes `config/agents/<id>.json` from the released
-package. `staging/agents/<id>/` may remain as an audit snapshot, but it is never
-the authoritative released home. Full versioned promotion and rollback remain a
-future release-governance concern; this first release establishes the package
-boundary without implementing that version system.
+package to `agents/<id>/` and writes the Hub manifest to
+`config/agents/<id>/agent.json`. The staged and enabled manifests persist a
+semantic `version` and supported `manifest_schema_version`. Before an update,
+Factory checks that the staged version is newer and the schema is compatible,
+then shows a readable package diff. Approval records pin the staged and active
+package digests so edits made after review cannot be promoted under that approval.
+
+Factory retains the immediately previous approved package under
+`agents/.previous/<id>/`; a later successful promotion replaces that single
+rollback release. A separate approval-gated rollback activates the previous
+validated package and keeps the displaced active package as the new previous
+release. `staging/agents/<id>/` may hold the current draft, but it is never the
+authoritative released home.
 
 ## 1. Create
 

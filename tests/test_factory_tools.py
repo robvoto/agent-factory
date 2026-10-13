@@ -262,6 +262,7 @@ def test_create_staged_agent_package_success(tmp_path, monkeypatch):
     )
     assert "\\n" not in (pkg / "README.md").read_text(encoding="utf-8")
     manifest = json.loads((pkg / "agent.json").read_text(encoding="utf-8"))
+    assert manifest["version"] == "1.0.0"
     assert manifest["design"]["runtime_pattern"] == "deterministic_workflow"
     assert manifest["design"]["runtime_pattern_reason"]
     assert manifest["runtime"]["mode"] == "manual"
@@ -550,3 +551,30 @@ def test_create_staged_agent_package_writes_subprocess_output_contract(tmp_path,
         "waiting_decision",
         "failed",
     ]
+
+
+def test_promotion_request_shows_diff_and_rejection_keeps_release_disabled(tmp_path, monkeypatch):
+    from agent_factory import factory_tools, storage
+
+    staging = tmp_path / "staging" / "agents"
+    staging.mkdir(parents=True)
+    db = tmp_path / "factory.sqlite3"
+    monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(factory_tools, "_STAGING_DIR", staging)
+    monkeypatch.setattr(storage, "_DEFAULT_DB_PATH", db)
+
+    factory_tools.create_staged_agent_package.invoke({"spec_json": _spec_json()})
+    result = factory_tools.request_agent_promotion.invoke({"agent_id": "test-agent"})
+
+    assert "first release -> 1.0.0" in result
+    assert "agent.json" in result
+    assert "Use /approve" in result
+    approval_id = int(result.split("#", 1)[1].split(":", 1)[0])
+    approval = storage.get_approval(approval_id, db_path=db)
+    assert approval["approval_type"] == "promote-agent"
+    assert approval["details"]["staged_version"] == "1.0.0"
+    assert approval["details"]["staged_sha256"]
+
+    storage.decide_approval(approval_id, "rejected", "Rejected in test", db_path=db)
+    assert not (tmp_path / "agents" / "test-agent").exists()
+    assert (staging / "test-agent" / "agent.json").is_file()

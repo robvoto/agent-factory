@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from agent_factory.agent_catalog import AgentCatalogConflictError, promote_agent
+from agent_factory.agent_catalog import (
+    AgentCatalogConflictError,
+    preview_agent_promotion,
+    promote_agent,
+)
 from agent_factory.build_result import (
     BuildResultConsumptionError,
     BuildResultValidationError,
@@ -24,6 +28,17 @@ from agent_factory.storage import (
     list_build_tasks_for_reference,
     record_build_task,
 )
+
+
+def _approve_and_promote(agent_id: str, *, project_root: Path, db_path: Path) -> str:
+    preview = preview_agent_promotion(agent_id, project_root=project_root, db_path=db_path)
+    return promote_agent(
+        agent_id,
+        expected_staged_sha256=preview.staged_sha256,
+        expected_active_sha256=preview.active_sha256,
+        project_root=project_root,
+        db_path=db_path,
+    )
 
 
 def _manifest() -> dict:
@@ -258,7 +273,7 @@ def test_success_with_incomplete_verification_is_rejected(tmp_path: Path, verifi
     assert not (package / "BUILD_RESULT.json").exists()
     assert get_build_task(build_task_reference(task), thread_id=task.thread_id, correlation_id=task.correlation_id, db_path=db)["status"] == "failed"
     with pytest.raises(AgentCatalogConflictError, match="not validated"):
-        promote_agent(task.agent_id, project_root=root, db_path=db)
+        _approve_and_promote(task.agent_id, project_root=root, db_path=db)
 
 
 @pytest.mark.parametrize("review", ["changes-required", "findings", "findings_unresolved", "failed", "unavailable", "mutated", "unknown"])
@@ -270,7 +285,7 @@ def test_success_with_nonpassing_review_is_rejected(tmp_path: Path, review: str)
         _consume(root, task, db, payload)
     assert not (package / "BUILD_RESULT.json").exists()
     with pytest.raises(AgentCatalogConflictError, match="not validated"):
-        promote_agent(task.agent_id, project_root=root, db_path=db)
+        _approve_and_promote(task.agent_id, project_root=root, db_path=db)
 
 
 @pytest.mark.parametrize("review", ["clean", "pass"])
@@ -423,10 +438,10 @@ def test_promotion_requires_latest_current_task_validated_and_excludes_controls(
     root, package, task, db = _setup(tmp_path)
     (package / "BUILD_RESULT.json").write_text("not runtime\n", encoding="utf-8")
     with pytest.raises(AgentCatalogConflictError, match="not validated"):
-        promote_agent("test-agent", project_root=root, db_path=db)
+        _approve_and_promote("test-agent", project_root=root, db_path=db)
     _consume(root, task, db, _result(task))
-    message = promote_agent("test-agent", project_root=root, db_path=db)
-    assert "released at agents/test-agent/" in message
+    message = _approve_and_promote("test-agent", project_root=root, db_path=db)
+    assert "active at agents/test-agent/" in message
     assert not (root / "agents" / "test-agent" / "BUILD_TASK.json").exists()
     assert not (root / "agents" / "test-agent" / "BUILD_RESULT.json").exists()
     assert (root / "agents" / "test-agent" / "src" / "app.py").exists()
@@ -455,7 +470,7 @@ def test_newer_non_validated_task_blocks_old_validated_result(tmp_path: Path, ne
         db_path=db,
     )
     with pytest.raises(AgentCatalogConflictError, match="not validated"):
-        promote_agent("test-agent", project_root=root, db_path=db)
+        _approve_and_promote("test-agent", project_root=root, db_path=db)
 
 
 def test_package_with_no_build_task_remains_promotable(tmp_path: Path) -> None:
@@ -463,7 +478,7 @@ def test_package_with_no_build_task_remains_promotable(tmp_path: Path) -> None:
     package = root / "staging" / "agents" / "test-agent"
     package.mkdir(parents=True)
     (package / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
-    assert "released at agents/test-agent/" in promote_agent(
+    assert "active at agents/test-agent/" in _approve_and_promote(
         "test-agent", project_root=root, db_path=root / "factory.sqlite3"
     )
 
