@@ -77,7 +77,9 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
         "output_contract": None,
     }
     (staging / "agent.json").write_text(json.dumps(manifest), encoding="utf-8")
-    (enabled / "alpha-agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+    enabled_manifest = enabled / "alpha-agent" / "agent.json"
+    enabled_manifest.parent.mkdir()
+    enabled_manifest.write_text(json.dumps(manifest), encoding="utf-8")
 
     monkeypatch.setattr(factory_tools, "_PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(factory_tools, "_STAGING_DIR", tmp_path / "staging" / "agents")
@@ -88,7 +90,7 @@ def test_list_known_agents_merges_staged_and_enabled(tmp_path, monkeypatch):
     assert "staged" in result
     assert "enabled" in result
     assert "staging/agents/alpha-agent" in result
-    assert "config/agents/alpha-agent.json" in result
+    assert "config/agents/alpha-agent/agent.json" in result
 
 
 def test_list_registered_tool_ids_reads_canonical_registry(tmp_path, monkeypatch):

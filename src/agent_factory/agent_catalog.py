@@ -195,7 +195,7 @@ def promote_agent(
     released_dir = root / "agents" / agent_id
     released_manifest_path = released_dir / "agent.json"
     enabled_dir = root / "config" / "agents"
-    enabled_manifest_path = enabled_dir / f"{agent_id}.json"
+    enabled_manifest_path = enabled_dir / agent_id / "agent.json"
 
     staged_manifest = _load_manifest_from_path(staged_manifest_path)
     try:
@@ -236,7 +236,7 @@ def promote_agent(
         )
 
     if not enabled_manifest_path.exists():
-        enabled_dir.mkdir(parents=True, exist_ok=True)
+        enabled_manifest_path.parent.mkdir(parents=True, exist_ok=True)
         enabled_manifest_path.write_text(
             released_manifest_path.read_text(encoding="utf-8"),
             encoding="utf-8",
@@ -244,7 +244,7 @@ def promote_agent(
     _mark_staged_agent_enabled(agent_id, staging_dir=staging_dir.parent, db_path=db_path)
     return (
         f"Agent {agent_id} released at agents/{agent_id}/ and enabled via "
-        f"config/agents/{agent_id}.json."
+        f"config/agents/{agent_id}/agent.json."
     )
 
 

@@ -195,12 +195,14 @@ def test_promote_agent_reuses_existing_enabled_agent(tmp_path):
 
     payload = json.dumps(_manifest())
     (staging / "agent.json").write_text(payload, encoding="utf-8")
-    (enabled / "alpha-agent.json").write_text(payload, encoding="utf-8")
+    enabled_manifest = enabled / "alpha-agent" / "agent.json"
+    enabled_manifest.parent.mkdir()
+    enabled_manifest.write_text(payload, encoding="utf-8")
 
     result = promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
 
     assert "released at agents/alpha-agent/" in result
-    assert (enabled / "alpha-agent.json").read_text(encoding="utf-8") == payload
+    assert enabled_manifest.read_text(encoding="utf-8") == payload
     assert (tmp_path / "agents" / "alpha-agent" / "agent.json").read_text(encoding="utf-8") == payload
 
 
@@ -215,7 +217,7 @@ def test_promote_agent_releases_full_package_and_registry_comes_from_release(tmp
     promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
 
     released = tmp_path / "agents" / "alpha-agent"
-    registry = tmp_path / "config" / "agents" / "alpha-agent.json"
+    registry = tmp_path / "config" / "agents" / "alpha-agent" / "agent.json"
     assert (released / "README.md").read_text(encoding="utf-8") == "released package"
     assert registry.read_text(encoding="utf-8") == (released / "agent.json").read_text(encoding="utf-8")
 
@@ -264,7 +266,7 @@ def test_promote_agent_fails_when_released_package_conflicts(tmp_path):
     with pytest.raises(AgentCatalogConflictError, match="released package"):
         promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
 
-    assert not (tmp_path / "config" / "agents" / "alpha-agent.json").exists()
+    assert not (tmp_path / "config" / "agents" / "alpha-agent" / "agent.json").exists()
 
 
 def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):
