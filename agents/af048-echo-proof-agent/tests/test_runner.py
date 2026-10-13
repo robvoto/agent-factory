@@ -56,3 +56,18 @@ def test_main_uses_hub_json_file_contract(tmp_path):
         "status": "success",
         "summary": "Echo: " + task,
     }
+
+
+def test_manifest_mode_emits_stable_hub_metadata(capsys):
+    from run_agent import build_manifest
+
+    assert main(["--manifest"]) == 0
+    emitted = json.loads(capsys.readouterr().out)
+    assert emitted == build_manifest()
+    assert emitted["agent_id"] == "af048-echo-proof-agent"
+    assert emitted["package_version"] == "1.1.0"
+    assert emitted["task_contract"]["task_kinds"] == ["echo_task"]
+    assert emitted["task_contract"]["default_task_kind"] == "echo_task"
+    assert len(emitted["manifest_hash"]) == 64
+    assert main(["--manifest"]) == 0
+    assert json.loads(capsys.readouterr().out) == emitted

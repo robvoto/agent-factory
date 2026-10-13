@@ -1,6 +1,6 @@
 {
   "id": "af048-echo-proof-agent",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "manifest_schema_version": 1,
   "name": "Af048 Echo Proof Agent",
   "purpose": "Primary responsibility: AF048 echo proof agent: a short standalone deterministic LangGraph workflow that accepts a non-empty task string and returns Echo: followed by the exact task; reject missing, blank or non-string tasks. No model calls, tools, memory, network, runtime filesystem access or promotion.\nSelect for: Requests that directly require: AF048 echo proof agent: a short standalone deterministic LangGraph workflow that accepts a non-empty task string and returns Echo: followed by the exact task; reject missing, blank or non-string tasks. No model calls, tools, memory, network, runtime filesystem access or promotion.\nDo not select for: Requests outside this stated responsibility.",
@@ -26,6 +26,7 @@
   "runtime": {
     "mode": "subprocess",
     "entrypoint": "python src/run_agent.py",
+    "manifest_command": "python src/run_agent.py --manifest",
     "working_directory": "/home/robvoto/projects/agent-factory/agents/af048-echo-proof-agent",
     "input_arg": "--input-json",
     "output_arg": "--output-json",
@@ -70,6 +71,7 @@
       "source",
       "execution_mode",
       "progress_jsonl",
+      "task_kind",
       "project_root",
       "references",
       "human_approved",
@@ -81,6 +83,13 @@
       "references"
     ],
     "required_context": []
+  },
+  "task_contract": {
+    "task_kinds": ["echo_task"],
+    "task_kind_descriptions": {
+      "echo_task": "Echo the non-empty task string exactly, prefixing it with Echo:."
+    },
+    "default_task_kind": "echo_task"
   },
   "interaction_contract": {
     "progress": false,

@@ -31,7 +31,9 @@ mode used by the caller.
 
 Hub passes a JSON task file to `src/run_agent.py`, which writes a structured
 result JSON file. Successful input returns exactly `Echo: ` followed by the
-original task string, preserving whitespace, newlines, and Unicode.
+original task string, preserving whitespace, newlines, and Unicode. Hub reads
+package metadata through the read-only `python src/run_agent.py --manifest`
+command declared in `agent.json`; it performs no task execution or file writes.
 
 ## Approval required before
 
