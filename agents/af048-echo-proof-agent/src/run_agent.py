@@ -36,6 +36,7 @@ def build_manifest() -> dict[str, Any]:
         "package_version": spec["version"],
         "manifest_schema_version": spec["manifest_schema_version"],
         "input_contract": spec["input_contract"],
+        "task_contract": spec["task_contract"],
         "output_contract": spec["output_contract"],
     }
     canonical = json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
