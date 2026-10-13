@@ -2,7 +2,7 @@
 
 Current technical shape of agent-factory. For product direction, read `platform-architecture.md`.
 
-> **Role:** agent-factory is the lifecycle service — it creates, validates, stages, and governs released agents. It does NOT orchestrate or run them. `agent-hub` is the orchestrator.
+> **Role:** agent-factory creates, validates, stages, and governs agents. It has a narrow, explicitly approved local test command for staged subprocess packages; it does not orchestrate or serve staged agents. `agent-hub` orchestrates released agents.
 
 ## Lifecycle placement
 
@@ -30,6 +30,7 @@ runs or orchestrates it; it is not the development home.
 9. **Knowledge store** — factory-scoped knowledge for docs ingestion (`knowledge_store.py`)
 10. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
 11. **AF-048 build-task/build-result boundary** — strict staged `BUILD_TASK.json` and Factory-owned `BUILD_RESULT.json` artifacts, SQLite thread/correlation lifecycle persistence, deterministic ATL BuildResult v1 validation, promotion gating, and a structured specialist-result wrapper (`build_task.py`, `build_result.py`, `storage.py`, `agent_catalog.py`, `factory_brain.py`)
+12. **AF-045 incubation test harness** — explicit local tests of validated staged subprocess packages via a disposable copy, temporary JSON I/O, declared-risk approval, and metadata-only SQLite run history (`incubation_test.py`, `storage.py`). It does not register or route staged agents.
 
 ## What lives where
 
@@ -64,7 +65,7 @@ the registry entry. Required fields:
 
 ## Current boundary
 
-`src/agent_factory` is factory logic only. Do not put orchestration, routing, or runtime dispatch code here — those belong in `agent-hub`.
+`src/agent_factory` does not own Hub orchestration, routing, or general runtime dispatch; those belong in `agent-hub`. The AF-045 command is limited to an operator-approved local test of the current staged Python subprocess package and never participates in Hub routing.
 
 Factory may modify or rebuild incubating packages and may propose upgrades, but it must
 not silently self-modify a released independent product implementation. Changes to

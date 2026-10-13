@@ -46,6 +46,28 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser("pending", help="List pending approvals")
     subparsers.add_parser("staged", help="List staged agent drafts")
 
+    test_parser = subparsers.add_parser(
+        "test",
+        help="Run one explicitly approved staged subprocess agent locally; does not enable or route it",
+    )
+    test_parser.add_argument("agent_id", help="ID of the incubating package in staging/agents")
+    test_parser.add_argument("--input-json", required=True, help="Path to a JSON task object")
+    test_parser.add_argument("--approve", action="store_true", required=True, help="Confirm this local test run")
+    test_parser.add_argument(
+        "--approve-risk",
+        action="store_true",
+        help="Approve declared network, filesystem-write, shell, or environment capabilities for this run",
+    )
+    test_parser.add_argument(
+        "--expose-env",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Expose this one existing environment variable to the staged process; requires --approve-risk",
+    )
+    runs_parser = subparsers.add_parser("test-runs", help="List metadata for prior incubation test runs")
+    runs_parser.add_argument("agent_id", nargs="?", help="Optionally filter by staged agent ID")
+
     create_parser = subparsers.add_parser("create", help="Create a staged agent package (deterministic)")
     create_parser.add_argument("request", help="Plain-language agent request")
     create_parser.add_argument(
@@ -179,6 +201,31 @@ def main(argv: list[str] | None = None) -> int:
         for r in records:
             print(f"[{r['id']}] {r['approval_type']} / {r['target_id']}")
             print(f"    {r['summary'][:120]}")
+        return 0
+
+    if args.subcommand == "test":
+        from .incubation_test import IncubationTestError, run_staged_agent_test
+
+        try:
+            payload = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
+            result = run_staged_agent_test(
+                args.agent_id,
+                payload,
+                approved=args.approve,
+                approve_risk=args.approve_risk,
+                exposed_environment=tuple(args.expose_env),
+                project_root=PROJECT_ROOT,
+            )
+        except (OSError, json.JSONDecodeError, IncubationTestError) as exc:
+            print(f"Incubation test failed: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] != "failed" else 1
+
+    if args.subcommand == "test-runs":
+        from .storage import list_incubation_test_runs
+
+        print(json.dumps(list_incubation_test_runs(agent_id=args.agent_id), ensure_ascii=False, indent=2))
         return 0
 
     if args.subcommand == "approve":

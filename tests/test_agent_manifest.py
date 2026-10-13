@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 
 import agent_factory.cli as cli_module
-from agent_factory.agent_manifest import MANIFEST_COMMAND, build_factory_manifest, render_factory_manifest
+from agent_factory.agent_manifest import (
+    MANIFEST_COMMAND,
+    build_factory_manifest,
+    render_factory_manifest,
+)
 
 
 def test_build_factory_manifest_contains_core_fields() -> None:
@@ -14,6 +18,8 @@ def test_build_factory_manifest_contains_core_fields() -> None:
     assert manifest["agent_name"] == "Agent Factory"
     assert manifest["entrypoints"]["manifest"] == "manifest"
     assert manifest["entrypoints"]["cli"] == "agent-factory"
+    assert manifest["entrypoints"]["test"] == "test"
+    assert manifest["entrypoints"]["test-runs"] == "test-runs"
     assert manifest["entrypoints"]["setup"] == "setup"
     assert manifest["entrypoints"]["doctor"] == "doctor"
     assert manifest["purpose"] == (

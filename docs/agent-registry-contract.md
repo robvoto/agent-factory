@@ -77,6 +77,9 @@ An agent enters the registry only after:
 3. Factory releases the package under `agents/<id>/` and writes `config/agents/<id>.json` via `agent-catalog`
 
 Agent Hub **must not** use staged agents or read from `staging/agents/`.
+Factory's separate AF-045 local test command may execute a validated staged
+subprocess package after explicit operator approval. That test path uses a
+temporary copy and never adds a registry entry or makes the package Hub-callable.
 
 ## Release and graduation boundary
 
