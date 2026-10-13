@@ -26,6 +26,7 @@
   "runtime": {
     "mode": "subprocess",
     "entrypoint": "python src/run_agent.py",
+    "manifest_command": "python src/run_agent.py --manifest",
     "working_directory": "/home/robvoto/projects/agent-factory/agents/af048-echo-proof-agent",
     "input_arg": "--input-json",
     "output_arg": "--output-json",
