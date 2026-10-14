@@ -5,10 +5,12 @@ Tables:
   approvals       — pending/decided approval records
   factory_threads — Telegram chat → LangGraph thread mapping
   build_tasks     — Factory implementation handoffs keyed by thread
+  incubation_test_runs — operator-initiated staged-agent test executions
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import json
 import sqlite3
@@ -89,11 +91,112 @@ CREATE TABLE IF NOT EXISTS build_tasks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_build_tasks_thread_id ON build_tasks(thread_id);
+
+CREATE TABLE IF NOT EXISTS incubation_test_runs (
+    run_id              TEXT PRIMARY KEY,
+    agent_id            TEXT NOT NULL,
+    manifest_sha256     TEXT NOT NULL,
+    package_sha256      TEXT NOT NULL,
+    input_sha256        TEXT NOT NULL,
+    status              TEXT NOT NULL,
+    started_at          TEXT NOT NULL,
+    finished_at         TEXT,
+    duration_ms         INTEGER,
+    exit_code           INTEGER,
+    permission_flags    TEXT NOT NULL,
+    exposed_environment TEXT NOT NULL DEFAULT '[]',
+    risk_approved       INTEGER NOT NULL DEFAULT 0,
+    failure_code        TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_incubation_test_runs_agent
+    ON incubation_test_runs(agent_id, started_at);
 """
 
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def start_incubation_test_run(
+    *,
+    run_id: str,
+    agent_id: str,
+    manifest_sha256: str,
+    package_sha256: str,
+    input_sha256: str,
+    permission_flags: list[str],
+    exposed_environment: list[str],
+    risk_approved: bool,
+    db_path: Path | None = None,
+) -> None:
+    """Persist a staged test attempt before executing package code."""
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO incubation_test_runs "
+            "(run_id, agent_id, manifest_sha256, package_sha256, input_sha256, status, "
+            "started_at, permission_flags, exposed_environment, risk_approved) "
+            "VALUES (?, ?, ?, ?, ?, 'running', ?, ?, ?, ?)",
+            (
+                run_id,
+                agent_id,
+                manifest_sha256,
+                package_sha256,
+                input_sha256,
+                _now_iso(),
+                json.dumps(sorted(permission_flags)),
+                json.dumps(sorted(exposed_environment)),
+                int(risk_approved),
+            ),
+        )
+        conn.commit()
+
+
+def finish_incubation_test_run(
+    run_id: str,
+    *,
+    status: str,
+    duration_ms: int,
+    exit_code: int | None,
+    failure_code: str | None = None,
+    db_path: Path | None = None,
+) -> None:
+    """Record a test execution outcome without storing task or result content."""
+    if status not in {"success", "needs_clarification", "waiting_decision", "failed", "blocked"}:
+        raise ValueError(f"Unknown incubation-test status: {status!r}")
+    with _connect(db_path or _DEFAULT_DB_PATH) as conn:
+        cur = conn.execute(
+            "UPDATE incubation_test_runs SET status = ?, finished_at = ?, duration_ms = ?, "
+            "exit_code = ?, failure_code = ? WHERE run_id = ? AND status = 'running'",
+            (status, _now_iso(), duration_ms, exit_code, failure_code, run_id),
+        )
+        conn.commit()
+        if cur.rowcount != 1:
+            raise ValueError(f"Incubation test run is missing or already finished: {run_id}")
+
+
+def list_incubation_test_runs(
+    *, agent_id: str | None = None, db_path: Path | None = None
+) -> list[dict]:
+    """Return test-run audit metadata, newest first, without payloads."""
+    resolved = db_path or _DEFAULT_DB_PATH
+    if not resolved.exists():
+        return []
+    with _connect(resolved) as conn:
+        if agent_id is None:
+            rows = conn.execute(
+                "SELECT run_id, agent_id, manifest_sha256, package_sha256, input_sha256, status, started_at, "
+                "finished_at, duration_ms, exit_code, permission_flags, exposed_environment, risk_approved, failure_code "
+                "FROM incubation_test_runs ORDER BY started_at DESC"
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT run_id, agent_id, manifest_sha256, package_sha256, input_sha256, status, started_at, "
+                "finished_at, duration_ms, exit_code, permission_flags, exposed_environment, risk_approved, failure_code "
+                "FROM incubation_test_runs WHERE agent_id = ? ORDER BY started_at DESC",
+                (agent_id,),
+            ).fetchall()
+    return [dict(row) for row in rows]
 
 
 @contextmanager

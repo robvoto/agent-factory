@@ -107,6 +107,8 @@ def build_factory_manifest(*, include_live: bool = True) -> dict[str, Any]:
             "telegram": "telegram",
             "pending": "pending",
             "staged": "staged",
+            "test": "test",
+            "test-runs": "test-runs",
             "approve": "approve",
             "reject": "reject",
             "promote": "promote",

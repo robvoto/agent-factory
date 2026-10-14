@@ -32,6 +32,40 @@ uv run agent-factory langchain-check
 - Configured defaults are Luna (`general`) and Codex (`coding`). Precedence is purpose-specific environment variable, then `FACTORY_MODEL`, then the configured default. Environment values may be aliases or provider model strings.
 - `langchain-check` verifies the LangChain runtime import path.
 
+## Test an incubating subprocess agent
+
+Create a JSON task file, inspect the package and permissions, then run:
+
+```bash
+uv run agent-factory test <agent-id> --input-json /path/to/task.json --approve
+uv run agent-factory test-runs [agent-id]
+```
+
+The test command accepts only a validated package in `staging/agents/<id>/` with
+`runtime.mode = "subprocess"` and a `python <relative-script.py>` entrypoint. It
+copies that package to a temporary directory, runs the declared entrypoint there,
+passes temporary input/output JSON files, validates the returned status, and
+deletes the temporary copy when the command ends. It refuses packages already
+released or present in the enabled registry. It does not use Agent Hub, Telegram,
+the enabled registry, or the release path.
+
+This is a local process, not an operating-system sandbox: package code runs with
+the current user's filesystem and network access. Review the package before
+approving a run. Declared network, filesystem-write, shell, or environment
+access also requires `--approve-risk`. Environment variables are not inherited;
+expose only a specifically reviewed variable when needed:
+
+```bash
+uv run agent-factory test <agent-id> --input-json /path/to/task.json \
+  --approve --approve-risk --expose-env API_KEY_NAME
+```
+
+The harness fails closed for declared tools or MCP capabilities because it does
+not provide those integrations. `test-runs` lists timestamps, identifiers,
+package/manifest/input hashes, approval and outcome metadata; task input and
+agent output are not stored in the audit table. The invocation prints the result
+to the operator's terminal.
+
 ## Create agent drafts
 
 Deterministic creation:
