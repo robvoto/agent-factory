@@ -14,6 +14,13 @@ Do not select for: Purchasing or checkout, account/order changes, general non-sh
 
 - network
 
+## Runtime integration evidence
+
+- Factory staged subprocess contract: `python run_agent.py --input-json <file> --output-json <file>`.
+- The package is still staged only and is not registered, enabled, or promoted.
+- Offline subprocess validation removes `SERPAPI_API_KEY` and checks that the task envelope produces a structured failed result before any search call.
+- This validates Factory invocation compatibility; shopping discovery quality, live provider behavior, and promotion acceptance remain separate checks.
+
 ## Tests
 
 - Verify every explicit mandatory constraint is captured before discovery and preserved through ranking.
