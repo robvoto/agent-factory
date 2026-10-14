@@ -51,6 +51,7 @@
       "request_id",
       "run_id",
       "source",
+      "source_request",
       "execution_mode",
       "progress_jsonl",
       "project_root",
@@ -60,7 +61,8 @@
       "project_context"
     ],
     "accepted_context": [
-      "project_root"
+      "project_root",
+      "source_request"
     ]
   },
   "project_context_contract": {
