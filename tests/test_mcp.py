@@ -173,7 +173,7 @@ def test_staging_and_promotion_preserve_mcp_declarations(tmp_path, monkeypatch) 
     result = promote_agent("mcp-agent", project_root=tmp_path, db_path=db)
     assert "released at agents/mcp-agent/" in result
     enabled = json.loads(
-        (tmp_path / "config" / "agents" / "mcp-agent.json").read_text(encoding="utf-8")
+        (tmp_path / "config" / "agents" / "mcp-agent" / "agent.json").read_text(encoding="utf-8")
     )
     assert enabled["mcp_servers"] == staged["mcp_servers"]
 

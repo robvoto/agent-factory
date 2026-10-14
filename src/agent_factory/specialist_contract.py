@@ -11,6 +11,7 @@ UNIVERSAL_TASK_PROTOCOL_VERSION = 1
 UNIVERSAL_CONTEXT_KEYS = (
     "project_root",
     "references",
+    "source_request",
 )
 
 
@@ -18,10 +19,11 @@ class SpecialistInputContract(BaseModel):
     """Manifest declaration for the stable universal task envelope.
 
     The envelope is flat — Hub sends the same top-level keys to every
-    specialist regardless of which one it is. `project_root` and `references`
-    are the two context-carrying fields; a specialist declares which of them
-    it actually reads via `accepted_context`, but Hub sends both whenever it
-    knows them either way. `required_context` narrows that further to the
+    specialist regardless of which one it is. `project_root`, `references`,
+    and `source_request` are context-carrying fields; a specialist declares
+    which it accepts via `accepted_context`. Hub preserves `task` separately
+    from the original operator wording in `source_request` when the specialist
+    opts in to that context. `required_context` narrows that further to the
     keys the specialist cannot function without — Hub can use it to decide
     whether to ask the user for missing context before dispatching.
     """
@@ -34,6 +36,7 @@ class SpecialistInputContract(BaseModel):
             "request_id",
             "run_id",
             "source",
+            "source_request",
             "execution_mode",
             "progress_jsonl",
             "project_root",
@@ -123,9 +126,9 @@ def validate_universal_task_envelope(
 ) -> dict[str, Any]:
     """Validate and normalize a universal task envelope without interpreting context.
 
-    `project_root` and `references` are passed through unchanged — this
-    function does not inspect what they mean, only that they are present
-    among the fields the specialist declared it accepts.
+    `project_root`, `references`, and `source_request` are passed through
+    unchanged — this function does not inspect what they mean, only that they
+    are present among the fields the specialist declared it accepts.
     """
 
     active_contract = contract or default_input_contract()
