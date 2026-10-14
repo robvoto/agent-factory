@@ -14,8 +14,9 @@ not automatic, and promotion means release and enablement rather than graduation
 For an independent product agent, the specialist repository owns implementation,
 dependencies, implementation tests, and implementation release work. Factory continues
 to own and gate the registry entry, release contract, permissions, promotion, activation
-metadata, and governed upgrades. Agent Hub consumes the enabled release definition and
-runs or orchestrates it; it is not the development home.
+metadata, and governed upgrades. Factory can activate the previous validated release
+through an approval-gated rollback. Agent Hub consumes the enabled release definition
+and runs or orchestrates it; it is not the development home.
 
 ## Implemented pieces
 
@@ -31,6 +32,7 @@ runs or orchestrates it; it is not the development home.
 10. **Progress adapter** — transport-neutral `SpecialistProgressEvent` reporting for Hub-called Factory Brain work and explicitly configured generated agents (`progress_events.py`)
 11. **AF-048 build-task/build-result boundary** — strict staged `BUILD_TASK.json` and Factory-owned `BUILD_RESULT.json` artifacts, SQLite thread/correlation lifecycle persistence, deterministic ATL BuildResult v1 validation, promotion gating, and a structured specialist-result wrapper (`build_task.py`, `build_result.py`, `storage.py`, `agent_catalog.py`, `factory_brain.py`)
 12. **AF-045 incubation test harness** — explicit local tests of validated staged subprocess packages via a disposable copy, temporary JSON I/O, declared-risk approval, and metadata-only SQLite run history (`incubation_test.py`, `storage.py`). It does not register or route staged agents.
+13. **Versioned release governance** — semantic-version checks, readable package diffs, approval-pinned package digests, and one previous approved package for rollback (`versioning.py`, `agent_catalog.py`, `storage.py`)
 
 ## What lives where
 
@@ -49,9 +51,11 @@ agent-factory/
 
 ## Registry contract
 
-Factory releases the validated package under `agents/<id>/`, then writes and
-activates `config/agents/<id>.json` from that released package. Agent Hub reads
-the registry entry. Required fields:
+Factory releases the validated package under `agents/<id>/`, retains at most one
+previous approved package under `agents/.previous/<id>/`, then writes the active
+Hub manifest to `config/agents/<id>/agent.json`. Every promotion compares semantic
+versions, shows a package diff, and binds approval to the staged and active package
+digests. Agent Hub reads only the enabled registry entry. Required fields:
 
 | Field | Written by | Read by |
 |-------|-----------|---------|

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import json
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -61,7 +62,8 @@ CREATE TABLE IF NOT EXISTS approvals (
     status          TEXT NOT NULL DEFAULT 'pending',
     requested_at    TEXT NOT NULL,
     decided_at      TEXT,
-    decision_reason TEXT
+    decision_reason TEXT,
+    details_json    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS factory_threads (
@@ -213,6 +215,11 @@ def _connect(db_path: Path) -> Generator[sqlite3.Connection, None, None]:
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply incremental schema changes that ALTER existing tables."""
+    approval_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(approvals)").fetchall()
+    }
+    if "details_json" not in approval_columns:
+        conn.execute("ALTER TABLE approvals ADD COLUMN details_json TEXT")
     existing = {
         row[1]
         for row in conn.execute("PRAGMA table_info(factory_threads)").fetchall()
@@ -334,6 +341,7 @@ def create_approval(
     target_id: str,
     summary: str,
     *,
+    details: dict | None = None,
     db_path: Path | None = None,
 ) -> int:
     """Insert a pending approval record. Returns the new approval id."""
@@ -341,9 +349,15 @@ def create_approval(
     logger.info("Recording approval request for %s (%s).", target_id, approval_type)
     with _connect(db_path or _DEFAULT_DB_PATH) as conn:
         cur = conn.execute(
-            "INSERT INTO approvals (approval_type, target_id, summary, status, requested_at)"
-            " VALUES (?, ?, ?, 'pending', ?)",
-            (approval_type, target_id, summary, now),
+            "INSERT INTO approvals (approval_type, target_id, summary, status, requested_at, details_json)"
+            " VALUES (?, ?, ?, 'pending', ?, ?)",
+            (
+                approval_type,
+                target_id,
+                summary,
+                now,
+                json.dumps(details, sort_keys=True) if details is not None else None,
+            ),
         )
         conn.commit()
         return cur.lastrowid
@@ -359,10 +373,15 @@ def get_approval(approval_id: int, *, db_path: Path | None = None) -> dict | Non
     with _connect(resolved) as conn:
         row = conn.execute(
             "SELECT id, approval_type, target_id, summary, status, requested_at,"
-            " decided_at, decision_reason FROM approvals WHERE id = ?",
+            " decided_at, decision_reason, details_json FROM approvals WHERE id = ?",
             (approval_id,),
         ).fetchone()
-    return dict(row) if row else None
+    if not row:
+        return None
+    result = dict(row)
+    raw_details = result.pop("details_json", None)
+    result["details"] = json.loads(raw_details) if raw_details else None
+    return result
 
 
 def list_pending_approvals(*, db_path: Path | None = None) -> list[dict]:
@@ -374,10 +393,16 @@ def list_pending_approvals(*, db_path: Path | None = None) -> list[dict]:
     logger.debug("Listing pending approvals from %s.", resolved)
     with _connect(resolved) as conn:
         rows = conn.execute(
-            "SELECT id, approval_type, target_id, summary, requested_at"
+            "SELECT id, approval_type, target_id, summary, requested_at, details_json"
             " FROM approvals WHERE status = 'pending' ORDER BY requested_at"
         ).fetchall()
-    return [dict(r) for r in rows]
+    records = []
+    for row in rows:
+        record = dict(row)
+        raw_details = record.pop("details_json", None)
+        record["details"] = json.loads(raw_details) if raw_details else None
+        records.append(record)
+    return records
 
 
 def decide_approval(

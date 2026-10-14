@@ -183,7 +183,7 @@ artifacts are excluded from released runtime packages.
 Factory does not call an LLM or dispatch directly to ATL/Codex. The Hub relay that
 routes the task and returns BuildResult is the remaining cross-project integration.
 Until a separate promotion approval, the released home `agents/<id>/` and registry
-entry `config/agents/<id>.json` do not appear.
+entry `config/agents/<id>/agent.json` do not appear.
 
 ## Optional Hub progress contract
 

@@ -199,8 +199,12 @@ def _cmd_approve(token: str, chat_id: str, args: str, *, model: str | None = Non
 
     decide_approval(approval_id, "approved", "Approved via Telegram")
     if record["approval_type"] == "promote-agent":
-        result = _promote_agent(record["target_id"])
+        result = _promote_agent(record["target_id"], record.get("details") or {})
         logger.info("Approved promotion for staged agent %s", record["target_id"])
+        _send(token, chat_id, f"Approved. {result}")
+    elif record["approval_type"] == "rollback-agent":
+        result = _rollback_agent(record["target_id"], record.get("details") or {})
+        logger.info("Approved rollback for agent %s", record["target_id"])
         _send(token, chat_id, f"Approved. {result}")
     else:
         logger.info("Approval %s approved.", approval_id)
@@ -374,12 +378,30 @@ def _cmd_fork(token: str, chat_id: str, args: str, *, model: str | None = None, 
 # Agent lifecycle helpers
 # ---------------------------------------------------------------------------
 
-def _promote_agent(agent_id: str) -> str:
+def _promote_agent(agent_id: str, details: dict) -> str:
     from .agent_catalog import promote_agent
 
     logger.info("Promoting staged agent %s into config/agents.", agent_id)
-    result = promote_agent(agent_id, project_root=_PROJECT_ROOT)
+    result = promote_agent(
+        agent_id,
+        expected_staged_sha256=details["staged_sha256"],
+        expected_active_sha256=details.get("active_sha256"),
+        project_root=_PROJECT_ROOT,
+    )
     logger.info("Promotion result for %s: %s", agent_id, result)
+    return result
+
+
+def _rollback_agent(agent_id: str, details: dict) -> str:
+    from .agent_catalog import rollback_agent
+
+    result = rollback_agent(
+        agent_id,
+        expected_active_sha256=details["active_sha256"],
+        expected_previous_sha256=details["previous_sha256"],
+        project_root=_PROJECT_ROOT,
+    )
+    logger.info("Rollback result for %s: %s", agent_id, result)
     return result
 
 
@@ -394,10 +416,10 @@ def _delete_agent(agent_id: str) -> str:
         messages.append(f"Removed staging/agents/{agent_id}/")
 
     # Remove from config/agents if enabled
-    enabled_json = _PROJECT_ROOT / "config" / "agents" / f"{agent_id}.json"
-    if enabled_json.exists():
-        enabled_json.unlink()
-        messages.append(f"Removed config/agents/{agent_id}.json")
+    enabled_dir = _PROJECT_ROOT / "config" / "agents" / agent_id
+    if enabled_dir.is_dir():
+        shutil.rmtree(enabled_dir)
+        messages.append(f"Removed config/agents/{agent_id}/")
 
     # Remove from SQLite
     deleted = delete_staged_agent_record(agent_id)

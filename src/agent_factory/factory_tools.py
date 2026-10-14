@@ -20,6 +20,8 @@ from .agent_catalog import (
     build_agent_catalog,
     describe_agent_catalog,
     plan_package_reuse,
+    preview_agent_promotion,
+    preview_agent_rollback,
 )
 from .agent_spec import AgentPackageSpec, validate_agent_package_spec_payload
 from .build_task import (
@@ -242,12 +244,20 @@ def create_staged_agent_package(spec_json: str) -> str:
             "No duplicate package was created."
         )
 
+    package_dir = _STAGING_DIR / spec.id
+    if decision.action == "upgrade" and package_dir.exists():
+        from .storage import get_staged_agent_record
+
+        record = get_staged_agent_record(spec.id)
+        if record is None or record.get("status") != "enabled":
+            return f"Cannot stage update for {spec.id}: existing staged work is not an enabled audit snapshot."
+        shutil.rmtree(package_dir)
+
     progress = spec.runtime.progress
     if progress is not None and progress.enabled and not _PROGRESS_TEMPLATE_DIR.is_dir():
         logger.error("Progress adapter template is missing: %s", _PROGRESS_TEMPLATE_DIR)
         return f"Progress adapter template is missing: {_PROGRESS_TEMPLATE_DIR}"
 
-    package_dir = _STAGING_DIR / spec.id
     logger.info("Creating staged agent package for %s at %s.", spec.id, package_dir)
     package_dir.mkdir(parents=True, exist_ok=False)
 
@@ -328,7 +338,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         f"**Purpose:** {spec.purpose}\n\n"
         f"**Aliases:** {', '.join(spec.aliases)}\n\n"
         "Do not promote this agent until human approval. Promotion releases the "
-        "full package under `agents/<id>/` and writes `config/agents/<id>.json` "
+        "full package under `agents/<id>/` and writes `config/agents/<id>/agent.json` "
         "from that released package.\n",
         encoding="utf-8",
     )
@@ -364,7 +374,7 @@ def create_staged_agent_package(spec_json: str) -> str:
         f"## Tests\n\n{tests_text}\n\n"
         "## Approval rule\n\n"
         "Do not promote this agent until a human approves it. Promotion releases "
-        "the full package under `agents/<id>/` and writes `config/agents/<id>.json` "
+        "the full package under `agents/<id>/` and writes `config/agents/<id>/agent.json` "
         "from that released package.\n",
         encoding="utf-8",
     )
@@ -719,42 +729,62 @@ def request_agent_promotion(agent_id: str) -> str:
     """
     from .storage import create_approval
 
-    logger.info("Requesting promotion approval for staged agent %s.", agent_id)
+    normalized_id = agent_id.strip()
+    logger.info("Requesting promotion approval for staged agent %s.", normalized_id)
     try:
-        catalog = build_agent_catalog(
-            enabled_dir=_PROJECT_ROOT / "config" / "agents",
-            staging_dir=_STAGING_DIR,
-        )
+        preview = preview_agent_promotion(normalized_id, project_root=_PROJECT_ROOT)
     except AgentFactoryError as exc:
-        logger.warning("Unable to inspect agent catalog for promotion: %s", exc)
-        return f"Unable to inspect agent inventory: {exc}"
-    entry = catalog.get(agent_id.strip())
-    if not entry:
-        logger.warning("Staged agent not found for promotion request: %s", agent_id)
-        return f"Staged agent not found: {agent_id!r}. Create it first with create_staged_agent_package."
-    if "enabled" in entry.statuses:
-        logger.info("Staged agent %s is already enabled.", agent_id)
-        return f"Agent {agent_id!r} is already enabled."
-
-    package_dir = _STAGING_DIR / agent_id.strip()
-    review_file = package_dir / "REVIEW.md"
-    review_summary = ""
-    if review_file.exists():
-        review_summary = review_file.read_text(encoding="utf-8")[:400]
-
+        logger.warning("Unable to prepare promotion for %s: %s", normalized_id, exc)
+        return f"Promotion blocked: {exc}"
+    review_file = _STAGING_DIR / normalized_id / "REVIEW.md"
+    review_summary = review_file.read_text(encoding="utf-8")[:400] if review_file.exists() else ""
+    transition = f"{preview.active_version or 'first release'} -> {preview.staged_version}"
+    summary = (
+        f"Promote {normalized_id}: {transition}. Review the complete diff below.\n\n"
+        f"{preview.diff}\n\nReview summary:\n{review_summary}"
+    )
     approval_id = create_approval(
         approval_type="promote-agent",
-        target_id=agent_id.strip(),
-        summary=(
-            f"Promote staged agent '{agent_id}' to config/agents/.\n\n"
-            f"Review summary:\n{review_summary}"
-        ),
+        target_id=normalized_id,
+        summary=summary,
+        details={
+            "staged_sha256": preview.staged_sha256,
+            "active_sha256": preview.active_sha256,
+            "staged_version": preview.staged_version,
+        },
     )
-    logger.info("Promotion approval %s created for staged agent %s.", approval_id, agent_id)
+    logger.info("Promotion approval %s created for staged agent %s.", approval_id, normalized_id)
     return (
-        f"Promotion request #{approval_id} created for agent '{agent_id}'.\n"
-        f"Use /approve {approval_id} in Telegram to enable it, or /reject {approval_id} to cancel."
+        f"Promotion approval #{approval_id}: {normalized_id} {transition}.\n"
+        f"\n{preview.diff}\n\n"
+        f"Use /approve {approval_id} to promote this exact package, or /reject {approval_id}."
     )
+
+
+@tool
+def request_agent_rollback(agent_id: str) -> str:
+    """Request approval to reactivate the last known-good Factory release."""
+    from .storage import create_approval
+
+    normalized_id = agent_id.strip()
+    try:
+        preview = preview_agent_rollback(normalized_id, project_root=_PROJECT_ROOT)
+    except AgentFactoryError as exc:
+        return f"Rollback blocked: {exc}"
+    summary = (
+        f"Rollback {normalized_id}: {preview['active_version']} -> {preview['previous_version']}. "
+        "Factory will keep the displaced active version as the single previous release."
+    )
+    approval_id = create_approval(
+        approval_type="rollback-agent",
+        target_id=normalized_id,
+        summary=summary,
+        details={
+            "active_sha256": preview["active_sha256"],
+            "previous_sha256": preview["previous_sha256"],
+        },
+    )
+    return f"{summary}\nUse /approve {approval_id} to execute this rollback or /reject {approval_id}."
 
 
 def get_factory_tools() -> list:
@@ -776,5 +806,6 @@ def get_factory_tools() -> list:
         request_design_research,
         run_design_research,
         request_agent_promotion,
+        request_agent_rollback,
         request_approval,
     ]

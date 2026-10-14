@@ -11,7 +11,7 @@ stateDiagram-v2
     Rejected --> Designing : Factory Brain refines
 
     Approved --> StandardReleased : Factory promotion<br/>validated + human-approved release
-    StandardReleased --> Enabled : Factory activates<br/>config/agents/ release definition
+    StandardReleased --> Enabled : Factory activates<br/>config/agents/id/agent.json
 
     Enabled --> Running : Agent Hub Orchestrator<br/>routes tasks to it
     Enabled --> GraduationReview : Optional later human /<br/>architecture proposal
@@ -27,7 +27,7 @@ stateDiagram-v2
 
     Running --> Improving : Factory Brain reads<br/>agent outcomes,<br/>proposes v2 spec
 
-    Improving --> Staged : New version staged<br/>prior validated release remains available
+    Improving --> Staged : New semantic version staged<br/>prior approved release remains available
 
     Running --> Retired : /delete or superseded by v2
 

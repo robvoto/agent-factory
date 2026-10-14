@@ -7,6 +7,9 @@ from pathlib import Path
 import pytest
 
 from agent_factory.storage import (
+    create_approval,
+    get_approval,
+    list_pending_approvals,
     get_staged_agent_record,
     get_or_create_thread,
     get_thread_state,
@@ -64,6 +67,24 @@ def test_update_staged_agent_status(tmp_db, tmp_path):
     update_staged_agent_status("my-agent", "approved", db_path=tmp_db)
     row = get_staged_agent_record("my-agent", db_path=tmp_db)
     assert row["status"] == "approved"
+
+
+def test_approval_persists_exact_release_snapshot_details(tmp_db):
+    approval_id = create_approval(
+        "promote-agent",
+        "alpha-agent",
+        "Promote 1.0.0 -> 1.1.0",
+        details={"staged_sha256": "staged-digest", "active_sha256": "active-digest"},
+        db_path=tmp_db,
+    )
+
+    approval = get_approval(approval_id, db_path=tmp_db)
+    pending = list_pending_approvals(db_path=tmp_db)
+    assert approval["details"] == {
+        "staged_sha256": "staged-digest",
+        "active_sha256": "active-digest",
+    }
+    assert pending[0]["details"] == approval["details"]
 
 
 def test_duplicate_agent_id_raises(tmp_db, tmp_path):

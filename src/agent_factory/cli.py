@@ -243,8 +243,12 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         decide_approval(args.approval_id, "approved", "Approved via CLI")
         if record["approval_type"] == "promote-agent":
-            result = _promote_agent(record["target_id"])
+            result = _promote_agent(record["target_id"], record.get("details") or {})
             logger.info("Approval %s promoted staged agent %s.", args.approval_id, record["target_id"])
+            print(result)
+        elif record["approval_type"] == "rollback-agent":
+            result = _rollback_agent(record["target_id"], record.get("details") or {})
+            logger.info("Approval %s rolled back agent %s.", args.approval_id, record["target_id"])
             print(result)
         else:
             logger.info("Approval %s approved.", args.approval_id)
@@ -307,13 +311,31 @@ def main(argv: list[str] | None = None) -> int:
     return 1
 
 
-def _promote_agent(agent_id: str) -> str:
+def _promote_agent(agent_id: str, details: dict) -> str:
     """Promote a staged agent to config/agents/ and mark it enabled."""
     from .agent_catalog import promote_agent
 
     logger.info("Promoting staged agent %s into config/agents.", agent_id)
-    result = promote_agent(agent_id, project_root=PROJECT_ROOT)
+    result = promote_agent(
+        agent_id,
+        expected_staged_sha256=details["staged_sha256"],
+        expected_active_sha256=details.get("active_sha256"),
+        project_root=PROJECT_ROOT,
+    )
     logger.info("Promotion result for %s: %s", agent_id, result)
+    return result
+
+
+def _rollback_agent(agent_id: str, details: dict) -> str:
+    from .agent_catalog import rollback_agent
+
+    result = rollback_agent(
+        agent_id,
+        expected_active_sha256=details["active_sha256"],
+        expected_previous_sha256=details["previous_sha256"],
+        project_root=PROJECT_ROOT,
+    )
+    logger.info("Rollback result for %s: %s", agent_id, result)
     return result
 
 

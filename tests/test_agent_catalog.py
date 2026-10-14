@@ -9,6 +9,9 @@ from agent_factory.agent_catalog import (
     build_agent_catalog,
     plan_package_reuse,
     promote_agent,
+    preview_agent_promotion,
+    preview_agent_rollback,
+    rollback_agent,
 )
 from agent_factory.agent_spec import AgentPackageSpec
 
@@ -16,6 +19,8 @@ from agent_factory.agent_spec import AgentPackageSpec
 def _manifest() -> dict:
     return {
         "id": "alpha-agent",
+        "version": "1.0.0",
+        "manifest_schema_version": 1,
         "name": "Alpha Agent",
         "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
         "aliases": ["alpha"],
@@ -61,6 +66,17 @@ def _spec() -> AgentPackageSpec:
             "purpose": "Primary responsibility: Perform alpha work.\nSelect for: Requests that require the alpha workflow.\nDo not select for: Requests unrelated to alpha work.",
             "aliases": ["alpha"],
         }
+    )
+
+
+def _approve_promotion(agent_id: str, root, db_path=None):
+    preview = preview_agent_promotion(agent_id, project_root=root, db_path=db_path)
+    return promote_agent(
+        agent_id,
+        expected_staged_sha256=preview.staged_sha256,
+        expected_active_sha256=preview.active_sha256,
+        project_root=root,
+        db_path=db_path,
     )
 
 
@@ -111,7 +127,9 @@ def test_build_agent_catalog_merges_staged_and_enabled(tmp_path):
 
     payload = json.dumps(_manifest())
     (staging / "agent.json").write_text(payload, encoding="utf-8")
-    (enabled / "alpha-agent.json").write_text(payload, encoding="utf-8")
+    enabled_manifest = enabled / "alpha-agent" / "agent.json"
+    enabled_manifest.parent.mkdir()
+    enabled_manifest.write_text(payload, encoding="utf-8")
 
     catalog = build_agent_catalog(enabled_dir=enabled, staging_dir=tmp_path / "staging")
     entry = catalog["alpha-agent"]
@@ -120,7 +138,7 @@ def test_build_agent_catalog_merges_staged_and_enabled(tmp_path):
     assert entry.manifest.design is None  # legacy manifests remain readable
     assert set(entry.statuses) == {"staged", "enabled"}
     assert any(location.endswith("staging/agents/alpha-agent") for location in entry.locations)
-    assert any(location.endswith("config/agents/alpha-agent.json") for location in entry.locations)
+    assert any(location.endswith("config/agents/alpha-agent/agent.json") for location in entry.locations)
 
 
 def test_build_agent_catalog_ignores_promoted_staging_snapshot_when_enabled_manifest_evolves(tmp_path):
@@ -183,27 +201,45 @@ def test_plan_package_reuse_rejects_explicit_design_against_legacy_manifest(tmp_
         }
     )
 
-    with pytest.raises(AgentCatalogConflictError, match="different contents"):
+    with pytest.raises(AgentCatalogConflictError, match="active released package is missing"):
         plan_package_reuse(spec, enabled_dir=enabled, staging_dir=tmp_path / "staging")
 
 
-def test_promote_agent_reuses_existing_enabled_agent(tmp_path):
-    staging = tmp_path / "staging" / "agents" / "alpha-agent"
-    enabled = tmp_path / "config" / "agents"
-    staging.mkdir(parents=True)
+def test_plan_package_reuse_allows_only_newer_version_for_enabled_agent(tmp_path):
+    enabled = tmp_path / "config" / "agents" / "alpha-agent"
+    released = tmp_path / "agents" / "alpha-agent"
     enabled.mkdir(parents=True)
+    released.mkdir(parents=True)
+    payload = json.dumps(_manifest())
+    (enabled / "agent.json").write_text(payload, encoding="utf-8")
+    (released / "agent.json").write_text(payload, encoding="utf-8")
+    spec = AgentPackageSpec.model_validate({**_spec().model_dump(), "version": "1.1.0"})
 
+    decision = plan_package_reuse(
+        spec,
+        enabled_dir=enabled.parent,
+        staging_dir=tmp_path / "staging" / "agents",
+    )
+
+    assert decision.action == "upgrade"
+    assert decision.entry is not None
+    assert decision.entry.manifest.version == "1.0.0"
+
+
+def test_promotion_rejects_a_version_that_is_not_newer(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    released = tmp_path / "agents" / "alpha-agent"
+    enabled = tmp_path / "config" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    released.mkdir(parents=True)
+    enabled.mkdir(parents=True)
     payload = json.dumps(_manifest())
     (staging / "agent.json").write_text(payload, encoding="utf-8")
-    enabled_manifest = enabled / "alpha-agent" / "agent.json"
-    enabled_manifest.parent.mkdir()
-    enabled_manifest.write_text(payload, encoding="utf-8")
+    (released / "agent.json").write_text(payload, encoding="utf-8")
+    (enabled / "agent.json").write_text(payload, encoding="utf-8")
 
-    result = promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
-
-    assert "released at agents/alpha-agent/" in result
-    assert enabled_manifest.read_text(encoding="utf-8") == payload
-    assert (tmp_path / "agents" / "alpha-agent" / "agent.json").read_text(encoding="utf-8") == payload
+    with pytest.raises(AgentCatalogConflictError, match="must be newer"):
+        preview_agent_promotion("alpha-agent", project_root=tmp_path)
 
 
 def test_promote_agent_releases_full_package_and_registry_comes_from_release(tmp_path):
@@ -214,7 +250,7 @@ def test_promote_agent_releases_full_package_and_registry_comes_from_release(tmp
     (staging / "docs").mkdir()
     (staging / "docs" / "INDEX.md").write_text("# Docs", encoding="utf-8")
 
-    promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
+    _approve_promotion("alpha-agent", tmp_path, db_path=tmp_path / "factory.sqlite3")
 
     released = tmp_path / "agents" / "alpha-agent"
     registry = tmp_path / "config" / "agents" / "alpha-agent" / "agent.json"
@@ -236,21 +272,81 @@ def test_promote_agent_releases_full_package_and_registry_comes_from_release(tmp
     assert all("staging/agents/alpha-agent" not in location for location in catalog["alpha-agent"].locations)
 
 
-def test_promote_agent_is_idempotent_for_same_full_package(tmp_path):
+def test_first_promotion_preserves_staged_version_and_enables_registry(tmp_path):
     staging = tmp_path / "staging" / "agents" / "alpha-agent"
     staging.mkdir(parents=True)
     (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
-    (staging / "README.md").write_text("same package", encoding="utf-8")
-    db_path = tmp_path / "factory.sqlite3"
+    (staging / "README.md").write_text("first approved release", encoding="utf-8")
 
-    first = promote_agent("alpha-agent", project_root=tmp_path, db_path=db_path)
+    _approve_promotion("alpha-agent", tmp_path)
+
     released = tmp_path / "agents" / "alpha-agent"
-    before = (released / "README.md").read_bytes()
-    second = promote_agent("alpha-agent", project_root=tmp_path, db_path=db_path)
+    registry = tmp_path / "config" / "agents" / "alpha-agent" / "agent.json"
+    assert json.loads((released / "agent.json").read_text())["version"] == "1.0.0"
+    assert json.loads(registry.read_text())["version"] == "1.0.0"
+    assert (released / "README.md").read_text() == "first approved release"
 
-    assert "released at agents/alpha-agent/" in first
-    assert "released at agents/alpha-agent/" in second
-    assert (released / "README.md").read_bytes() == before
+
+def test_update_shows_diff_pins_approval_and_keeps_one_previous_release(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    (staging / "README.md").write_text("version one", encoding="utf-8")
+    _approve_promotion("alpha-agent", tmp_path)
+
+    manifest = {**_manifest(), "version": "1.1.0", "purpose": "Primary responsibility: Perform improved alpha work.\nSelect for: Requests that require the improved alpha workflow.\nDo not select for: Requests unrelated to alpha work."}
+    (staging / "agent.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (staging / "README.md").write_text("version two", encoding="utf-8")
+    preview = preview_agent_promotion("alpha-agent", project_root=tmp_path)
+    assert preview.active_version == "1.0.0"
+    assert preview.staged_version == "1.1.0"
+    assert "enabled/README.md" in preview.diff
+    assert "version one" in preview.diff and "version two" in preview.diff
+
+    with pytest.raises(AgentCatalogConflictError, match="changed after approval"):
+        promote_agent(
+            "alpha-agent",
+            expected_staged_sha256="stale-approval",
+            expected_active_sha256=preview.active_sha256,
+            project_root=tmp_path,
+        )
+    assert json.loads((tmp_path / "config/agents/alpha-agent/agent.json").read_text())["version"] == "1.0.0"
+
+    promote_agent(
+        "alpha-agent",
+        expected_staged_sha256=preview.staged_sha256,
+        expected_active_sha256=preview.active_sha256,
+        project_root=tmp_path,
+    )
+    assert json.loads((tmp_path / "config/agents/alpha-agent/agent.json").read_text())["version"] == "1.1.0"
+    assert json.loads((tmp_path / "agents/.previous/alpha-agent/agent.json").read_text())["version"] == "1.0.0"
+    assert (tmp_path / "agents/alpha-agent/README.md").read_text() == "version two"
+
+
+def test_rollback_reactivates_previous_version_and_retains_displaced_release(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    (staging / "README.md").write_text("version one", encoding="utf-8")
+    _approve_promotion("alpha-agent", tmp_path)
+    (staging / "agent.json").write_text(json.dumps({**_manifest(), "version": "1.1.0"}), encoding="utf-8")
+    (staging / "README.md").write_text("version two", encoding="utf-8")
+    _approve_promotion("alpha-agent", tmp_path)
+
+    preview = preview_agent_rollback("alpha-agent", project_root=tmp_path)
+    assert preview["active_version"] == "1.1.0"
+    assert preview["previous_version"] == "1.0.0"
+    result = rollback_agent(
+        "alpha-agent",
+        expected_active_sha256=preview["active_sha256"],
+        expected_previous_sha256=preview["previous_sha256"],
+        project_root=tmp_path,
+    )
+
+    assert "rolled back from 1.1.0 to 1.0.0" in result
+    assert json.loads((tmp_path / "config/agents/alpha-agent/agent.json").read_text())["version"] == "1.0.0"
+    assert (tmp_path / "agents/alpha-agent/README.md").read_text() == "version one"
+    assert json.loads((tmp_path / "agents/.previous/alpha-agent/agent.json").read_text())["version"] == "1.1.0"
 
 
 def test_promote_agent_fails_when_released_package_conflicts(tmp_path):
@@ -263,10 +359,25 @@ def test_promote_agent_fails_when_released_package_conflicts(tmp_path):
         json.dumps({**_manifest(), "name": "Different Agent"}), encoding="utf-8"
     )
 
-    with pytest.raises(AgentCatalogConflictError, match="released package"):
-        promote_agent("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
+    with pytest.raises(AgentCatalogConflictError, match="disagree"):
+        preview_agent_promotion("alpha-agent", project_root=tmp_path, db_path=tmp_path / "factory.sqlite3")
 
     assert not (tmp_path / "config" / "agents" / "alpha-agent" / "agent.json").exists()
+
+
+def test_promotion_rejects_incompatible_manifest_schema(tmp_path):
+    staging = tmp_path / "staging" / "agents" / "alpha-agent"
+    staging.mkdir(parents=True)
+    (staging / "agent.json").write_text(json.dumps(_manifest()), encoding="utf-8")
+    _approve_promotion("alpha-agent", tmp_path)
+
+    incompatible = {**_manifest(), "version": "1.1.0", "manifest_schema_version": 2}
+    (staging / "agent.json").write_text(json.dumps(incompatible), encoding="utf-8")
+    with pytest.raises(AgentCatalogConflictError, match="incompatible schema version"):
+        preview_agent_promotion("alpha-agent", project_root=tmp_path)
+
+    registry = tmp_path / "config" / "agents" / "alpha-agent" / "agent.json"
+    assert json.loads(registry.read_text(encoding="utf-8"))["version"] == "1.0.0"
 
 
 def test_plan_package_reuse_detects_runtime_contract_mismatch(tmp_path):

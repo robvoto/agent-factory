@@ -19,6 +19,7 @@ from .specialist_contract import (
     SpecialistInputContract,
     SpecialistInteractionContract,
 )
+from .versioning import version_key
 
 VALID_ID_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 TASK_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -523,6 +524,12 @@ class AgentPackageSpec(BaseModel):
                 f"{v!r}. Supported versions: {sorted(SUPPORTED_AGENT_MANIFEST_SCHEMA_VERSIONS)}."
             )
         return v
+
+    @field_validator("version")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        version_key(value)
+        return value
 
     @field_validator("name")
     @classmethod
