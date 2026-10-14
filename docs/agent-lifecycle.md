@@ -158,6 +158,15 @@ upgrade path; Agent Hub may route proposals but cannot bypass Factory governance
 
 Every change needs validation evidence before promotion.
 
+An operator may run a validated incubating subprocess package with
+`agent-factory test <id> --input-json <file> --approve`. Factory copies only that
+staged package to a temporary directory and records a metadata-only run row.
+Declared network, filesystem-write, shell, or explicitly exposed environment
+access requires the additional `--approve-risk` flag. The harness does not load
+the package into Agent Hub, publish it, or change lifecycle status. It is a local
+process and is not an OS sandbox; review untrusted code before approval. The
+current harness does not provide tools, MCP, or Telegram integrations.
+
 For a Factory implementation handoff, Agent Hub returns AI Tech Lead's structured
 BuildResult v1 under the originating Factory thread/correlation. Factory validates
 the result against the exact approved `AgentBuildTask` and the current staged
