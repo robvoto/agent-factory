@@ -24,6 +24,20 @@ def test_default_contract_accepts_universal_context_without_interpreting_it() ->
     assert result["references"] == payload["references"]
 
 
+def test_source_request_stays_separate_from_exact_task() -> None:
+    source_request = "Please implement AF-048; the specialist task is Echo: hello."
+    payload = {
+        "task": "Echo: hello",
+        "source_request": source_request,
+    }
+    contract = SpecialistInputContract(accepted_context=["source_request"])
+
+    result = validate_universal_task_envelope(payload, contract)
+
+    assert result["task"] == "Echo: hello"
+    assert result["source_request"] == source_request
+
+
 def test_contract_rejects_unknown_fields_instead_of_guessing() -> None:
     with pytest.raises(ValueError, match="Unsupported universal task fields"):
         validate_universal_task_envelope(
@@ -38,6 +52,8 @@ def test_manifest_contract_is_versioned() -> None:
     assert contract.required_fields == ["task"]
     assert "project_root" in contract.optional_fields
     assert "references" in contract.optional_fields
+    assert "source_request" in contract.optional_fields
+    assert "source_request" in contract.accepted_context
     assert "progress_jsonl" in contract.optional_fields
     assert "resume" in contract.optional_fields
 
