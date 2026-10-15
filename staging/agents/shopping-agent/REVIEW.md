@@ -29,8 +29,9 @@ Do not select for: Purchasing or checkout, account/order changes, general non-sh
 - Verify each run emits structured debugging telemetry with request/run correlation, workflow phase/node, retries, errors, stop reason, duration, and candidate counts.
 - Verify each LLM call records model ID plus input/output/cached token usage when available and estimated cost; each run aggregates call count, token totals, and estimated total cost.
 - Verify search/API/page/browser calls are counted and logged at run level, with safe domain/URL metadata and no secrets.
-- Verify configurable hard budgets exist for LLM calls/tokens/cost, search/page/browser work, and retries; warning thresholds are surfaced before hard limits.
-- Verify budget exhaustion stops safely, logs the exact stop reason, and returns partial verified results rather than silently overspending.
+- Verify configurable operational limits exist for search calls, API calls, page fetches, and browser pages; warnings surface before those hard limits.
+- Verify operational-limit exhaustion stops safely, logs `budget_exhausted` with the triggering metric, and returns partial verified results.
+- Verify no per-run LLM-call, token, or cost ceiling and no separate browser-action or retry ceiling is imposed; report actual provider usage and cost only where available.
 - Verify sensitive credentials, cookies, tokens, payment details, and raw private account data are never written to logs.
 - Verify no durable user-memory behavior, shell access, or broad filesystem access is introduced for the MVP.
 
