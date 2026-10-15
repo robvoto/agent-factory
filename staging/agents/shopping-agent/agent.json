@@ -1,7 +1,12 @@
 {
   "id": "shopping-agent",
+  "version": "1.0.0",
   "manifest_schema_version": 1,
   "name": "Shopping Agent",
+  "design": {
+    "runtime_pattern": "deterministic_workflow",
+    "runtime_pattern_reason": "The approved Shopping workflow uses explicit discovery, verification, classification, and ranking stages."
+  },
   "purpose": "Primary responsibility: Find the best purchasable options for a user's shopping request by systematically discovering, verifying, filtering, and ranking products against explicit constraints and preferences.\nSelect for: Shopping requests where the user wants strong alternatives, cheaper options, best-value choices, exact variants, availability, delivery cost, or other buying constraints verified across multiple sources.\nDo not select for: Purchasing or checkout, account/order changes, general non-shopping research, or presenting unverified candidates as recommendations.",
   "aliases": [
     "shopping",
