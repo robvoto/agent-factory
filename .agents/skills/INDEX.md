@@ -3,6 +3,7 @@
 - code-change/SKILL.md: code, tests, validation, or runtime changes.
 - git-lifecycle/SKILL.md: branch/worktree, commit, push, PR, merge, and verified `main` integration.
 - instruction-maintenance/SKILL.md: AGENTS.md, repository skills, adapters, and instruction structure.
+- backlog-management/SKILL.md: retrieve and reconcile Factory backlog records and current task status.
 
 Platform skills (pick one when the task touches agents, docs, data, or Agent Hub integration):
 
