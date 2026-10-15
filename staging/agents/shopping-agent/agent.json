@@ -165,25 +165,20 @@
     },
     "budget_guardrails": {
       "must_be_configurable": [
-        "max_llm_calls",
-        "max_total_tokens",
-        "max_estimated_cost_usd",
         "max_search_calls",
         "max_api_calls",
         "max_page_fetches",
-        "max_browser_pages",
-        "max_browser_actions",
-        "max_retries"
+        "max_browser_pages"
       ],
-      "warning_thresholds": "Configurable warning thresholds must surface before hard limits.",
+      "warning_thresholds": "Configurable warnings apply only to operational search, API, page-fetch, and browser-page limits; do not impose token or cost thresholds.",
       "hard_stop": "On a hard budget limit, stop safely, record budget_exhausted with the triggering metric, and return partial verified results.",
-      "default_values": "AI Tech Lead must derive conservative defaults from measured dry runs and keep them configurable; Factory does not invent arbitrary numeric caps."
+      "default_values": "AI Tech Lead must derive conservative operational request and page limits from measured dry runs and keep them configurable; Factory does not invent arbitrary numeric caps."
     },
     "implementation_acceptance": [
       "No implementation-complete claim until telemetry and cost accounting are proven in tests.",
       "No implementation-complete claim until each budget guardrail has a deterministic test.",
       "No implementation-complete claim until browser fallback has bounded limits, logging, and stop conditions.",
-      "No promotion until end-to-end shopping tests prove exact-variant, unavailable-seller, unknown-shipping, over-budget benchmark, and simple-shortlist behavior."
+      "No promotion until end-to-end shopping tests prove exact-variant, unavailable-seller, unknown-shipping, operational-limit benchmark, and simple-shortlist behavior."
     ]
   }
 }

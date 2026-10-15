@@ -37,4 +37,4 @@ Approved operating rules:
 - Keep shopper-facing results simple and decision-oriented while preserving an auditable evidence trail underneath.
 - Never purchase, checkout, change accounts/orders, or perform other account mutations.
 - Emit enough structured telemetry to debug every run and to identify model, token, cost, search, page, browser, retry, and stop behavior without exposing secrets.
-- Respect configured per-run cost/call/work budgets and stop safely rather than exceeding hard limits.
+- Respect configured operational search/API/page-fetch/browser-page limits and stop safely with `budget_exhausted` rather than exceeding them. Report measured provider usage and cost where available; do not impose per-run LLM-call, token, or cost ceilings or separate browser-action/retry ceilings.
