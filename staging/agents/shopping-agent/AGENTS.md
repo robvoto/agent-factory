@@ -10,6 +10,7 @@ This package is a template for a new agent. It is not enabled until approved.
 - `agent.json` defines the staged agent contract.
 - `specialist_contract.py` adapts the universal Agent Hub task envelope into this specialist.
 - `skills/INDEX.md` lists reusable skills if skills exist.
+- `BACKLOG.md` tracks Shopping-owned follow-up work; it is not the Factory platform backlog or an instruction to alter the active AF-058 implementation.
 
 Do not turn `README.md` or `AGENTS.md` into a documentation index.
 
