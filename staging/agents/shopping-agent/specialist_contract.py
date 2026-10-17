@@ -23,16 +23,26 @@ from typing import Any
 
 _ALLOWED_FIELDS = {
     "task",
+    "task_kind",
     "request_id",
     "run_id",
     "source",
+    "source_request",
     "execution_mode",
     "progress_jsonl",
     "project_root",
+    "project_id",
+    "project_contract_version",
+    "project_fingerprint",
+    "project_context",
     "references",
+    "backlog_reference",
     "human_approved",
     "approval_token",
     "resume",
+    "decision",
+    "governed_skills",
+    "execution_constraints",
 }
 
 # Kept in sync with project_context_contract.required in this package's agent.json.
