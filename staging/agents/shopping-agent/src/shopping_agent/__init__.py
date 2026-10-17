@@ -1,5 +1,6 @@
 """Deterministic shopping workflow implementation."""
 
+from .providers import create_shopping_providers
 from .workflow import (
     BrowserRequest,
     DiscoveryRequest,
@@ -22,6 +23,7 @@ __all__ = [
     "ProviderUsage",
     "ShoppingConfig",
     "ShoppingProviders",
+    "create_shopping_providers",
     "classify_evidence",
     "extract_product_offers",
     "parse_constraints",
