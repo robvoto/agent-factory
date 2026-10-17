@@ -7,6 +7,7 @@ fully testable offline.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import re
@@ -61,7 +62,7 @@ _PURCHASE_ACTION = re.compile(
     r"add\s+to\s+(?:my\s+)?cart|complete\s+(?:the\s+)?purchase|"
     r"change\s+(?:my\s+)?account|update\s+(?:my\s+)?account|"
     r"cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order|"
-    r"(?:buy|purchase|order)\s+(?:it|this|that|the|a|an|me|for\s+me)\b)",
+    r"(?:buy|purchase|order)\s+(?:(?:for\s+)?me\s+|the\s+|a\s+|an\s+)?[\w-]+\b)",
     re.IGNORECASE,
 )
 _SECRET_ASSIGNMENT = re.compile(
@@ -627,6 +628,20 @@ def _safe_host(url: str) -> str | None:
         parsed = urlsplit(url)
         host = (parsed.hostname or "").lower().rstrip(".")
         if parsed.scheme.lower() != "https" or not host or parsed.username or parsed.password:
+            return None
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            address = None
+        if address is not None:
+            if not address.is_global:
+                return None
+        elif (
+            re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host)
+            or "." not in host
+            or host == "localhost"
+            or host.endswith((".localhost", ".local", ".internal", ".lan"))
+        ):
             return None
         if re.search(r"(^|\.)google\.[a-z.]+$", host) or re.search(r"(^|\.)googleusercontent\.com$", host):
             return None

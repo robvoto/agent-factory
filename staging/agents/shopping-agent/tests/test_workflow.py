@@ -285,6 +285,18 @@ def test_browser_fallback_is_not_used_without_configured_page_limit():
     assert result["candidates"][0]["classification"] == "UNVERIFIED"
 
 
+@pytest.mark.parametrize("task", ["buy camera", "purchase camera", "order camera"])
+def test_direct_purchase_verbs_without_object_article_are_refused(task):
+    calls = []
+    providers = ShoppingProviders(google_shopping_search=lambda _: calls.append(True) or ProviderCall([]))
+
+    result = run_shopping_workflow(task, providers)
+
+    assert result["status"] == "refused"
+    assert result["recommendations"] == []
+    assert calls == []
+
+
 @pytest.mark.parametrize(
     "task",
     [
@@ -322,6 +334,37 @@ def test_google_redirect_candidates_are_not_fetched_and_secrets_are_redacted():
     assert "private" not in rendered
     assert result["candidates"] == []
     assert result["telemetry"]["search_call_count"] == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://localhost/item",
+        "https://printer.local/item",
+        "https://service.internal/item",
+        "https://127.0.0.1/item",
+        "https://127.1/item",
+        "https://2130706433/item",
+        "https://0x7f000001/item",
+        "https://0177.0.0.1/item",
+        "https://10.0.0.7/item",
+        "https://169.254.169.254/latest/meta-data",
+        "https://[::1]/item",
+    ],
+)
+def test_local_and_non_global_retailer_urls_are_not_fetched(url):
+    fetched = []
+    result = run_shopping_workflow(
+        shopping_task(),
+        ShoppingProviders(
+            google_shopping_search=lambda _: ProviderCall([{"title": "Hose", "link": url}]),
+            fetch_product_page=lambda value: fetched.append(value) or ProviderCall(product_page()),
+        ),
+    )
+
+    assert fetched == []
+    assert result["candidates"] == []
+    assert result["recommendations"] == []
 
 
 def test_retailer_variant_link_is_preserved_while_sensitive_query_is_removed():
