@@ -1,10 +1,10 @@
 # Shopping Agent
 
-**Status:** staged draft — not enabled.
+**Status:** staged test candidate — not enabled.
 
 Do not move this package to `config/agents` without human approval.
 
-The package contains a deterministic LangGraph workflow in `src/shopping_agent/` with four stages: parse constraints, discover with Google Shopping, verify direct retailer Product/Offer evidence, and rank verified options. It includes manual SerpApi and direct-retailer HTTPS adapters plus a CLI. Credentials stay in the environment, browser automation is not configured, and the workflow makes no LLM calls. Offline tests inject mocks.
+The package contains a deterministic LangGraph workflow in `src/shopping_agent/` with four stages: parse constraints, discover with Google Shopping, verify direct retailer Product/Offer evidence, and rank verified options. It includes SerpApi and direct-retailer HTTPS adapters plus a command-line interface. Credentials stay in the environment, browser automation is not configured, and the workflow makes no LLM calls. Offline tests inject mocks.
 
 ## Verification rules
 
@@ -23,9 +23,9 @@ The package contains a deterministic LangGraph workflow in `src/shopping_agent/`
 
 Provider adapters are passed in `ShoppingProviders` and must return `ProviderCall`. They should keep credentials in their own runtime environment and never include credentials or raw private data in returned values used for logging. The workflow records provider call counts and available cost, token, retry, page, browser-action, duration, status, and safe retailer-domain metadata. Before external discovery it strips common credential assignments and prose forms, standalone bearer tokens, email addresses, phone numbers, and explicit URLs from search queries. It reports token usage as unavailable because this workflow makes no LLM calls; estimated provider cost is marked incomplete when any invoked provider does not report it. Raw provider errors, search queries, page content, cookies, headers, and credentials are not written to telemetry.
 
-A manual CLI is available with a SerpApi Google Shopping adapter and a direct retailer HTML adapter. It is not registered with Agent Hub and does not enable Telegram, browser automation, checkout, purchases, or account changes.
+A Hub subprocess adapter is available for the isolated Agent Hub test profile. The adapter uses the same deterministic workflow, reads the SerpApi credential only from the Hub process environment, and does not enable browser automation, checkout, purchases, or account changes. Test runs still require explicitly configured API-call, page-fetch, and per-request timeout values; the adapter does not invent operational defaults.
 
-Set `SERPAPI_KEY` in the process environment (never in source code or command arguments), then run from the Agent Factory repository root:
+Set `SERPAPI_KEY` in the Agent Hub process environment (never in source code or command arguments), then route a shopping task to this candidate from an Agent Hub process running with `HUB_PROFILE=test`. Configure `SHOPPING_MAX_API_CALLS`, `SHOPPING_MAX_PAGE_FETCHES`, and `SHOPPING_TIMEOUT_SECONDS` in that test process. If any operational limit is missing or invalid, the adapter reports the exact configuration variable and makes no provider call. The command-line interface remains available for isolated local checks:
 
 ```sh
 PYTHONPATH=staging/agents/shopping-agent/src python -m shopping_agent \

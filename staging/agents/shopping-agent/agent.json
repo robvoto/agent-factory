@@ -24,8 +24,19 @@
     "retention": "none"
   },
   "runtime": {
-    "mode": "manual",
-    "notes": "Implementation pending. Approved target is a deterministic LangGraph shopping workflow. Agent Hub -> AI Tech Lead owns substantive implementation."
+    "mode": "subprocess",
+    "entrypoint": "python src/run_agent.py",
+    "working_directory": ".",
+    "input_arg": "--input-json",
+    "output_arg": "--output-json",
+    "default_execution_mode": "execute",
+    "environment_allowlist": [
+      "SERPAPI_KEY",
+      "SHOPPING_MAX_API_CALLS",
+      "SHOPPING_MAX_PAGE_FETCHES",
+      "SHOPPING_TIMEOUT_SECONDS"
+    ],
+    "notes": "Staged-test adapter for Agent Hub. The test profile resolves working_directory to this staged package; promotion remains a separate human-approved Factory action."
   },
   "input_contract": {
     "protocol": "agent-hub.task",
