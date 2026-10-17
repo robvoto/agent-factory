@@ -45,16 +45,26 @@
       "task"
     ],
     "optional_fields": [
+      "task_kind",
       "request_id",
       "run_id",
       "source",
+      "source_request",
       "execution_mode",
       "progress_jsonl",
       "project_root",
+      "project_id",
+      "project_contract_version",
+      "project_fingerprint",
+      "project_context",
       "references",
+      "backlog_reference",
       "human_approved",
       "approval_token",
-      "resume"
+      "resume",
+      "decision",
+      "governed_skills",
+      "execution_constraints"
     ],
     "accepted_context": [
       "project_root",

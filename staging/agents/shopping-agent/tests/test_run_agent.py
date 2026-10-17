@@ -55,10 +55,26 @@ def test_process_payload_passes_hub_ids_and_explicit_limits(monkeypatch):
     monkeypatch.setattr(run_agent, "run_shopping_workflow", fake_workflow)
     result = run_agent.process_payload({
         "task": "Find a garden hose",
+        "task_kind": "shopping",
         "request_id": "request-1",
         "run_id": "run-1",
-        "source": "telegram",
+        "source": "agent-hub",
+        "source_request": "Find a garden hose",
         "execution_mode": "execute",
+        "progress_jsonl": "/tmp/progress.jsonl",
+        "project_root": str(PACKAGE_ROOT),
+        "project_id": "garden",
+        "project_contract_version": 1,
+        "project_fingerprint": "fingerprint",
+        "project_context": {"schema_version": 1, "project_root": str(PACKAGE_ROOT), "references": []},
+        "references": ["https://example.com"],
+        "backlog_reference": {"type": "issue", "id": "GH-1"},
+        "human_approved": True,
+        "approval_token": "approval",
+        "resume": {"cursor": "one"},
+        "decision": {"option": "continue"},
+        "governed_skills": [{"slug": "shopping", "version": 1}],
+        "execution_constraints": {"profile": "test", "max_api_calls": 12},
     })
 
     assert result["status"] == "failed"
