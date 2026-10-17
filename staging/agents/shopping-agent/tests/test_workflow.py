@@ -477,6 +477,54 @@ def test_provider_usage_and_warning_thresholds_are_reported_before_next_call(cap
     assert len(search_requests) == 2
 
 
+def test_missing_provider_cost_keeps_the_aggregate_unknown():
+    url = "https://retailer.example/products/hose"
+    providers = ShoppingProviders(
+        google_shopping_search=lambda _: ProviderCall(
+            [{"title": "Hose", "link": url}],
+            usage=ProviderUsage(estimated_cost_usd=Decimal("0.01")),
+        ),
+        fetch_product_page=lambda _: ProviderCall(product_page()),
+    )
+
+    result = run_shopping_workflow(shopping_task(), providers)
+
+    assert result["telemetry"]["estimated_cost_usd"] is None
+    assert result["telemetry"]["estimated_cost_complete"] is False
+    assert result["telemetry"]["calls"][0]["estimated_cost_usd_when_available"] == "0.01"
+    assert result["telemetry"]["calls"][1]["estimated_cost_usd_when_available"] is None
+
+
+def test_provider_search_exception_is_counted_and_redacted():
+    secret_text = "provider failed with api_key=do-not-log"
+
+    def search(_: DiscoveryRequest) -> ProviderCall:
+        raise RuntimeError(secret_text)
+
+    result = run_shopping_workflow(
+        shopping_task(),
+        ShoppingProviders(google_shopping_search=search),
+    )
+
+    telemetry = result["telemetry"]
+    assert telemetry["search_call_count"] == 1
+    assert telemetry["api_call_count"] == 1
+    assert telemetry["error_count"] == 1
+    assert telemetry["calls"][0]["status"] == "error"
+    assert telemetry["calls"][0]["error_type"] == "RuntimeError"
+    assert secret_text not in json.dumps(telemetry)
+    assert telemetry["estimated_cost_usd"] is None
+    assert telemetry["usage_availability"]["provider_cost"] == "partial or unavailable"
+
+
+def test_no_provider_calls_report_cost_as_unavailable():
+    result = run_shopping_workflow(shopping_task(), ShoppingProviders())
+
+    assert result["telemetry"]["calls"] == []
+    assert result["telemetry"]["estimated_cost_usd"] is None
+    assert result["telemetry"]["usage_availability"]["provider_cost"] == "unavailable"
+
+
 @pytest.mark.parametrize(
     "field",
     ["max_retries", "max_llm_calls", "max_total_tokens", "max_estimated_cost_usd", "max_browser_actions"],

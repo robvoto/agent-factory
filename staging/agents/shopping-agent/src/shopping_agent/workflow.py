@@ -813,7 +813,7 @@ def _build_workflow(providers: ShoppingProviders, config: ShoppingConfig):
                 response = providers.google_shopping_search(
                     DiscoveryRequest(query=query, postcode=parsed["postcode"])
                 )
-            except ProviderError as exc:
+            except Exception as exc:
                 _record_call(telemetry, state["run_id"], "discovery", "google_shopping_search", "serpapi-google-shopping", call_start, "error", type(exc).__name__)
                 _warn_operational_threshold(telemetry, config, "search_call_count")
                 _warn_operational_threshold(telemetry, config, "api_call_count")
@@ -864,7 +864,7 @@ def _build_workflow(providers: ShoppingProviders, config: ShoppingConfig):
                 call_start = time.perf_counter()
                 try:
                     response = providers.fetch_product_page(candidate["request_url"])
-                except ProviderError as exc:
+                except Exception as exc:
                     _record_call(telemetry, state["run_id"], "verification", "page_fetch", "retailer-page-fetch", call_start, "error", type(exc).__name__, candidate["url"])
                     _warn_operational_threshold(telemetry, config, "page_fetch_count")
                 else:
@@ -908,7 +908,7 @@ def _build_workflow(providers: ShoppingProviders, config: ShoppingConfig):
                         response = providers.browser_inspect_product(
                             BrowserRequest(candidate["request_url"], postcode, missing, remaining_pages)
                         )
-                    except ProviderError as exc:
+                    except Exception as exc:
                         _record_call(telemetry, state["run_id"], "verification", "browser_fallback", "browser", call_start, "error", type(exc).__name__, candidate["url"])
                         telemetry["browser_page_count"] = None
                         telemetry["browser_fallback_status"] = "usage_unavailable"
@@ -1104,13 +1104,13 @@ def _record_call(
 ) -> None:
     usage = usage or ProviderUsage()
     telemetry["provider_counts"][provider] = telemetry["provider_counts"].get(provider, 0) + 1
-    if usage.estimated_cost_usd is not None:
+    if usage.estimated_cost_usd is None:
+        telemetry["estimated_cost_usd"] = None
+        telemetry["estimated_cost_complete"] = False
+    elif all(call["estimated_cost_usd_when_available"] is not None for call in telemetry["calls"]):
         current = telemetry["estimated_cost_usd"]
         telemetry["estimated_cost_usd"] = usage.estimated_cost_usd if current is None else current + usage.estimated_cost_usd
-    else:
-        if not telemetry["calls"]:
-            telemetry["estimated_cost_usd"] = None
-        telemetry["estimated_cost_complete"] = False
+        telemetry["estimated_cost_complete"] = True
     if usage.retry_count:
         telemetry["retry_count"] += usage.retry_count
     if status == "error":
@@ -1149,8 +1149,8 @@ def _base_telemetry(request_id: str, run_id: str, started_at: str) -> dict[str, 
         "input_tokens": None,
         "output_tokens": None,
         "cached_tokens": None,
-        "estimated_cost_usd": Decimal(0),
-        "estimated_cost_complete": True,
+        "estimated_cost_usd": None,
+        "estimated_cost_complete": False,
         "search_call_count": 0,
         "api_call_count": 0,
         "page_fetch_count": 0,
@@ -1255,7 +1255,13 @@ def run_shopping_workflow(
         "component_counts": "measured",
         "provider_counts": "measured for invoked adapters",
         "llm_tokens": "unavailable; this workflow makes no LLM calls",
-        "provider_cost": "complete" if output["telemetry"]["estimated_cost_complete"] else "partial or unavailable",
+        "provider_cost": (
+            "unavailable"
+            if not output["telemetry"]["calls"]
+            else "complete"
+            if output["telemetry"]["estimated_cost_complete"]
+            else "partial or unavailable"
+        ),
         "browser_pages_and_actions": (
             "unavailable" if output["telemetry"]["browser_page_count"] is None or output["telemetry"]["browser_action_count"] is None else "measured"
         ),
