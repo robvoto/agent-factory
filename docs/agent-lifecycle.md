@@ -190,7 +190,7 @@ not implied by Factory's local validation.
 At minimum:
 
 ```bash
-python -m pytest -q
+uv run pytest -q
 ```
 
 Additional agent-specific tests can be added later.
