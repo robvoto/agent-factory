@@ -55,6 +55,15 @@ Telegram conversations can become expensive because the whole thread may contrib
 
 When validating Telegram Web through Human MCP:
 
+### Isolate each worker
+
+A browser tab isolates a page, not a Telegram conversation. Before testing, check whether another worker is using the same bot/chat or waiting for a reply. Use a dedicated test chat/bot or a separate test conversation; do not send into another worker's active conversation.
+
+- Open a new workflow-owned background tab with `browser_open_tab(active=false)`, or a separate background browser session with `browser_open_session(focused=false)` when a separate window is useful.
+- Retain the returned `page_id` and pass it to every browser action. Use `bring_to_front=false` if selecting the owned tab.
+- Never take over, focus, navigate, reload, fill, or close an existing page or a page owned by another worker. Reuse only a page this workflow created; on retry, reuse its `page_id` rather than opening another tab.
+- Complete browser reads and actions without bringing the page to the foreground when the tool supports it. If non-focused operation is unavailable, do not disrupt a user or another worker's active browser; report that limitation and use an explicitly isolated workflow-owned session.
+
 1. Open a dedicated owned Telegram tab and retain its `page_id`.
 2. Take a fresh snapshot before interaction.
 3. Identify the **real composer**:
