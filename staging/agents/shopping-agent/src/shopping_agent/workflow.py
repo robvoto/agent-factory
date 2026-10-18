@@ -128,6 +128,7 @@ class ShoppingConstraints:
     required_variant_tokens: tuple[str, ...] = ()
     required_product_terms: tuple[str, ...] = ()
     clarification_questions: tuple[str, ...] = ()
+    budget_is_strict: bool = False
 
 
 @dataclass(frozen=True)
@@ -316,16 +317,20 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     length_was_mentioned = bool(re.search(r"\blength\b", normalized, re.IGNORECASE))
 
     budget_pattern = re.compile(
-        r"(?:(AUD|A\$|\$)\s*(\d[\d,]*(?:\.\d{1,2})?)|"
-        r"(\d[\d,]*(?:\.\d{1,2})?)\s*(AUD))",
+        r"(?:(?P<operator>\b(?:under|below|less\s+than|maximum|max|up\s+to|at\s+most))\s+)?"
+        r"(?:(?P<currency_prefix>AUD|A\$|\$)\s*(?P<prefix_amount>\d[\d,]*(?:\.\d{1,2})?)|"
+        r"(?P<suffix_amount>\d[\d,]*(?:\.\d{1,2})?)\s*(?P<currency_suffix>AUD))",
         re.IGNORECASE,
     )
     budget_match = budget_pattern.search(normalized)
     budget = None
     budget_currency_ambiguous = False
+    budget_is_strict = False
     if budget_match:
-        currency = (budget_match.group(1) or budget_match.group(4) or "").upper()
-        value = budget_match.group(2) or budget_match.group(3)
+        currency = (budget_match.group("currency_prefix") or budget_match.group("currency_suffix") or "").upper()
+        value = budget_match.group("prefix_amount") or budget_match.group("suffix_amount")
+        operator = " ".join((budget_match.group("operator") or "").casefold().split())
+        budget_is_strict = operator in {"under", "below", "less than"}
         if currency in {"AUD", "A$"}:
             budget = Decimal(value.replace(",", ""))
         elif currency == "$":
@@ -373,6 +378,7 @@ def parse_constraints(task: str) -> ShoppingConstraints:
         required_variant_tokens=required_variant_tokens,
         required_product_terms=required_product_terms,
         clarification_questions=tuple(questions),
+        budget_is_strict=budget_is_strict,
     )
 
 
@@ -613,7 +619,10 @@ def classify_evidence(
         unknown.append("delivered_price_aud")
     elif constraints.budget_aud is not None:
         budget_basis = evidence.item_price_aud if constraints.budget_item_only else delivered
-        if budget_basis is not None and budget_basis > constraints.budget_aud:
+        if budget_basis is not None and (
+            budget_basis > constraints.budget_aud
+            or (constraints.budget_is_strict and budget_basis == constraints.budget_aud)
+        ):
             failures.append("over_budget")
 
     if failures:
@@ -1040,6 +1049,7 @@ def _constraints_from_dict(value: Mapping[str, Any]) -> ShoppingConstraints:
         required_variant_tokens=tuple(value.get("required_variant_tokens", [])),
         required_product_terms=tuple(value.get("required_product_terms", [])),
         clarification_questions=tuple(value.get("clarification_questions", [])),
+        budget_is_strict=bool(value.get("budget_is_strict")),
     )
 
 

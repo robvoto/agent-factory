@@ -20,6 +20,7 @@ from shopping_agent import (
     parse_constraints,
     run_shopping_workflow,
 )
+from shopping_agent.workflow import classify_evidence
 
 
 def product_page(
@@ -90,7 +91,68 @@ def test_constraint_parser_reads_exact_length_postcode_and_aud_budget():
     assert constraints.required_length_m == Decimal("2.00")
     assert constraints.postcode == "2000"
     assert constraints.budget_aud == Decimal(60)
+    assert constraints.budget_is_strict is True
     assert not constraints.clarification_questions
+
+
+@pytest.mark.parametrize(
+    ("budget_phrase", "strict"),
+    [
+        ("under AUD 30", True),
+        ("below A$30", True),
+        ("LESS THAN 30 AUD", True),
+        ("maximum AUD 30", False),
+        ("max AUD 30", False),
+        ("up to AUD 30", False),
+        ("at most AUD 30", False),
+        ("AUD 30", False),
+    ],
+)
+@pytest.mark.parametrize("delivered_price", ["29.99", "30.00", "30.01"])
+def test_workflow_preserves_explicit_budget_comparison(budget_phrase, strict, delivered_price):
+    task = f"Find a hose exactly 2 m, {budget_phrase}, postcode 2000"
+    parsed = parse_constraints(task)
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(item_price=delivered_price, shipping="0.00")},
+        [{"title": "Garden hose", "link": url}],
+    )
+
+    result = run_shopping_workflow(task, providers)
+
+    assert parsed.budget_aud == Decimal("30")
+    assert parsed.budget_is_strict is strict
+    assert parsed.required_product_terms == ("hose",)
+    price = Decimal(delivered_price)
+    within_budget = price < Decimal("30") if strict else price <= Decimal("30")
+    candidate = result["candidates"][0]
+    assert candidate["classification"] == ("PASS" if within_budget else "FAIL")
+    assert ("over_budget" in candidate["reasons"]) is (not within_budget)
+    assert len(result["recommendations"]) == int(within_budget)
+
+
+@pytest.mark.parametrize("operator", ["under", "at most"])
+@pytest.mark.parametrize("item_price", ["24.99", "25.00", "25.01"])
+@pytest.mark.parametrize("item_only", [False, True])
+def test_budget_comparison_keeps_item_only_and_delivered_basis(operator, item_price, item_only):
+    suffix = ", item price only" if item_only else ""
+    constraints = parse_constraints(
+        f"Find a hose exactly 2 m, {operator} AUD 25, postcode 2000{suffix}"
+    )
+    evidence = extract_product_offers(
+        product_page(item_price=item_price, shipping="5.00"),
+        "https://retailer.example/products/hose",
+        "2000",
+    )[0]
+
+    status, reasons, delivered = classify_evidence(evidence, constraints, "retailer.example")
+
+    price_basis = Decimal(item_price) if item_only else Decimal(item_price) + Decimal("5.00")
+    within_budget = price_basis < Decimal("25") if operator == "under" else price_basis <= Decimal("25")
+    assert constraints.budget_item_only is item_only
+    assert delivered == Decimal(item_price) + Decimal("5.00")
+    assert status == ("PASS" if within_budget else "FAIL")
+    assert ("over_budget" in reasons) is (not within_budget)
 
 
 def test_constraint_parser_preserves_explicit_model_and_variant_tokens():
