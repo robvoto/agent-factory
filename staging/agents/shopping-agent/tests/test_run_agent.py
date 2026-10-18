@@ -6,6 +6,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PACKAGE_ROOT / "src"))
 
@@ -90,7 +92,17 @@ def test_process_payload_passes_hub_ids_and_explicit_limits(monkeypatch):
     assert "test-only-key" not in result["summary"]
 
 
-def test_process_payload_marks_only_completed_work_as_success(monkeypatch):
+@pytest.mark.parametrize(
+    ("workflow_status", "hub_status"),
+    [
+        ("completed", "success"),
+        ("provider_unavailable", "failed"),
+        ("refused", "failed"),
+        ("budget_exhausted", "failed"),
+        ("failed", "failed"),
+    ],
+)
+def test_process_payload_maps_terminal_workflow_status(monkeypatch, workflow_status, hub_status):
     monkeypatch.setenv("SHOPPING_MAX_API_CALLS", "12")
     monkeypatch.setenv("SHOPPING_MAX_PAGE_FETCHES", "4")
     monkeypatch.setenv("SHOPPING_TIMEOUT_SECONDS", "7.5")
@@ -100,11 +112,45 @@ def test_process_payload_marks_only_completed_work_as_success(monkeypatch):
     monkeypatch.setattr(
         run_agent,
         "run_shopping_workflow",
-        lambda *args, **kwargs: {"status": "completed", "telemetry": {"calls": []}},
+        lambda *args, **kwargs: {"status": workflow_status, "telemetry": {"calls": []}},
     )
     result = run_agent.process_payload({"task": "Find a garden hose"})
 
-    assert result["status"] == "success"
+    assert result["status"] == hub_status
+
+
+@pytest.mark.parametrize(
+    ("task", "expected_question"),
+    [
+        ("Find a 2 m hose under AUD 50", "What Australian postcode"),
+        ("Find a 2 m hose under $50, postcode 2000", "Does the stated dollar budget mean AUD?"),
+    ],
+)
+def test_real_workflow_clarification_reaches_hub_without_provider_calls(monkeypatch, task, expected_question):
+    monkeypatch.setenv("SHOPPING_MAX_API_CALLS", "12")
+    monkeypatch.setenv("SHOPPING_MAX_PAGE_FETCHES", "4")
+    monkeypatch.setenv("SHOPPING_TIMEOUT_SECONDS", "7.5")
+    monkeypatch.delenv("SERPAPI_KEY", raising=False)
+
+    def forbidden_call(_):
+        pytest.fail("Ambiguous tasks must not call search, page, or browser providers")
+
+    monkeypatch.setattr(
+        run_agent,
+        "create_shopping_providers",
+        lambda *args, **kwargs: ShoppingProviders(
+            google_shopping_search=forbidden_call,
+            fetch_product_page=forbidden_call,
+            browser_inspect_product=forbidden_call,
+        ),
+    )
+
+    result = run_agent.process_payload({"task": task + "; token=test-private-value"})
+
+    assert result["status"] == "needs_clarification"
+    assert expected_question in result["summary"]
+    assert "test-private-value" not in result["summary"]
+    assert "resume_token" not in result
 
 
 def test_process_payload_rejects_unrecognized_hub_fields(monkeypatch):

@@ -87,6 +87,11 @@ def process_payload(payload: Any) -> dict[str, str]:
         return {"status": "failed", "summary": "Shopping workflow failed; inspect redacted agent telemetry."}
 
     workflow_status = result.get("status") if isinstance(result, dict) else None
+    if workflow_status == "needs_clarification":
+        return {
+            "status": "needs_clarification",
+            "summary": " ".join(result["clarification_questions"]),
+        }
     return {
         "status": "success" if workflow_status == "completed" else "failed",
         "summary": json.dumps(result, ensure_ascii=False, separators=(",", ":")),
