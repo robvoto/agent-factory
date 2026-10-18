@@ -291,8 +291,9 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     if not isinstance(task, str) or not task.strip():
         raise ValueError("task must be a non-empty string")
     normalized = task.strip()
-    postcode_match = re.search(r"\bpost\s*code\s*[:#-]?\s*(\d{4})\b", normalized, re.IGNORECASE)
-    postcode = postcode_match.group(1) if postcode_match else None
+    postcode_matches = list(re.finditer(r"\bpost\s*code\s*[:#-]?\s*(\d{4})\b", normalized, re.IGNORECASE))
+    postcodes = {match.group(1) for match in postcode_matches}
+    postcode = next(iter(postcodes)) if len(postcodes) == 1 else None
 
     length_pattern = re.compile(
         r"\b(?:exact(?:ly)?\s+|(?:exact\s+)?length(?:\s+(?:of|is))?\s*[:=]?\s*(?:exactly\s+)?|"
@@ -301,19 +302,15 @@ def parse_constraints(task: str) -> ShoppingConstraints:
         r"metres?|meters?|m|inches?|inch|in|feet|foot|ft)\b",
         re.IGNORECASE,
     )
-    length_match = length_pattern.search(normalized)
-    if length_match is None:
-        length_match = re.search(
+    length_matches = [
+        *length_pattern.finditer(normalized),
+        *re.finditer(
             r"\b(\d+(?:\.\d+)?)\s*(millimetres?|millimeters?|mm|centimetres?|centimeters?|cm|"
             r"metres?|meters?|m|inches?|inch|in|feet|foot|ft)\b",
             normalized,
             re.IGNORECASE,
-        )
-    length_m = None
-    if length_match:
-        amount = Decimal(length_match.group(1))
-        unit = length_match.group(2).lower()
-        length_m = amount * _LENGTH_UNITS_TO_METRES[unit]
+        ),
+    ]
     length_was_mentioned = bool(re.search(r"\blength\b", normalized, re.IGNORECASE))
 
     budget_pattern = re.compile(
@@ -322,27 +319,46 @@ def parse_constraints(task: str) -> ShoppingConstraints:
         r"(?P<suffix_amount>\d[\d,]*(?:\.\d{1,2})?)\s*(?P<currency_suffix>AUD))",
         re.IGNORECASE,
     )
-    budget_match = budget_pattern.search(normalized)
-    budget = None
+    identity_matches = [
+        match for match in _VARIANT_LABEL.finditer(normalized)
+        if not match.group().casefold().startswith(("size", "capacity"))
+    ]
+    budget_text = normalized
+    for match in (*postcode_matches, *identity_matches):
+        budget_text = budget_text[: match.start()] + " " * (match.end() - match.start()) + budget_text[match.end() :]
+    budget_matches = list(budget_pattern.finditer(budget_text))
+    budgets: set[tuple[Decimal, bool]] = set()
     budget_currency_ambiguous = False
-    budget_is_strict = False
-    if budget_match:
-        currency = (budget_match.group("currency_prefix") or budget_match.group("currency_suffix") or "").upper()
-        value = budget_match.group("prefix_amount") or budget_match.group("suffix_amount")
-        operator = " ".join((budget_match.group("operator") or "").casefold().split())
-        budget_is_strict = operator in {"under", "below", "less than"}
-        if currency in {"AUD", "A$"}:
-            budget = Decimal(value.replace(",", ""))
-        elif currency == "$":
+    for match in budget_matches:
+        currency = (match.group("currency_prefix") or match.group("currency_suffix") or "").upper()
+        value = match.group("prefix_amount") or match.group("suffix_amount")
+        operator = " ".join((match.group("operator") or "").casefold().split())
+        budgets.add((Decimal(value.replace(",", "")), operator in {"under", "below", "less than"}))
+        if currency == "$":
             budget_currency_ambiguous = True
+    budget, budget_is_strict = (
+        next(iter(budgets)) if len(budgets) == 1 and not budget_currency_ambiguous else (None, False)
+    )
+    # Explicit postcodes, currency amounts, and identity labels cannot also be lengths.
+    length_matches = [
+        match for match in length_matches
+        if not any(
+            match.start() < protected.end() and protected.start() < match.end()
+            for protected in (*postcode_matches, *budget_matches, *identity_matches)
+        )
+    ]
+    lengths_m = {
+        Decimal(match.group(1)) * _LENGTH_UNITS_TO_METRES[match.group(2).lower()]
+        for match in length_matches
+    }
+    length_m = next(iter(lengths_m)) if len(lengths_m) == 1 else None
 
     item_only = bool(
         re.search(r"\b(?:item\s+price\s+only|excluding\s+(?:delivery|shipping)|before\s+shipping)\b", normalized, re.IGNORECASE)
     )
     variant_text = normalized
-    for match in (postcode_match, length_match, budget_match):
-        if match is not None:
-            variant_text = variant_text[: match.start()] + " " * (match.end() - match.start()) + variant_text[match.end() :]
+    for match in (*postcode_matches, *length_matches, *budget_matches):
+        variant_text = variant_text[: match.start()] + " " * (match.end() - match.start()) + variant_text[match.end() :]
     variant_text = re.sub(r"\b(\d+)\s+([A-Za-z]{1,3})\b", r"\1\2", variant_text)
     required_variant_tokens = tuple(
         dict.fromkeys(
@@ -362,11 +378,17 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     required_variant_tokens = tuple(dict.fromkeys((*required_variant_tokens, *explicit_variants)))
     required_product_terms = tuple(sorted(_product_words(variant_text)))
     questions: list[str] = []
-    if postcode is None:
+    if len(postcodes) > 1:
+        questions.append("What single Australian postcode should I use to verify delivery and the delivered price?")
+    elif postcode is None:
         questions.append("What Australian postcode should I use to verify delivery and the delivered price?")
-    if length_was_mentioned and length_m is None:
+    if len(lengths_m) > 1:
+        questions.append("What single exact product length and unit do you require?")
+    elif length_was_mentioned and length_m is None:
         questions.append("What exact product length and unit do you require?")
-    if budget_currency_ambiguous:
+    if len(budgets) > 1:
+        questions.append("What single AUD budget should I use, and may the price equal that amount?")
+    elif budget_currency_ambiguous:
         questions.append("Does the stated dollar budget mean AUD?")
     return ShoppingConstraints(
         request=normalized,

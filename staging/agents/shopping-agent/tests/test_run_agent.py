@@ -124,6 +124,11 @@ def test_process_payload_maps_terminal_workflow_status(monkeypatch, workflow_sta
     [
         ("Find a 2 m hose under AUD 50", "What Australian postcode"),
         ("Find a 2 m hose under $50, postcode 2000", "Does the stated dollar budget mean AUD?"),
+        ("Find a 2 m hose, postcode 2000, postcode 2001", "What single Australian postcode"),
+        ("Find a 2 m hose exactly 3 m, postcode 2000", "What single exact product length"),
+        ("Find a 2 m hose under AUD 50, max AUD 50, postcode 2000", "What single AUD budget"),
+        ("Find a 2 m hose AUD 50, $50, postcode 2000", "Does the stated dollar budget mean AUD?"),
+        ("Find a 2 m hose $50, AUD 50, postcode 2000", "Does the stated dollar budget mean AUD?"),
     ],
 )
 def test_real_workflow_clarification_reaches_hub_without_provider_calls(monkeypatch, task, expected_question):
@@ -151,6 +156,39 @@ def test_real_workflow_clarification_reaches_hub_without_provider_calls(monkeypa
     assert expected_question in result["summary"]
     assert "test-private-value" not in result["summary"]
     assert "resume_token" not in result
+
+
+def test_all_conflicting_fields_reach_hub_as_fixed_questions_without_input_echo(monkeypatch):
+    monkeypatch.setenv("SHOPPING_MAX_API_CALLS", "12")
+    monkeypatch.setenv("SHOPPING_MAX_PAGE_FETCHES", "4")
+    monkeypatch.setenv("SHOPPING_TIMEOUT_SECONDS", "7.5")
+    monkeypatch.delenv("SERPAPI_KEY", raising=False)
+
+    def forbidden_call(_):
+        pytest.fail("Conflicting fields must not invoke a provider")
+
+    monkeypatch.setattr(
+        run_agent,
+        "create_shopping_providers",
+        lambda *args, **kwargs: ShoppingProviders(
+            google_shopping_search=forbidden_call,
+            fetch_product_page=forbidden_call,
+            browser_inspect_product=forbidden_call,
+        ),
+    )
+    result = run_agent.process_payload({
+        "task": "Find secret-product-X100 exactly 2 m and 3 m, postcode 2000 and postcode 2001, "
+        "under $50 and max AUD 60; token=test-private-value",
+    })
+
+    assert result == {
+        "status": "needs_clarification",
+        "summary": (
+            "What single Australian postcode should I use to verify delivery and the delivered price? "
+            "What single exact product length and unit do you require? "
+            "What single AUD budget should I use, and may the price equal that amount?"
+        ),
+    }
 
 
 def test_process_payload_rejects_unrecognized_hub_fields(monkeypatch):
