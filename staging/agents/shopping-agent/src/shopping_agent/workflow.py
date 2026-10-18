@@ -295,18 +295,21 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     postcodes = {match.group(1) for match in postcode_matches}
     postcode = next(iter(postcodes)) if len(postcodes) == 1 else None
 
+    amount_pattern = r"\d+(?:\.\d+)?"
+    unit_pattern = (
+        r"millimetres?|millimeters?|mm|centimetres?|centimeters?|cm|"
+        r"metres?|meters?|m|inches?|inch|in|feet|foot|ft"
+    )
+    length_value_pattern = rf"({amount_pattern})\s*(?:-\s*)?({unit_pattern})\b"
     length_pattern = re.compile(
         r"\b(?:exact(?:ly)?\s+|(?:exact\s+)?length(?:\s+(?:of|is))?\s*[:=]?\s*(?:exactly\s+)?|"
-        r"long\s+)(\d+(?:\.\d+)?)\s*"
-        r"(millimetres?|millimeters?|mm|centimetres?|centimeters?|cm|"
-        r"metres?|meters?|m|inches?|inch|in|feet|foot|ft)\b",
+        r"long\s+)" + length_value_pattern,
         re.IGNORECASE,
     )
     length_matches = [
         *length_pattern.finditer(normalized),
         *re.finditer(
-            r"\b(\d+(?:\.\d+)?)\s*(millimetres?|millimeters?|mm|centimetres?|centimeters?|cm|"
-            r"metres?|meters?|m|inches?|inch|in|feet|foot|ft)\b",
+            r"(?<![\w.])" + length_value_pattern,
             normalized,
             re.IGNORECASE,
         ),
@@ -339,25 +342,37 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     budget, budget_is_strict = (
         next(iter(budgets)) if len(budgets) == 1 and not budget_currency_ambiguous else (None, False)
     )
+    invalid_length_matches = [
+        match for match in re.finditer(
+            rf"(?<![\w.])(?:{amount_pattern}\s*(?:[-–—−]|to)\s*|[-−]\s*)"
+            + length_value_pattern,
+            normalized,
+            re.IGNORECASE,
+        )
+        if not any(
+            match.start() < protected.end() and protected.start() < match.end()
+            for protected in (*postcode_matches, *budget_matches, *identity_matches)
+        )
+    ]
     # Explicit postcodes, currency amounts, and identity labels cannot also be lengths.
     length_matches = [
         match for match in length_matches
         if not any(
             match.start() < protected.end() and protected.start() < match.end()
-            for protected in (*postcode_matches, *budget_matches, *identity_matches)
+            for protected in (*postcode_matches, *budget_matches, *identity_matches, *invalid_length_matches)
         )
     ]
     lengths_m = {
         Decimal(match.group(1)) * _LENGTH_UNITS_TO_METRES[match.group(2).lower()]
         for match in length_matches
     }
-    length_m = next(iter(lengths_m)) if len(lengths_m) == 1 else None
+    length_m = next(iter(lengths_m)) if len(lengths_m) == 1 and not invalid_length_matches else None
 
     item_only = bool(
         re.search(r"\b(?:item\s+price\s+only|excluding\s+(?:delivery|shipping)|before\s+shipping)\b", normalized, re.IGNORECASE)
     )
     variant_text = normalized
-    for match in (*postcode_matches, *length_matches, *budget_matches):
+    for match in (*postcode_matches, *length_matches, *invalid_length_matches, *budget_matches):
         variant_text = variant_text[: match.start()] + " " * (match.end() - match.start()) + variant_text[match.end() :]
     variant_text = re.sub(r"\b(\d+)\s+([A-Za-z]{1,3})\b", r"\1\2", variant_text)
     required_variant_tokens = tuple(
@@ -382,7 +397,7 @@ def parse_constraints(task: str) -> ShoppingConstraints:
         questions.append("What single Australian postcode should I use to verify delivery and the delivered price?")
     elif postcode is None:
         questions.append("What Australian postcode should I use to verify delivery and the delivered price?")
-    if len(lengths_m) > 1:
+    if invalid_length_matches or len(lengths_m) > 1:
         questions.append("What single exact product length and unit do you require?")
     elif length_was_mentioned and length_m is None:
         questions.append("What exact product length and unit do you require?")

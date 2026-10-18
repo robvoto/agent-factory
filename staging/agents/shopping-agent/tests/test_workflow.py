@@ -258,11 +258,101 @@ def test_masking_all_constraint_spans_does_not_remove_an_identical_numeric_model
     assert parsed.required_variant_tokens == ("2000", "blue")
 
 
-def test_unsupported_hyphenated_length_still_requires_the_existing_clarification():
+def test_ascii_hyphenated_length_is_normalized_to_existing_metres():
     parsed = parse_constraints("Find a hose length 2-m, AUD 50, postcode 2000")
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.clarification_questions == ()
+
+
+def test_unicode_unit_separator_is_not_silently_normalized():
+    parsed = parse_constraints("Find a hose length 7–foot, AUD 50, postcode 2000")
 
     assert parsed.required_length_m is None
     assert parsed.clarification_questions == ("What exact product length and unit do you require?",)
+
+
+@pytest.mark.parametrize("requested_length", ["7-foot", "7-ft", "7 - foot"])
+@pytest.mark.parametrize(
+    ("evidence_length", "expected_classification"),
+    [("2.1336", "PASS"), ("1.8288", "FAIL"), (None, "UNVERIFIED")],
+)
+def test_hyphenated_request_still_requires_exact_structured_length_evidence(requested_length, evidence_length, expected_classification):
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(length=evidence_length, name="7-foot hose")},
+        [{"title": "7-foot hose", "link": url}],
+    )
+
+    task = f"Find a {requested_length} hose, AUD 50, postcode 2000"
+    parsed = parse_constraints(task)
+    result = run_shopping_workflow(task, providers)
+
+    assert parsed.required_length_m == Decimal("2.1336")
+    assert parsed.required_product_terms == ("hose",)
+    candidate = result["candidates"][0]
+    assert candidate["classification"] == expected_classification
+    assert len(result["recommendations"]) == int(expected_classification == "PASS")
+    if expected_classification == "FAIL":
+        assert "length_mismatch" in candidate["reasons"]
+    elif expected_classification == "UNVERIFIED":
+        assert "exact_length" in candidate["reasons"]
+
+
+@pytest.mark.parametrize("hyphenated", ["2-m", "0.5-m"])
+def test_hyphenated_and_plain_equivalent_lengths_do_not_conflict(hyphenated):
+    centimetres = "200" if hyphenated == "2-m" else "50"
+    parsed = parse_constraints(
+        f"Find a hose {hyphenated}, exactly {centimetres} cm, AUD 50, postcode 2000"
+    )
+
+    assert parsed.required_length_m == Decimal(centimetres) / Decimal("100")
+    assert parsed.clarification_questions == ()
+    assert parsed.required_product_terms == ("hose",)
+    assert parsed.required_variant_tokens == ()
+
+
+@pytest.mark.parametrize(
+    "unsupported_length",
+    [
+        "6-7-foot", "6 – 7-foot", "6—7ft", "6−7-foot", "6 to 7-foot", "6to7ft",
+        "-7-foot", "−7-foot", "- 7ft", "exactly -7ft", "6–7-foot, exactly 2 m",
+    ],
+)
+def test_range_and_negative_lengths_request_one_exact_length_before_providers(unsupported_length):
+    task = f"Find a hose {unsupported_length}, AUD 50, postcode 2000"
+
+    def forbidden_call(_):
+        pytest.fail("Ranges and negative lengths must not invoke providers")
+
+    parsed = parse_constraints(task)
+    result = run_shopping_workflow(
+        task,
+        ShoppingProviders(
+            google_shopping_search=forbidden_call,
+            fetch_product_page=forbidden_call,
+            browser_inspect_product=forbidden_call,
+        ),
+    )
+
+    assert parsed.required_length_m is None
+    assert parsed.clarification_questions == ("What single exact product length and unit do you require?",)
+    assert parsed.required_product_terms == ("hose",)
+    assert parsed.required_variant_tokens == ()
+    assert result["status"] == "needs_clarification"
+    assert result["telemetry"]["calls"] == []
+    assert result["recommendations"] == []
+
+
+@pytest.mark.parametrize("model", ["X100-7-foot", "X100-6-7-foot"])
+def test_hyphenated_model_identity_is_not_reinterpreted_as_a_request_length(model):
+    parsed = parse_constraints(f"Find a hose model {model}, exactly 2 m, AUD 50, postcode 2000")
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.clarification_questions == ()
+    assert model.casefold() in parsed.required_variant_tokens
+    assert "x100" in parsed.required_product_terms
+    assert "foot" in parsed.required_product_terms
 
 
 @pytest.mark.parametrize("label", ["model", "version", "variant", "colour", "color", "material", "finish", "style"])
