@@ -461,20 +461,30 @@ def _stock(offer: Mapping[str, Any]) -> bool | None:
     return None
 
 
-def _postal_codes(region: Any) -> set[str]:
+def _australian_country(value: Any) -> bool:
+    """Accept explicit Australian schema.org country identities, never infer one."""
+
+    if isinstance(value, str):
+        return value.strip().casefold() in {"au", "aus", "australia"}
+    if isinstance(value, Mapping) and "country" in _types(value):
+        identities = [value[key] for key in ("identifier", "name") if key in value]
+        return bool(identities) and all(
+            isinstance(identity, str) and _australian_country(identity)
+            for identity in identities
+        )
+    return False
+
+
+def _australian_postal_codes(region: Any) -> set[str]:
     if isinstance(region, list):
         result: set[str] = set()
         for part in region:
-            result.update(_postal_codes(part))
+            result.update(_australian_postal_codes(part))
         return result
-    if isinstance(region, str):
-        return {region} if re.fullmatch(r"\d{4}", region) else set()
-    if isinstance(region, Mapping):
+    if isinstance(region, Mapping) and _australian_country(region.get("addressCountry")):
         value = region.get("postalCode") or region.get("postalCodeRange")
         if isinstance(value, str) and re.fullmatch(r"\d{4}", value):
             return {value}
-        if isinstance(region.get("address"), Mapping):
-            return _postal_codes(region["address"])
     return set()
 
 
@@ -490,8 +500,8 @@ def _shipping_for_postcode(offer: Mapping[str, Any], postcode: str) -> Decimal |
         eligible = detail.get("eligibleRegion", [])
         if isinstance(destinations, Mapping):
             destinations = [destinations]
-        destination_codes = _postal_codes(destinations)
-        eligible_codes = _postal_codes(eligible)
+        destination_codes = _australian_postal_codes(destinations)
+        eligible_codes = _australian_postal_codes(eligible)
         if postcode not in destination_codes | eligible_codes:
             continue
         rate = detail.get("shippingRate")
