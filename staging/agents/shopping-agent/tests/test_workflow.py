@@ -363,9 +363,105 @@ def test_labeled_numeric_identity_is_not_reclassified_as_an_additional_length(la
 
     assert parsed.required_length_m == Decimal("2")
     assert parsed.clarification_questions == ()
-    # Keep the existing numeric-word normalization; do not erase model identity.
-    assert parsed.required_product_terms == ("2000in", "blue", "hose", "stock")
-    assert parsed.required_variant_tokens == ("2000in", "blue")
+    assert parsed.required_product_terms == ("blue", "hose", "stock")
+    assert parsed.required_variant_tokens == ("2000", "blue")
+
+
+def test_literal_numeric_model_and_following_colour_are_verified_separately():
+    task = "Find a hose model 2000 red exactly 2 m, AUD 50, postcode 2000"
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(name="Red hose model 2000")},
+        [{"title": "Red hose model 2000", "link": url}],
+    )
+
+    parsed = parse_constraints(task)
+    result = run_shopping_workflow(task, providers)
+
+    assert parsed.required_variant_tokens == ("2000", "red")
+    assert parsed.required_product_terms == ("hose", "red")
+    assert parsed.clarification_questions == ()
+    assert result["recommendations"][0]["classification"] == "PASS"
+
+
+@pytest.mark.parametrize(
+    ("discovered_name", "direct_name"),
+    [
+        ("Red hose model 2000", "Red hose model 2001"),
+        ("Red hose model 2000", "Red hose"),
+        ("Red hose model 2000", "Red hose 2000"),
+        ("Red hose model 2001", "Red hose model 2000"),
+        ("Red hose", "Red hose model 2000"),
+    ],
+)
+def test_missing_or_different_explicit_numeric_model_is_not_verified(discovered_name, direct_name):
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(name=direct_name)},
+        [{"title": discovered_name, "link": url}],
+    )
+
+    result = run_shopping_workflow(
+        "Find a hose model 2000 red exactly 2 m, AUD 50, postcode 2000", providers,
+    )
+
+    assert result["candidates"][0]["classification"] == "UNVERIFIED"
+    assert "requested_variant" in result["candidates"][0]["reasons"]
+    assert result["recommendations"] == []
+
+
+@pytest.mark.parametrize(
+    ("stock", "classification", "reason"),
+    [("OutOfStock", "FAIL", "out_of_stock"), (None, "UNVERIFIED", "stock_status")],
+)
+def test_numeric_model_identity_does_not_bypass_direct_stock_evidence(stock, classification, reason):
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(name="Red hose model 2000", stock=stock)},
+        [{"title": "Red hose model 2000", "link": url}],
+    )
+
+    result = run_shopping_workflow(
+        "Find a hose model 2000 red exactly 2 m, AUD 50, postcode 2000", providers,
+    )
+
+    assert result["candidates"][0]["classification"] == classification
+    assert reason in result["candidates"][0]["reasons"]
+    assert result["recommendations"] == []
+
+
+def test_multiple_literal_identity_values_keep_their_original_positions_during_normalization():
+    parsed = parse_constraints(
+        "Find a hose model 2000 red version 3000 blue, exactly 2 m, AUD 50, postcode 2000"
+    )
+
+    assert parsed.required_variant_tokens == ("2000", "3000", "red", "blue")
+    assert parsed.required_product_terms == ("blue", "hose", "red")
+
+
+@pytest.mark.parametrize("label", ["", "size ", "capacity "])
+def test_unlabeled_and_measurement_label_number_unit_normalization_is_unchanged(label):
+    parsed = parse_constraints(f"Find a cordless drill {label}18 V, postcode 2000")
+
+    assert parsed.required_variant_tokens == ("18v", "cordless")
+    assert parsed.clarification_questions == ()
+
+
+@pytest.mark.parametrize("model", ["X100", "X100-7-foot", "X100-2000"])
+def test_alphanumeric_and_hyphenated_identity_values_remain_literal(model):
+    parsed = parse_constraints(f"Find a hose model {model} red exactly 2 m, AUD 50, postcode 2000")
+
+    assert model.casefold() in parsed.required_variant_tokens
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.clarification_questions == ()
+
+
+def test_literal_in_stock_model_identifier_is_preserved():
+    parsed = parse_constraints("Find a hose model in-stock exactly 2 m, AUD 50, postcode 2000")
+
+    assert "in-stock" in parsed.required_variant_tokens
+    assert "stock" in parsed.required_product_terms
+    assert parsed.clarification_questions == ()
 
 
 @pytest.mark.parametrize("label", ["size", "capacity"])

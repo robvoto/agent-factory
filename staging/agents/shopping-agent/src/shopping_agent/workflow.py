@@ -374,7 +374,16 @@ def parse_constraints(task: str) -> ShoppingConstraints:
     variant_text = normalized
     for match in (*postcode_matches, *length_matches, *invalid_length_matches, *budget_matches):
         variant_text = variant_text[: match.start()] + " " * (match.end() - match.start()) + variant_text[match.end() :]
-    variant_text = re.sub(r"\b(\d+)\s+([A-Za-z]{1,3})\b", r"\1\2", variant_text)
+
+    def join_number_word(match: re.Match[str]) -> str:
+        if any(
+            identity.start(1) <= match.start(1) and match.end(1) <= identity.end(1)
+            for identity in identity_matches
+        ):
+            return match.group()
+        return match.group(1) + match.group(2)
+
+    variant_text = re.sub(r"\b(\d+)\s+([A-Za-z]{1,3})\b", join_number_word, variant_text)
     required_variant_tokens = tuple(
         dict.fromkeys(
             token.casefold()
