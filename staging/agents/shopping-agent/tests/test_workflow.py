@@ -166,6 +166,153 @@ def test_constraint_parser_preserves_explicit_model_and_variant_tokens():
     assert constraints.required_variant_tokens == ("x100", "18v", "cordless")
 
 
+@pytest.mark.parametrize(
+    ("clauses", "field", "question"),
+    [
+        (("exactly 2 m", "AUD 50", "postcode 2000", "post code 2001"), "postcode",
+         "What single Australian postcode should I use to verify delivery and the delivered price?"),
+        (("exactly 2 m", "3 m", "AUD 50", "postcode 2000"), "required_length_m",
+         "What single exact product length and unit do you require?"),
+        (("length 200 cm", "exactly 3 m", "AUD 50", "postcode 2000"), "required_length_m",
+         "What single exact product length and unit do you require?"),
+        (("exactly 2 m", "under AUD 50", "below A$60", "postcode 2000"), "budget_aud",
+         "What single AUD budget should I use, and may the price equal that amount?"),
+        (("exactly 2 m", "under AUD 50", "max AUD 50", "postcode 2000"), "budget_aud",
+         "What single AUD budget should I use, and may the price equal that amount?"),
+        (("exactly 2 m", "$50", "AUD 50", "postcode 2000"), "budget_aud",
+         "Does the stated dollar budget mean AUD?"),
+        (("exactly 2 m", "under $50", "at most AUD 60", "postcode 2000"), "budget_aud",
+         "What single AUD budget should I use, and may the price equal that amount?"),
+    ],
+)
+@pytest.mark.parametrize("reverse", [False, True])
+def test_conflicting_constraints_stop_before_provider_calls_in_either_order(clauses, field, question, reverse):
+    ordered_clauses = reversed(clauses) if reverse else clauses
+    task = "Find a blue hose model X100, " + ", ".join(ordered_clauses)
+
+    def forbidden_call(_):
+        pytest.fail("Conflicting or ambiguous constraints must not invoke a provider")
+
+    parsed = parse_constraints(task)
+    result = run_shopping_workflow(
+        task,
+        ShoppingProviders(
+            google_shopping_search=forbidden_call,
+            fetch_product_page=forbidden_call,
+            browser_inspect_product=forbidden_call,
+        ),
+    )
+
+    assert getattr(parsed, field) is None
+    assert parsed.clarification_questions == (question,)
+    assert parsed.required_product_terms == ("blue", "hose", "x100")
+    assert parsed.required_variant_tokens == ("x100", "blue")
+    assert result["status"] == "needs_clarification"
+    assert result["clarification_questions"] == [question]
+    assert result["recommendations"] == []
+    assert result["telemetry"]["calls"] == []
+    assert result["telemetry"]["api_call_count"] == 0
+
+
+@pytest.mark.parametrize(
+    ("bounds", "strict"),
+    [
+        ("under AUD 50, below A$50.00, less than 50 AUD", True),
+        ("max AUD 50, maximum A$50.00, at most 50 AUD, up to AUD 50, AUD 50", False),
+    ],
+)
+def test_equivalent_repeated_constraints_allow_verification_and_preserve_product_identity(bounds, strict):
+    task = (
+        f"Find a blue hose model X100, exactly 2 m, length 200 cm, {bounds}, "
+        "postcode 2000, post code 2000"
+    )
+    url = "https://retailer.example/products/hose"
+    providers, searches, fetches = providers_for_pages(
+        {url: product_page(name="Blue hose X100")},
+        [{"title": "Blue hose X100", "link": url}],
+    )
+
+    parsed = parse_constraints(task)
+    result = run_shopping_workflow(task, providers)
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.postcode == "2000"
+    assert parsed.budget_aud == Decimal("50")
+    assert parsed.budget_is_strict is strict
+    assert parsed.clarification_questions == ()
+    assert parsed.required_product_terms == ("blue", "hose", "x100")
+    assert parsed.required_variant_tokens == ("x100", "blue")
+    assert result["status"] == "completed"
+    assert result["recommendations"][0]["classification"] == "PASS"
+    assert len(searches) == len(fetches) == 1
+
+
+def test_masking_all_constraint_spans_does_not_remove_an_identical_numeric_model():
+    parsed = parse_constraints(
+        "Find a blue hose model 2000, exactly 2 m, length 200 cm, "
+        "max AUD 50, at most A$50, postcode 2000, post code 2000"
+    )
+
+    assert parsed.clarification_questions == ()
+    assert parsed.required_product_terms == ("blue", "hose")
+    assert parsed.required_variant_tokens == ("2000", "blue")
+
+
+def test_unsupported_hyphenated_length_still_requires_the_existing_clarification():
+    parsed = parse_constraints("Find a hose length 2-m, AUD 50, postcode 2000")
+
+    assert parsed.required_length_m is None
+    assert parsed.clarification_questions == ("What exact product length and unit do you require?",)
+
+
+@pytest.mark.parametrize("label", ["model", "version", "variant", "colour", "color", "material", "finish", "style"])
+def test_labeled_numeric_identity_is_not_reclassified_as_an_additional_length(label):
+    parsed = parse_constraints(
+        f"Find a blue hose {label} 2000 in stock, exactly 2 m, AUD 50, postcode 2000"
+    )
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.clarification_questions == ()
+    # Keep the existing numeric-word normalization; do not erase model identity.
+    assert parsed.required_product_terms == ("2000in", "blue", "hose", "stock")
+    assert parsed.required_variant_tokens == ("2000in", "blue")
+
+
+@pytest.mark.parametrize("label", ["size", "capacity"])
+def test_existing_size_and_capacity_measurements_still_participate_in_length_conflicts(label):
+    parsed = parse_constraints(f"Find a hose {label} 2 m, exactly 3 m, AUD 50, postcode 2000")
+
+    assert parsed.required_length_m is None
+    assert parsed.clarification_questions == ("What single exact product length and unit do you require?",)
+
+
+def test_numeric_identity_value_is_not_stolen_by_following_currency_marker():
+    parsed = parse_constraints("Find a blue hose version 2000, AUD 50, postcode 2000, exactly 2 m")
+
+    assert parsed.budget_aud == Decimal("50")
+    assert parsed.clarification_questions == ()
+    assert parsed.required_variant_tokens == ("2000", "blue")
+
+
+def test_explicit_money_amount_is_not_also_read_as_a_length():
+    parsed = parse_constraints("Find a hose exactly 2 m, under AUD 50 in stock, postcode 2000")
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.budget_aud == Decimal("50")
+    assert parsed.budget_is_strict is True
+    assert parsed.clarification_questions == ()
+
+
+def test_explicit_postcode_is_not_also_read_as_a_length():
+    parsed = parse_constraints("Find a hose postcode 2000 in stock, exactly 2 m, AUD 50")
+
+    assert parsed.required_length_m == Decimal("2")
+    assert parsed.postcode == "2000"
+    assert parsed.budget_aud == Decimal("50")
+    assert parsed.clarification_questions == ()
+    assert "2000in" not in parsed.required_variant_tokens
+
+
 def test_constraint_parser_preserves_explicit_color_variant():
     constraints = parse_constraints("Find a blue garden hose exactly 2 m, postcode 2000")
 
