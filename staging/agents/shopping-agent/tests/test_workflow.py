@@ -30,6 +30,7 @@ def product_page(
     item_price: str | None = "20.00",
     shipping: str | None = "5.00",
     shipping_postcode: str = "2000",
+    shipping_country: object = "AU",
     name: str = "Garden hose",
     item_condition: str | None = None,
     offer_item_condition: str | None = None,
@@ -55,7 +56,11 @@ def product_page(
                     {
                         "@type": "OfferShippingDetails",
                         "shippingRate": {"@type": "MonetaryAmount", "value": shipping, "priceCurrency": "AUD"},
-                        "eligibleRegion": {"@type": "DefinedRegion", "postalCode": shipping_postcode},
+                        "shippingDestination": {
+                            "@type": "DefinedRegion",
+                            "postalCode": shipping_postcode,
+                            "addressCountry": shipping_country,
+                        },
                     }
                 ]
                 if shipping is not None
@@ -480,6 +485,114 @@ def test_product_offer_extraction_uses_exact_postcode_shipping():
     assert evidence[0].shipping_price_aud == Decimal("5.00")
     assert evidence[0].shipping_postcode == "2000"
     assert extract_product_offers(product_page(shipping_postcode="2001"), url, "2000")[0].shipping_price_aud is None
+
+
+@pytest.mark.parametrize(
+    "country",
+    [
+        "AU", "au", "AUS", "Australia",
+        {"@type": "Country", "identifier": "AU"},
+        {"@type": "Country", "name": "Australia"},
+        {"@type": "Country", "identifier": "AUS", "name": "Australia"},
+    ],
+)
+def test_explicit_australian_shipping_country_allows_verified_delivery(country):
+    url = "https://retailer.example/products/hose"
+    providers, _, _ = providers_for_pages(
+        {url: product_page(shipping_country=country)},
+        [{"title": "Garden hose", "link": url}],
+    )
+
+    result = run_shopping_workflow(shopping_task(), providers)
+
+    assert result["candidates"][0]["classification"] == "PASS"
+    assert result["recommendations"][0]["delivered_price_aud"] == "25.00"
+
+
+@pytest.mark.parametrize(
+    "country",
+    [
+        None, "", "US", "NZ", "unknown",
+        {"@type": "Country"},
+        {"@type": "Country", "identifier": "NZ"},
+        {"@type": "Country", "identifier": "AU", "name": "New Zealand"},
+        {"@type": "Country", "identifier": "unknown", "name": "Australia"},
+        {"name": "Australia"},
+    ],
+)
+def test_unproven_australian_shipping_country_never_ranks_a_candidate(country):
+    url = "https://retailer.example/products/hose"
+    page = product_page(shipping_country=country, shipping="0.00")
+    evidence = extract_product_offers(page, url, "2000")[0]
+    providers, _, _ = providers_for_pages(
+        {url: page}, [{"title": "Garden hose", "link": url}],
+    )
+
+    result = run_shopping_workflow(shopping_task(), providers)
+
+    assert evidence.shipping_price_aud is None
+    assert evidence.shipping_postcode is None
+    assert result["candidates"][0]["classification"] == "UNVERIFIED"
+    assert "postcode_specific_shipping_aud" in result["candidates"][0]["reasons"]
+    assert result["recommendations"] == []
+
+
+@pytest.mark.parametrize(
+    ("destinations", "eligible", "extra"),
+    [
+        ({"postalCode": "2000"}, [], {}),
+        ([{"addressCountry": "AU", "postalCode": "2001"}, {"addressCountry": "NZ", "postalCode": "2000"}], [], {}),
+        ({"addressCountry": "AU", "postalCode": "2001"}, {"addressCountry": "NZ", "postalCode": "2000"}, {}),
+        ({"postalCode": "2000"}, {"addressCountry": "AU", "postalCode": "2001"}, {}),
+        ({"addressCountry": "NZ", "postalCode": "2000"}, [], {"addressCountry": "AU"}),
+        ({"addressCountry": "NZ", "postalCode": "2000"}, [], {"shippingOrigin": {"addressCountry": "AU", "postalCode": "2000"}}),
+        ({"addressCountry": "AU", "address": {"addressCountry": "NZ", "postalCode": "2000"}}, [], {}),
+    ],
+)
+def test_shipping_country_and_postcode_must_belong_to_same_destination(destinations, eligible, extra):
+    page = json.loads(product_page().split(">", 1)[1].rsplit("<", 1)[0])
+    page["offers"]["shippingDetails"] = {
+        "@type": "OfferShippingDetails",
+        "shippingDestination": destinations,
+        "eligibleRegion": eligible,
+        "shippingRate": {"priceCurrency": "AUD", "value": "0.00"},
+        **extra,
+    }
+    page["offers"]["seller"] = {"address": {"addressCountry": "AU", "postalCode": "2000"}}
+
+    evidence = extract_product_offers(page, "https://retailer.example/products/hose", "2000")[0]
+
+    assert evidence.shipping_price_aud is None
+    assert evidence.shipping_postcode is None
+
+
+def test_eligible_region_requires_its_own_explicit_australian_country():
+    page = json.loads(product_page().split(">", 1)[1].rsplit("<", 1)[0])
+    detail = page["offers"]["shippingDetails"][0]
+    detail["eligibleRegion"] = detail.pop("shippingDestination")
+
+    evidence = extract_product_offers(page, "https://retailer.example/products/hose", "2000")[0]
+
+    assert evidence.shipping_price_aud == Decimal("5.00")
+    assert evidence.shipping_postcode == "2000"
+
+
+@pytest.mark.parametrize("other_country", ["NZ", "AU"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_shipping_rate_ambiguity_uses_only_proven_australian_destinations(other_country, reverse):
+    page = json.loads(product_page().split(">", 1)[1].rsplit("<", 1)[0])
+    detail = page["offers"]["shippingDetails"][0]
+    other_detail = {
+        "@type": "OfferShippingDetails",
+        "shippingDestination": {"addressCountry": other_country, "postalCode": "2000"},
+        "shippingRate": {"priceCurrency": "AUD", "value": "0.00"},
+    }
+    page["offers"]["shippingDetails"] = [other_detail, detail] if reverse else [detail, other_detail]
+
+    evidence = extract_product_offers(page, "https://retailer.example/products/hose", "2000")[0]
+
+    assert evidence.shipping_price_aud == (None if other_country == "AU" else Decimal("5.00"))
+    assert evidence.shipping_postcode == (None if other_country == "AU" else "2000")
 
 
 def test_variant_group_without_leaf_product_offer_does_not_prove_exact_variant():
