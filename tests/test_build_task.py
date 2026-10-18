@@ -98,6 +98,7 @@ def _prepare(
     relevant_docs: list[str] | None = None,
     relevant_skills: list[str] | None = None,
     time_budget_seconds: int | None = 1800,
+    token_budget: int | None = 12000,
 ):
     return factory_tools.prepare_agent_build_task.invoke(
         {
@@ -107,7 +108,7 @@ def _prepare(
             "test_commands": ["uv run pytest staging/agents/test-agent/tests -q"],
             "relevant_docs": relevant_docs or ["docs/agent-contract.md"],
             "relevant_skills": relevant_skills or ["skills/agent-authoring/SKILL.md"],
-            "token_budget": 12000,
+            "token_budget": token_budget,
             "time_budget_seconds": time_budget_seconds,
             "stop_conditions": ["Stop when acceptance criteria or test commands cannot be satisfied."],
         },
@@ -240,6 +241,28 @@ def test_regeneration_reuses_path_preserves_history_and_requires_new_correlation
     result = build_factory_specialist_result("thread-1", "regenerated", interrupted=False)
     assert result.next_task is not None
     assert result.next_task.references[0] == second["artifact_reference"]
+
+
+def test_unlimited_task_handoff_does_not_add_provider_timeout_rule(tmp_path, monkeypatch) -> None:
+    _stage(tmp_path, monkeypatch)
+    from agent_factory import factory_tools
+
+    prepared = json.loads(
+        _prepare(factory_tools, token_budget=None, time_budget_seconds=None)
+    )
+    factory_tools.approve_agent_build_handoff.invoke(
+        {"build_task_reference": prepared["artifact_reference"]},
+        config={"configurable": {"thread_id": "thread-1"}},
+    )
+
+    result = build_factory_specialist_result("thread-1", "approved", interrupted=False)
+
+    assert result.next_task is not None
+    assert "no aggregate token ceiling" in result.next_task.task
+    assert "no task-wide elapsed-time cutoff" in result.next_task.task
+    assert "provider-call timeout" not in result.next_task.task
+    assert "timeout" not in result.next_task.task.lower()
+    assert "measure and report cumulative usage and progress" in result.next_task.task
 
 
 def test_stale_manifest_regeneration_preserves_old_row(tmp_path, monkeypatch) -> None:
