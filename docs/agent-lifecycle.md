@@ -36,6 +36,10 @@ Shopping Agent may remain Factory-owned as a standard released agent initially. 
 graduates only if its engineering needs later justify the explicit decision; this
 decision does not require Shopping-specific runtime logic in Factory.
 
+### AF-048 Library manufacturing-proof reconciliation (28 October 2026)
+
+The former Library `AF-048_Manufacturing_Proof_Approval.md` is an **obsolete pre-build approval snapshot**, not a live approval request. Current source contains `staging/agents/af048-echo-proof-agent/BUILD_TASK.json`, `BUILD_RESULT.json` (15 focused tests reported passed), and a released package under `agents/af048-echo-proof-agent/` whose manifest is version 1.1.0, subprocess entrypoint. This supersedes the Library snapshot's version 1.0.0/manual-mode/no-build assertions. Preserve the exact historical budget, correlation and original requirements only as the dated Library source when investigating provenance; do not replay that task or request approval based on the stale record. Consult the current manifest, release tests, Hub registry and backlog for current enablement. No lifecycle state was changed by this documentation reconciliation.
+
 ## Release, modification, and Hub boundaries
 
 Factory owns the lifecycle gate for both Factory-owned standard agents and independent
